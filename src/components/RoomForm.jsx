@@ -1,10 +1,17 @@
 // src/components/RoomForm.jsx
-import { Form, Input, InputNumber, Modal, Select } from 'antd';
+import { Form, Input, Modal, Select } from 'antd';
 import { useEffect } from 'react';
 
 const { Option } = Select;
 
-const RoomForm = ({ open, onCancel, onSubmit, initialValues, isEditing, roomTypes }) => {
+const RoomForm = ({
+  open,
+  onCancel,
+  onSubmit,
+  initialValues,
+  isEditing,
+  roomTypes,
+}) => {
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -12,22 +19,19 @@ const RoomForm = ({ open, onCancel, onSubmit, initialValues, isEditing, roomType
       form.setFieldsValue(
         initialValues || {
           room_number: '',
-          floor: 1,
-          room_type_id: roomTypes?.[0]?.room_type_id || null,
-          status: 'AVAILABLE',
+          room_type_id: roomTypes?.[0]?.room_type_id || undefined,
+          status: 'available',
+          image: '',
         }
       );
     }
   }, [open, initialValues, form, roomTypes]);
 
   const handleOk = () => {
-    form
-      .validateFields()
-      .then(values => {
-        onSubmit(values);
-        form.resetFields();
-      })
-      .catch(err => console.log(err));
+    form.validateFields().then((values) => {
+      onSubmit(values);
+      form.resetFields();
+    });
   };
 
   const handleCancel = () => {
@@ -41,18 +45,11 @@ const RoomForm = ({ open, onCancel, onSubmit, initialValues, isEditing, roomType
       open={open}
       onOk={handleOk}
       onCancel={handleCancel}
-      destroyOnClose
       okText={isEditing ? 'Lưu' : 'Thêm'}
       cancelText="Hủy"
+      destroyOnClose
     >
-      <Form
-        form={form}
-        layout="vertical"
-        initialValues={{
-          floor: 1,
-          status: 'AVAILABLE',
-        }}
-      >
+      <Form form={form} layout="vertical">
         <Form.Item
           label="Số phòng"
           name="room_number"
@@ -62,20 +59,12 @@ const RoomForm = ({ open, onCancel, onSubmit, initialValues, isEditing, roomType
         </Form.Item>
 
         <Form.Item
-          label="Tầng"
-          name="floor"
-          rules={[{ required: true, message: 'Vui lòng nhập tầng' }]}
-        >
-          <InputNumber min={1} max={100} style={{ width: '100%' }} />
-        </Form.Item>
-
-        <Form.Item
           label="Loại phòng"
           name="room_type_id"
           rules={[{ required: true, message: 'Vui lòng chọn loại phòng' }]}
         >
           <Select placeholder="Chọn loại phòng">
-            {roomTypes?.map(rt => (
+            {roomTypes?.map((rt) => (
               <Option key={rt.room_type_id} value={rt.room_type_id}>
                 {rt.name}
               </Option>
@@ -89,11 +78,16 @@ const RoomForm = ({ open, onCancel, onSubmit, initialValues, isEditing, roomType
           rules={[{ required: true, message: 'Vui lòng chọn trạng thái' }]}
         >
           <Select>
-            <Option value="AVAILABLE">Trống</Option>
-            <Option value="BOOKED">Đã đặt</Option>
-            <Option value="OCCUPIED">Đang ở</Option>
-            <Option value="CLEANING">Đang dọn</Option>
+            <Option value="available">Trống</Option>
+            <Option value="booked">Đã đặt</Option>
+            <Option value="occupied">Đang ở</Option>
+            <Option value="cleaning">Đang dọn</Option>
+            <Option value="maintenance">Bảo trì</Option>
           </Select>
+        </Form.Item>
+
+        <Form.Item label="Hình ảnh (URL)" name="image">
+          <Input placeholder="Link hình ảnh (không bắt buộc)" />
         </Form.Item>
       </Form>
     </Modal>

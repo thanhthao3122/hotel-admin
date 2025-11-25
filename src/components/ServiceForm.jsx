@@ -1,3 +1,4 @@
+// src/components/ServiceForm.jsx
 import { Form, Input, InputNumber, Modal } from 'antd';
 import { useEffect } from 'react';
 
@@ -6,24 +7,36 @@ const ServiceForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) => 
 
   useEffect(() => {
     if (open) {
-      form.setFieldsValue(
-        initialValues || {
+      if (initialValues) {
+        form.setFieldsValue({
+          name: initialValues.name,
+          // price ở backend là DECIMAL (string), convert sang number
+          price: Number(initialValues.price),
+          unit: initialValues.unit || '',
+        });
+      } else {
+        form.setFieldsValue({
           name: '',
           price: 0,
           unit: '',
-        }
-      );
+        });
+      }
     }
   }, [open, initialValues, form]);
 
   const handleOk = () => {
     form
       .validateFields()
-      .then(values => {
-        onSubmit(values);
+      .then((values) => {
+        // Đảm bảo price là number hoặc string phù hợp backend
+        const payload = {
+          ...values,
+          price: Number(values.price),
+        };
+        onSubmit(payload);
         form.resetFields();
       })
-      .catch(err => console.log(err));
+      .catch((err) => console.log(err));
   };
 
   const handleCancel = () => {
@@ -47,7 +60,7 @@ const ServiceForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) => 
           name="name"
           rules={[{ required: true, message: 'Vui lòng nhập tên dịch vụ' }]}
         >
-          <Input placeholder="VD: Ăn sáng Buffet" />
+          <Input placeholder="VD: Ăn sáng buffet, Giặt ủi..." />
         </Form.Item>
 
         <Form.Item
@@ -59,16 +72,14 @@ const ServiceForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) => 
             min={0}
             step={10000}
             style={{ width: '100%' }}
-            formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
-            parser={v => v.replace(/\./g, '')}
+            formatter={(v) =>
+              `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+            }
+            parser={(v) => v.replace(/\./g, '')}
           />
         </Form.Item>
 
-        <Form.Item
-          label="Đơn vị tính"
-          name="unit"
-          rules={[{ required: true, message: 'Vui lòng nhập đơn vị tính' }]}
-        >
+        <Form.Item label="Đơn vị tính" name="unit">
           <Input placeholder="VD: suất, kg, lượt, chuyến..." />
         </Form.Item>
       </Form>

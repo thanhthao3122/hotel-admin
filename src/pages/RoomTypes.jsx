@@ -1,5 +1,5 @@
 // src/pages/RoomTypes.jsx
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
@@ -17,17 +17,60 @@ import {
   SearchOutlined,
 } from '@ant-design/icons';
 import RoomTypeForm from '../components/RoomTypeForm.jsx';
-import { MOCK_ROOM_TYPES } from '../mock/roomTypes.js';
+import roomTypeApi from '../api/roomTypeApi.js';
 
 const RoomTypes = () => {
-  const [roomTypes, setRoomTypes] = useState(MOCK_ROOM_TYPES);
+  const [roomTypes, setRoomTypes] = useState([]);
   const [searchText, setSearchText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRoomType, setEditingRoomType] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  // Lọc theo tên loại phòng
+  // state cho phân trang Table
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 5,
+    total: 0,
+  });
+
+  // 🔹 Load dữ liệu từ API
+  const fetchRoomTypes = async (page = pagination.current, limit = pagination.pageSize) => {
+    try {
+      setLoading(true);
+      const res = await roomTypeApi.getAll(page, limit);
+      // 👉 Giả sử backend trả về: { success, data, pagination }
+      //    Nếu khác, bạn console.log(res) rồi chỉnh ở đây
+      setRoomTypes(res.data || []);
+      if (res.pagination) {
+        setPagination({
+          current: res.pagination.page,
+          pageSize: res.pagination.limit,
+          total: res.pagination.total,
+        });
+      } else {
+        // fallback: nếu không có pagination từ server
+        setPagination((prev) => ({
+          ...prev,
+          current: page,
+          pageSize: limit,
+          total: (res.data || []).length,
+        }));
+      }
+    } catch (error) {
+      console.error(error);
+      message.error('Không tải được danh sách loại phòng');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRoomTypes(1, pagination.pageSize);
+  }, []);
+
+  // 🔍 Lọc theo tên loại phòng (lọc trên client)
   const filteredRoomTypes = useMemo(() => {
-    return roomTypes.filter(rt =>
+    return roomTypes.filter((rt) =>
       rt.name.toLowerCase().includes(searchText.toLowerCase())
     );
   }, [roomTypes, searchText]);
@@ -42,33 +85,44 @@ const RoomTypes = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id) => {
-    setRoomTypes(prev => prev.filter(rt => rt.room_type_id !== id));
-    message.success('Đã xóa loại phòng');
+  const handleDelete = async (id) => {
+    try {
+      await roomTypeApi.delete(id);
+      message.success('Đã xóa loại phòng');
+      // tải lại data
+      fetchRoomTypes();
+    } catch (error) {
+      console.error(error);
+      const msg =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        'Không xóa được loại phòng';
+      message.error(msg);
+    }
   };
 
-  const handleSubmitForm = (values) => {
-    if (editingRoomType) {
-      // update
-      setRoomTypes(prev =>
-        prev.map(rt =>
-          rt.room_type_id === editingRoomType.room_type_id
-            ? { ...rt, ...values }
-            : rt
-        )
-      );
-      message.success('Cập nhật loại phòng thành công');
-    } else {
-      // create
-      const newRoomType = {
-        room_type_id: Date.now(), // fake id
-        ...values,
-      };
-      setRoomTypes(prev => [...prev, newRoomType]);
-      message.success('Thêm loại phòng thành công');
+  const handleSubmitForm = async (values) => {
+    try {
+      if (editingRoomType) {
+        // UPDATE
+        await roomTypeApi.update(editingRoomType.room_type_id, values);
+        message.success('Cập nhật loại phòng thành công');
+      } else {
+        // CREATE
+        await roomTypeApi.create(values);
+        message.success('Thêm loại phòng thành công');
+      }
+      setIsModalOpen(false);
+      setEditingRoomType(null);
+      fetchRoomTypes(); // reload
+    } catch (error) {
+      console.error(error);
+      const msg =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        'Có lỗi khi lưu loại phòng';
+      message.error(msg);
     }
-    setIsModalOpen(false);
-    setEditingRoomType(null);
   };
 
   const columns = [
@@ -91,10 +145,12 @@ const RoomTypes = () => {
     },
     {
       title: 'Giá cơ bản / đêm',
-      dataIndex: 'base_price',
+      dataIndex: 'base_price', // 👈 dùng base_price từ backend
       key: 'base_price',
       render: (value) =>
-        `${value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')} VNĐ`,
+        `${Number(value)
+          .toString()
+          .replace(/\B(?=(\d{3})+(?!\d))/g, '.')} VNĐ`,
       sorter: (a, b) => a.base_price - b.base_price,
     },
     {
@@ -109,14 +165,14 @@ const RoomTypes = () => {
       key: 'is_active',
       align: 'center',
       render: (value) =>
-        value === 1 ? (
+        value ? (
           <Tag color="green">Hiện</Tag>
         ) : (
           <Tag color="red">Ẩn</Tag>
         ),
       filters: [
-        { text: 'Hiện', value: 1 },
-        { text: 'Ẩn', value: 0 },
+        { text: 'Hiện', value: true },
+        { text: 'Ẩn', value: false },
       ],
       onFilter: (value, record) => record.is_active === value,
     },
@@ -140,11 +196,7 @@ const RoomTypes = () => {
             cancelText="Hủy"
             onConfirm={() => handleDelete(record.room_type_id)}
           >
-            <Button
-              danger
-              icon={<DeleteOutlined />}
-              size="small"
-            >
+            <Button danger icon={<DeleteOutlined />} size="small">
               Xóa
             </Button>
           </Popconfirm>
@@ -152,6 +204,16 @@ const RoomTypes = () => {
       ),
     },
   ];
+
+  const handleTableChange = (pager) => {
+    const { current, pageSize } = pager;
+    setPagination((prev) => ({
+      ...prev,
+      current,
+      pageSize,
+    }));
+    fetchRoomTypes(current, pageSize);
+  };
 
   return (
     <Card
@@ -168,7 +230,7 @@ const RoomTypes = () => {
           placeholder="Tìm theo tên loại phòng..."
           prefix={<SearchOutlined />}
           value={searchText}
-          onChange={e => setSearchText(e.target.value)}
+          onChange={(e) => setSearchText(e.target.value)}
           allowClear
           style={{ width: 260 }}
         />
@@ -179,7 +241,15 @@ const RoomTypes = () => {
         rowKey="room_type_id"
         columns={columns}
         dataSource={filteredRoomTypes}
-        pagination={{ pageSize: 5 }}
+        loading={loading}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          showSizeChanger: true,
+          pageSizeOptions: ['5', '10', '20'],
+        }}
+        onChange={handleTableChange}
       />
 
       {/* Modal Thêm/Sửa */}
@@ -190,14 +260,7 @@ const RoomTypes = () => {
           setEditingRoomType(null);
         }}
         onSubmit={handleSubmitForm}
-        initialValues={
-          editingRoomType
-            ? {
-                ...editingRoomType,
-                is_active: editingRoomType.is_active === 1,
-              }
-            : null
-        }
+        initialValues={editingRoomType}
         isEditing={!!editingRoomType}
       />
     </Card>

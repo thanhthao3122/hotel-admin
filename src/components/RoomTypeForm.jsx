@@ -1,18 +1,24 @@
 // src/components/RoomTypeForm.jsx
-import { Form, Input, InputNumber, Modal, Switch } from 'antd';
-import { useEffect } from 'react';
+import { Form, Input, InputNumber, Modal, Switch } from "antd";
+import { useEffect } from "react";
 
-const RoomTypeForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) => {
+const RoomTypeForm = ({
+  open,
+  onCancel,
+  onSubmit,
+  initialValues,
+  isEditing,
+}) => {
   const [form] = Form.useForm();
 
   useEffect(() => {
     if (open) {
       form.setFieldsValue(
         initialValues || {
-          name: '',
+          name: "",
           capacity: 2,
           base_price: 500000,
-          description: '',
+          description: "",
           is_active: 1,
         }
       );
@@ -22,7 +28,7 @@ const RoomTypeForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) =>
   const handleOk = () => {
     form
       .validateFields()
-      .then(values => {
+      .then((values) => {
         // Switch trả true/false, convert về 1/0 cho giống DB
         const payload = {
           ...values,
@@ -31,7 +37,7 @@ const RoomTypeForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) =>
         onSubmit(payload);
         form.resetFields();
       })
-      .catch(err => console.log(err));
+      .catch((err) => console.log(err));
   };
 
   const handleCancel = () => {
@@ -41,12 +47,12 @@ const RoomTypeForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) =>
 
   return (
     <Modal
-      title={isEditing ? 'Chỉnh sửa loại phòng' : 'Thêm loại phòng mới'}
+      title={isEditing ? "Chỉnh sửa loại phòng" : "Thêm loại phòng mới"}
       open={open}
       onOk={handleOk}
       onCancel={handleCancel}
       destroyOnClose
-      okText={isEditing ? 'Lưu' : 'Thêm'}
+      okText={isEditing ? "Lưu" : "Thêm"}
       cancelText="Hủy"
     >
       <Form
@@ -61,7 +67,7 @@ const RoomTypeForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) =>
         <Form.Item
           label="Tên loại phòng"
           name="name"
-          rules={[{ required: true, message: 'Vui lòng nhập tên loại phòng' }]}
+          rules={[{ required: true, message: "Vui lòng nhập tên loại phòng" }]}
         >
           <Input placeholder="VD: Standard, Deluxe..." />
         </Form.Item>
@@ -69,29 +75,28 @@ const RoomTypeForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) =>
         <Form.Item
           label="Sức chứa (số người)"
           name="capacity"
-          rules={[{ required: true, message: 'Vui lòng nhập sức chứa' }]}
+          rules={[{ required: true, message: "Vui lòng nhập sức chứa" }]}
         >
-          <InputNumber min={1} max={10} style={{ width: '100%' }} />
+          <InputNumber min={1} max={10} style={{ width: "100%" }} />
         </Form.Item>
 
         <Form.Item
           label="Giá cơ bản / đêm (VNĐ)"
           name="base_price"
-          rules={[{ required: true, message: 'Vui lòng nhập giá' }]}
+          rules={[{ required: true, message: "Vui lòng nhập giá" }]}
         >
           <InputNumber
-            style={{ width: '100%' }}
+            style={{ width: "100%" }}
             min={0}
             step={50000}
-           
-            parser={value => value.replace(/\./g, '')}
+            formatter={(value) =>
+              `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+            }
+            parser={(value) => value.replace(/\./g, "")}
           />
         </Form.Item>
 
-        <Form.Item
-          label="Mô tả"
-          name="description"
-        >
+        <Form.Item label="Mô tả" name="description">
           <Input.TextArea rows={3} placeholder="Mô tả thêm (không bắt buộc)" />
         </Form.Item>
 
