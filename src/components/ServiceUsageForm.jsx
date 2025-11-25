@@ -1,0 +1,176 @@
+// src/components/ServiceUsageForm.jsx
+import { Form, InputNumber, Modal, Select } from 'antd';
+import { useEffect, useState } from 'react';
+
+
+const { Option } = Select;
+
+const ServiceUsageForm = ({
+  open,
+  onCancel,
+  onSubmit,
+  initialValues,
+  isEditing,
+  bookings,
+  rooms,
+  services,
+  customers,
+}) => {
+  const [form] = Form.useForm();
+  const [pricePerUnit, setPricePerUnit] = useState(0);
+
+  // Map id -> object để tiện lookup
+  const bookingMap = Object.fromEntries(bookings.map(b => [b.booking_id, b]));
+  const roomMap = Object.fromEntries(rooms.map(r => [r.room_id, r]));
+  const customerMap = Object.fromEntries(customers.map(c => [c.customer_id, c]));
+  const serviceMap = Object.fromEntries(services.map(s => [s.service_id, s]));
+
+  useEffect(() => {
+    if (open) {
+      if (initialValues) {
+        const service = serviceMap[initialValues.service_id];
+        setPricePerUnit(service?.price || 0);
+
+        form.setFieldsValue({
+          booking_id: initialValues.booking_id,
+          room_id: initialValues.room_id,
+          service_id: initialValues.service_id,
+          quantity: initialValues.quantity,
+        });
+      } else {
+        form.resetFields();
+        setPricePerUnit(0);
+      }
+    }
+  }, [open]);
+
+  const handleBookingChange = booking_id => {
+    const booking = bookingMap[booking_id];
+    if (booking) {
+      form.setFieldsValue({ room_id: booking.room_id });
+    }
+  };
+
+  const handleServiceChange = service_id => {
+    const service = serviceMap[service_id];
+    setPricePerUnit(service?.price || 0);
+  };
+
+  const handleOk = () => {
+    form.validateFields().then(values => {
+      const service = serviceMap[values.service_id];
+      const price = service?.price || 0;
+      const total_price = price * values.quantity;
+
+      const now = new Date();
+      const created_at = `${now.getFullYear()}-${String(
+        now.getMonth() + 1
+      ).padStart(2, '0')}-${String(now.getDate()).padStart(
+        2,
+        '0'
+      )} ${String(now.getHours()).padStart(2, '0')}:${String(
+        now.getMinutes()
+      ).padStart(2, '0')}`;
+
+      onSubmit({
+        ...values,
+        total_price,
+        // nếu đang sửa thì giữ nguyên created_at cũ
+        created_at: initialValues?.created_at || created_at,
+      });
+
+      form.resetFields();
+    });
+  };
+
+  // render label booking: #id - tên KH - phòng
+  const renderBookingLabel = booking => {
+    const room = roomMap[booking.room_id];
+    const customer = customerMap[booking.customer_id];
+    return `#${booking.booking_id} - ${customer.full_name} - Phòng ${room.room_number}`;
+  };
+
+  return (
+    <Modal
+      title={isEditing ? 'Chỉnh sửa sử dụng dịch vụ' : 'Thêm sử dụng dịch vụ'}
+      open={open}
+      onOk={handleOk}
+      onCancel={() => {
+        form.resetFields();
+        onCancel();
+      }}
+      okText={isEditing ? 'Lưu' : 'Thêm'}
+      cancelText="Hủy"
+      destroyOnClose
+    >
+      <Form form={form} layout="vertical">
+        <Form.Item
+          label="Đơn đặt phòng"
+          name="booking_id"
+          rules={[{ required: true, message: 'Vui lòng chọn đơn đặt phòng' }]}
+        >
+          <Select
+            placeholder="Chọn booking"
+            onChange={handleBookingChange}
+          >
+            {bookings.map(b => (
+              <Option key={b.booking_id} value={b.booking_id}>
+                {renderBookingLabel(b)}
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
+
+        <Form.Item
+          label="Phòng"
+          name="room_id"
+          rules={[{ required: true, message: 'Vui lòng chọn phòng' }]}
+        >
+          <Select placeholder="Chọn phòng" disabled>
+            {rooms.map(r => (
+              <Option key={r.room_id} value={r.room_id}>
+                Phòng {r.room_number} (Tầng {r.floor})
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
+
+        <Form.Item
+          label="Dịch vụ"
+          name="service_id"
+          rules={[{ required: true, message: 'Vui lòng chọn dịch vụ' }]}
+        >
+          <Select
+            placeholder="Chọn dịch vụ"
+            onChange={handleServiceChange}
+          >
+            {services.map(s => (
+              <Option key={s.service_id} value={s.service_id}>
+                {s.name} - {s.price.toLocaleString('vi-VN')} VNĐ / {s.unit}
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
+
+        <Form.Item
+          label="Số lượng"
+          name="quantity"
+          rules={[{ required: true, message: 'Vui lòng nhập số lượng' }]}
+        >
+          <InputNumber min={1} style={{ width: '100%' }} />
+        </Form.Item>
+
+        <Form.Item label="Đơn giá (VNĐ)">
+          <InputNumber
+            style={{ width: '100%' }}
+            readOnly
+            value={pricePerUnit}
+            formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+          />
+        </Form.Item>
+      </Form>
+    </Modal>
+  );
+};
+
+export default ServiceUsageForm;
