@@ -17,6 +17,7 @@ import {
   SearchOutlined,
 } from '@ant-design/icons';
 import RoomTypeForm from '../components/RoomTypeForm.jsx';
+
 import roomTypeApi from '../api/roomTypeApi.js';
 
 const RoomTypes = () => {
@@ -33,12 +34,12 @@ const RoomTypes = () => {
     total: 0,
   });
 
-  // 🔹 Load dữ liệu từ API
+  // 🔹 Gọi backend lấy dữ liệu
   const fetchRoomTypes = async (page = pagination.current, limit = pagination.pageSize) => {
     try {
       setLoading(true);
       const res = await roomTypeApi.getAll(page, limit);
-      // 👉 Giả sử backend trả về: { success, data, pagination }
+      // Giả sử backend trả về: { success, data, pagination }
       //    Nếu khác, bạn console.log(res) rồi chỉnh ở đây
       setRoomTypes(res.data || []);
       if (res.pagination) {
@@ -63,12 +64,12 @@ const RoomTypes = () => {
       setLoading(false);
     }
   };
-
+// useEffect tự động load lần đầu
   useEffect(() => {
     fetchRoomTypes(1, pagination.pageSize);
   }, []);
 
-  // 🔍 Lọc theo tên loại phòng (lọc trên client)
+  // 🔍 Lọc tìm kiếm loại phòng (lọc trên client)
   const filteredRoomTypes = useMemo(() => {
     return roomTypes.filter((rt) =>
       rt.name.toLowerCase().includes(searchText.toLowerCase())
@@ -145,7 +146,7 @@ const RoomTypes = () => {
     },
     {
       title: 'Giá cơ bản / đêm',
-      dataIndex: 'base_price', // 👈 dùng base_price từ backend
+      dataIndex: 'base_price', // dùng base_price từ backend
       key: 'base_price',
       render: (value) =>
         `${Number(value)
