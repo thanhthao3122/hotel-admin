@@ -98,10 +98,12 @@ const ServiceUsageForm = ({
       onCancel={() => {
         form.resetFields();
         onCancel();
+       destroyOnHidden
+
       }}
       okText={isEditing ? 'Lưu' : 'Thêm'}
       cancelText="Hủy"
-      destroyOnClose
+      
     >
       <Form form={form} layout="vertical">
         <Form.Item

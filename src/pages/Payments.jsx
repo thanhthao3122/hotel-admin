@@ -43,9 +43,7 @@ const Payments = () => {
     customers.map((c) => [c.customer_id, c])
   );
 
-  const bookingMap = Object.fromEntries(
-    bookings.map((b) => [b.booking_id, b])
-  );
+  const bookingMap = Object.fromEntries(bookings.map((b) => [b.booking_id, b]));
 
   const filteredPayments = useMemo(() => {
     return payments.filter((p) => {
@@ -131,9 +129,7 @@ const Payments = () => {
     {
       title: "Tổng tiền",
       dataIndex: "total_amount",
-      render: (v) => (
-        <Tag color="green">{v.toLocaleString("vi-VN")} VNĐ</Tag>
-      ),
+      render: (v) => <Tag color="red">{v.toLocaleString("vi-VN")} VNĐ</Tag>,
     },
     {
       title: "Ngày thanh toán",
@@ -147,7 +143,15 @@ const Payments = () => {
             title="Xóa thanh toán?"
             onConfirm={() => handleDelete(r.payment_id)}
           >
-            <Button danger size="small" icon={<DeleteOutlined />} />
+            <Button
+              size="small"
+              icon={<DeleteOutlined />}
+              style={{
+                backgroundColor: "#ff4d4f", // ✅ đỏ dịu
+                borderColor: "#ff4d4f",
+                color: "#fff",
+              }}
+            />
           </Popconfirm>
         </Space>
       ),
@@ -172,7 +176,7 @@ const Payments = () => {
         rowKey="payment_id"
         columns={columns}
         dataSource={filteredPayments}
-        pagination={{ pageSize: 5 }}
+        pagination={{ pageSize: 10 }}
       />
 
       {selectedBooking && (

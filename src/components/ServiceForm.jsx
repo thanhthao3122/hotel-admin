@@ -1,8 +1,16 @@
 // src/components/ServiceForm.jsx
-import { Form, Input, InputNumber, Modal } from 'antd';
-import { useEffect } from 'react';
+import { Form, Input, InputNumber, Modal, Select } from "antd";
+import { useEffect } from "react";
 
-const ServiceForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) => {
+const { Option } = Select;
+
+const ServiceForm = ({
+  open,
+  onCancel,
+  onSubmit,
+  initialValues,
+  isEditing,
+}) => {
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -10,77 +18,65 @@ const ServiceForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) => 
       if (initialValues) {
         form.setFieldsValue({
           name: initialValues.name,
-          // price ở backend là DECIMAL (string), convert sang number
           price: Number(initialValues.price),
-          unit: initialValues.unit || '',
+          unit: initialValues.unit,
         });
       } else {
-        form.setFieldsValue({
-          name: '',
-          price: 0,
-          unit: '',
-        });
+        form.resetFields();
       }
     }
   }, [open, initialValues, form]);
 
-  const handleOk = () => {
-    form
-      .validateFields()
-      .then((values) => {
-        // Đảm bảo price là number hoặc string phù hợp backend
-        const payload = {
-          ...values,
-          price: Number(values.price),
-        };
-        onSubmit(payload);
-        form.resetFields();
-      })
-      .catch((err) => console.log(err));
-  };
-
-  const handleCancel = () => {
-    form.resetFields();
-    onCancel();
+  const handleOk = async () => {
+    try {
+      const values = await form.validateFields();
+      onSubmit(values);
+    } catch (err) {
+      // ignore
+    }
   };
 
   return (
     <Modal
-      title={isEditing ? 'Chỉnh sửa dịch vụ' : 'Thêm dịch vụ mới'}
       open={open}
+      title={isEditing ? "Cập nhật dịch vụ" : "Thêm dịch vụ"}
+      onCancel={onCancel}
       onOk={handleOk}
-      onCancel={handleCancel}
+      okText={isEditing ? "Cập nhật" : "Thêm mới"}
       destroyOnClose
-      okText={isEditing ? 'Lưu' : 'Thêm'}
-      cancelText="Hủy"
     >
       <Form form={form} layout="vertical">
         <Form.Item
           label="Tên dịch vụ"
           name="name"
-          rules={[{ required: true, message: 'Vui lòng nhập tên dịch vụ' }]}
+          rules={[{ required: true, message: "Nhập tên dịch vụ" }]}
         >
-          <Input placeholder="VD: Ăn sáng buffet, Giặt ủi..." />
+          <Input placeholder="Ví dụ: Giặt ủi, Ăn sáng..." />
         </Form.Item>
 
         <Form.Item
-          label="Giá (VNĐ)"
+          label="Đơn giá (VNĐ)"
           name="price"
-          rules={[{ required: true, message: 'Vui lòng nhập giá' }]}
+          rules={[{ required: true, message: "Nhập đơn giá" }]}
         >
           <InputNumber
+            style={{ width: "100%" }}
             min={0}
-            step={10000}
-            style={{ width: '100%' }}
-            formatter={(v) =>
-              `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-            }
-            parser={(v) => v.replace(/\./g, '')}
+            step={1000}
+            formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ".")}
+            parser={(v) => v.replace(/\./g, "")}
           />
         </Form.Item>
 
         <Form.Item label="Đơn vị tính" name="unit">
-          <Input placeholder="VD: suất, kg, lượt, chuyến..." />
+          {/* Có thể cho chọn sẵn hoặc cho nhập tự do */}
+          <Select placeholder="Chọn đơn vị" allowClear>
+            <Option value="lần">lần</Option>
+            <Option value="ngày">ngày</Option>
+            <Option value="bộ">bộ</Option>
+            <Option value="kg">kg</Option>
+            <Option value="suất">suất</Option>
+          </Select>
         </Form.Item>
       </Form>
     </Modal>

@@ -1,5 +1,5 @@
 // src/pages/RoomTypes.jsx
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
   Button,
   Card,
@@ -9,20 +9,20 @@ import {
   Tag,
   Popconfirm,
   message,
-} from 'antd';
+} from "antd";
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   SearchOutlined,
-} from '@ant-design/icons';
-import RoomTypeForm from '../components/RoomTypeForm.jsx';
+} from "@ant-design/icons";
+import RoomTypeForm from "../components/RoomTypeForm.jsx";
 
-import roomTypeApi from '../api/roomTypeApi.js';
+import roomTypeApi from "../api/roomTypeApi.js";
 
 const RoomTypes = () => {
   const [roomTypes, setRoomTypes] = useState([]);
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRoomType, setEditingRoomType] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -30,12 +30,15 @@ const RoomTypes = () => {
   // state cho phân trang Table
   const [pagination, setPagination] = useState({
     current: 1,
-    pageSize: 5,
+    pageSize: 10,
     total: 0,
   });
 
   // 🔹 Gọi backend lấy dữ liệu
-  const fetchRoomTypes = async (page = pagination.current, limit = pagination.pageSize) => {
+  const fetchRoomTypes = async (
+    page = pagination.current,
+    limit = pagination.pageSize
+  ) => {
     try {
       setLoading(true);
       const res = await roomTypeApi.getAll(page, limit);
@@ -59,12 +62,12 @@ const RoomTypes = () => {
       }
     } catch (error) {
       console.error(error);
-      message.error('Không tải được danh sách loại phòng');
+      message.error("Không tải được danh sách loại phòng");
     } finally {
       setLoading(false);
     }
   };
-// useEffect tự động load lần đầu
+  // useEffect tự động load lần đầu
   useEffect(() => {
     fetchRoomTypes(1, pagination.pageSize);
   }, []);
@@ -75,21 +78,21 @@ const RoomTypes = () => {
       rt.name.toLowerCase().includes(searchText.toLowerCase())
     );
   }, [roomTypes, searchText]);
-
+  //Thêm mới
   const openCreateModal = () => {
     setEditingRoomType(null);
     setIsModalOpen(true);
   };
-
+  //Sửa
   const openEditModal = (roomType) => {
     setEditingRoomType(roomType);
     setIsModalOpen(true);
   };
-
+  //Xóa
   const handleDelete = async (id) => {
     try {
       await roomTypeApi.delete(id);
-      message.success('Đã xóa loại phòng');
+      message.success("Đã xóa loại phòng");
       // tải lại data
       fetchRoomTypes();
     } catch (error) {
@@ -97,21 +100,21 @@ const RoomTypes = () => {
       const msg =
         error.response?.data?.message ||
         error.response?.data?.error ||
-        'Không xóa được loại phòng';
+        "Không xóa được loại phòng";
       message.error(msg);
     }
   };
-
+  //Thêm/Sửa
   const handleSubmitForm = async (values) => {
     try {
       if (editingRoomType) {
         // UPDATE
         await roomTypeApi.update(editingRoomType.room_type_id, values);
-        message.success('Cập nhật loại phòng thành công');
+        message.success("Cập nhật loại phòng thành công");
       } else {
         // CREATE
         await roomTypeApi.create(values);
-        message.success('Thêm loại phòng thành công');
+        message.success("Thêm loại phòng thành công");
       }
       setIsModalOpen(false);
       setEditingRoomType(null);
@@ -121,66 +124,62 @@ const RoomTypes = () => {
       const msg =
         error.response?.data?.message ||
         error.response?.data?.error ||
-        'Có lỗi khi lưu loại phòng';
+        "Có lỗi khi lưu loại phòng";
       message.error(msg);
     }
   };
 
   const columns = [
     {
-      title: 'ID',
-      dataIndex: 'room_type_id',
-      key: 'room_type_id',
+      title: "ID",
+      dataIndex: "room_type_id",
+      key: "room_type_id",
       width: 80,
     },
     {
-      title: 'Tên loại phòng',
-      dataIndex: 'name',
-      key: 'name',
+      title: "Tên loại phòng",
+      dataIndex: "name",
+      key: "name",
     },
     {
-      title: 'Sức chứa',
-      dataIndex: 'capacity',
-      key: 'capacity',
-      align: 'center',
+      title: "Sức chứa",
+      dataIndex: "capacity",
+      key: "capacity",
+      align: "center",
     },
     {
-      title: 'Giá cơ bản / đêm',
-      dataIndex: 'base_price', // dùng base_price từ backend
-      key: 'base_price',
+      title: "Giá cơ bản / đêm",
+      dataIndex: "base_price", // dùng base_price từ backend
+      key: "base_price",
       render: (value) =>
         `${Number(value)
           .toString()
-          .replace(/\B(?=(\d{3})+(?!\d))/g, '.')} VNĐ`,
+          .replace(/\B(?=(\d{3})+(?!\d))/g, ".")} VNĐ`,
       sorter: (a, b) => a.base_price - b.base_price,
     },
     {
-      title: 'Mô tả',
-      dataIndex: 'description',
-      key: 'description',
+      title: "Mô tả",
+      dataIndex: "description",
+      key: "description",
       ellipsis: true,
     },
     {
-      title: 'Trạng thái',
-      dataIndex: 'is_active',
-      key: 'is_active',
-      align: 'center',
+      title: "Trạng thái",
+      dataIndex: "is_active",
+      key: "is_active",
+      align: "center",
       render: (value) =>
-        value ? (
-          <Tag color="green">Hiện</Tag>
-        ) : (
-          <Tag color="red">Ẩn</Tag>
-        ),
+        value ? <Tag color="green">Hiện</Tag> : <Tag color="red">Ẩn</Tag>,
       filters: [
-        { text: 'Hiện', value: true },
-        { text: 'Ẩn', value: false },
+        { text: "Hiện", value: true },
+        { text: "Ẩn", value: false },
       ],
       onFilter: (value, record) => record.is_active === value,
     },
     {
-      title: 'Hành động',
-      key: 'actions',
-      align: 'center',
+      title: "Hành động",
+      key: "actions",
+      align: "center",
       render: (_, record) => (
         <Space>
           <Button
@@ -197,7 +196,15 @@ const RoomTypes = () => {
             cancelText="Hủy"
             onConfirm={() => handleDelete(record.room_type_id)}
           >
-            <Button danger icon={<DeleteOutlined />} size="small">
+            <Button
+              size="small"
+              icon={<DeleteOutlined />}
+              style={{
+                backgroundColor: "#ff4d4f", //đỏ dịu 
+                borderColor: "#ff4d4f",
+                color: "#fff",
+              }}
+            >
               Xóa
             </Button>
           </Popconfirm>
@@ -220,7 +227,11 @@ const RoomTypes = () => {
     <Card
       title="Quản lý loại phòng"
       extra={
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={openCreateModal}
+        >
           Thêm loại phòng
         </Button>
       }
@@ -248,7 +259,7 @@ const RoomTypes = () => {
           pageSize: pagination.pageSize,
           total: pagination.total,
           showSizeChanger: true,
-          pageSizeOptions: ['5', '10', '20'],
+          pageSizeOptions: ["5", "10", "20"],
         }}
         onChange={handleTableChange}
       />

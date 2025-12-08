@@ -18,7 +18,7 @@ import {
   SearchOutlined,
 } from "@ant-design/icons";
 
-import { MOCK_SERVICES_USAGE } from "../mock/servicesUsage.js"
+import { MOCK_SERVICES_USAGE } from "../mock/servicesUsage.js";
 import { MOCK_BOOKINGS } from "../mock/bookings.js";
 import { MOCK_CUSTOMERS } from "../mock/customers.js";
 import { MOCK_ROOMS } from "../mock/rooms.js";
@@ -40,6 +40,13 @@ const ServiceUsage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUsage, setEditingUsage] = useState(null);
 
+  // state phân trang để tính STT
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: usages.length,
+  });
+
   const bookingMap = Object.fromEntries(bookings.map((b) => [b.booking_id, b]));
   const customerMap = Object.fromEntries(
     customers.map((c) => [c.customer_id, c])
@@ -48,13 +55,12 @@ const ServiceUsage = () => {
   const serviceMap = Object.fromEntries(services.map((s) => [s.service_id, s]));
 
   const filteredUsages = useMemo(() => {
-    return usages.filter((u) => {
+    const keyword = searchText.toLowerCase();
+
+    const list = usages.filter((u) => {
       const booking = bookingMap[u.booking_id];
       const customer = customerMap[booking.customer_id];
       const room = roomMap[u.room_id];
-      const service = serviceMap[u.service_id];
-
-      const keyword = searchText.toLowerCase();
 
       const matchSearch =
         customer.full_name.toLowerCase().includes(keyword) ||
@@ -67,6 +73,14 @@ const ServiceUsage = () => {
 
       return matchSearch && matchService;
     });
+
+    // cập nhật total cho pagination theo list sau khi filter
+    setPagination((prev) => ({
+      ...prev,
+      total: list.length,
+    }));
+
+    return list;
   }, [usages, searchText, filterService]);
 
   const openCreateModal = () => {
@@ -76,32 +90,48 @@ const ServiceUsage = () => {
 
   const handleSubmit = (values) => {
     if (editingUsage) {
+      // update mock
       setUsages((prev) =>
-        prev.map((u) => (u.id === editingUsage.id ? { ...u, ...values } : u))
+        prev.map((u) =>
+          u.usage_id === editingUsage.usage_id ? { ...u, ...values } : u
+        )
       );
       message.success("Cập nhật sử dụng dịch vụ thành công");
     } else {
+      // create mock
       const newUsage = {
-        id: Date.now(),
+        usage_id: Date.now(), // id thật vẫn giữ, nhưng không dùng để hiển thị
         ...values,
       };
       setUsages((prev) => [...prev, newUsage]);
       message.success("Thêm sử dụng dịch vụ thành công");
     }
+
     setIsModalOpen(false);
     setEditingUsage(null);
   };
 
-  const handleDelete = (id) => {
-    setUsages((prev) => prev.filter((u) => u.id !== id));
+  const handleDelete = (usage_id) => {
+    setUsages((prev) => prev.filter((u) => u.usage_id !== usage_id));
     message.success("Đã xóa sử dụng dịch vụ");
+  };
+
+  const handleTableChange = (pager) => {
+    setPagination((prev) => ({
+      ...prev,
+      current: pager.current,
+      pageSize: pager.pageSize,
+    }));
   };
 
   const columns = [
     {
-      title: "ID",
-      dataIndex: "id",
+      title: "ID", // STT
+      key: "index",
       width: 80,
+      align: "center",
+      render: (text, record, index) =>
+        (pagination.current - 1) * pagination.pageSize + index + 1,
     },
     {
       title: "Khách hàng",
@@ -111,7 +141,7 @@ const ServiceUsage = () => {
         return (
           <>
             <div>{customer.full_name}</div>
-            <div style={{ fontSize: 12, color: "#888" }}>{customer.phone}</div>
+            <div style={{ fontSize: 12, color: "#999" }}>{customer.phone}</div>
           </>
         );
       },
@@ -146,7 +176,7 @@ const ServiceUsage = () => {
     {
       title: "Tổng tiền",
       dataIndex: "total_price",
-      render: (v) => <Tag color="purple">{v.toLocaleString("vi-VN")} VNĐ</Tag>,
+      render: (v) => <Tag color="red">{v.toLocaleString("vi-VN")} VNĐ</Tag>,
     },
     {
       title: "Gọi lúc",
@@ -170,9 +200,17 @@ const ServiceUsage = () => {
             title="Xóa sử dụng dịch vụ?"
             okText="Xóa"
             cancelText="Hủy"
-            onConfirm={() => handleDelete(record.id)}
+            onConfirm={() => handleDelete(record.usage_id)}
           >
-            <Button size="small" danger icon={<DeleteOutlined />}>
+            <Button
+              size="small"
+              icon={<DeleteOutlined />}
+              style={{
+                backgroundColor: "#ff4d4f", // đỏ dịu
+                color: "#fff",
+                borderColor: "#ff4d4f",
+              }}
+            >
               Xóa
             </Button>
           </Popconfirm>
@@ -184,6 +222,11 @@ const ServiceUsage = () => {
   return (
     <Card
       title="Sử dụng dịch vụ"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "calc(100vh - 280px)", // ✅ đảm bảo chiếm đủ chiều cao trang
+      }}
       extra={
         <Button
           type="primary"
@@ -220,10 +263,17 @@ const ServiceUsage = () => {
       </Space>
 
       <Table
-        rowKey="id"
+        rowKey="usage_id" // giữ usage_id làm key nội bộ
         columns={columns}
-        dataSource={filteredUsages}
-        pagination={{ pageSize: 5 }}
+        dataSource={filteredUsages} // dùng list đã filter
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          showSizeChanger: true,
+          pageSizeOptions: ["5", "10", "20"],
+        }}
+        onChange={handleTableChange}
       />
 
       <ServiceUsageForm

@@ -54,6 +54,7 @@ const RoomTypeForm = ({
       destroyOnClose
       okText={isEditing ? "Lưu" : "Thêm"}
       cancelText="Hủy"
+      width={620} // ✅ thêm
     >
       <Form
         form={form}
@@ -69,7 +70,7 @@ const RoomTypeForm = ({
           name="name"
           rules={[{ required: true, message: "Vui lòng nhập tên loại phòng" }]}
         >
-          <Input placeholder="VD: Standard, Deluxe..." />
+          <Input placeholder="" />
         </Form.Item>
 
         <Form.Item

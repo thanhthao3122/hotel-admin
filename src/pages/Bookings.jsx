@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState } from "react";
 import {
   Button,
   Card,
@@ -9,20 +9,20 @@ import {
   Input,
   Select,
   Popconfirm,
-} from 'antd';
+} from "antd";
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   SearchOutlined,
-} from '@ant-design/icons';
+} from "@ant-design/icons";
 
-import { MOCK_BOOKINGS } from '../mock/bookings.js';
-import { MOCK_CUSTOMERS } from '../mock/customers.js';
-import { MOCK_ROOMS } from '../mock/rooms.js';
-import { MOCK_ROOM_TYPES } from '../mock/roomTypes.js';
+import { MOCK_BOOKINGS } from "../mock/bookings.js";
+import { MOCK_CUSTOMERS } from "../mock/customers.js";
+import { MOCK_ROOMS } from "../mock/rooms.js";
+import { MOCK_ROOM_TYPES } from "../mock/roomTypes.js";
 
-import BookingForm from '../components/BookingForm.jsx';
+import BookingForm from "../components/BookingForm.jsx";
 
 const { Option } = Select;
 
@@ -32,18 +32,22 @@ const Bookings = () => {
   const [rooms, setRooms] = useState(MOCK_ROOMS);
   const [roomTypes] = useState(MOCK_ROOM_TYPES);
 
-  const [searchText, setSearchText] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [searchText, setSearchText] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
 
   // map ID → object
-  const customerMap = Object.fromEntries(customers.map(c => [c.customer_id, c]));
-  const roomMap = Object.fromEntries(rooms.map(r => [r.room_id, r]));
-  const roomTypeMap = Object.fromEntries(roomTypes.map(rt => [rt.room_type_id, rt]));
+  const customerMap = Object.fromEntries(
+    customers.map((c) => [c.customer_id, c])
+  );
+  const roomMap = Object.fromEntries(rooms.map((r) => [r.room_id, r]));
+  const roomTypeMap = Object.fromEntries(
+    roomTypes.map((rt) => [rt.room_type_id, rt])
+  );
 
   const filteredBookings = useMemo(() => {
-    return bookings.filter(b => {
+    return bookings.filter((b) => {
       const keyword = searchText.toLowerCase();
       const customer = customerMap[b.customer_id];
 
@@ -65,11 +69,9 @@ const Bookings = () => {
   const handleSubmit = (data) => {
     if (editingBooking) {
       // Update
-      setBookings(prev =>
-        prev.map(b =>
-          b.booking_id === editingBooking.booking_id
-            ? { ...b, ...data }
-            : b
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.booking_id === editingBooking.booking_id ? { ...b, ...data } : b
         )
       );
       message.success("Cập nhật đặt phòng thành công");
@@ -78,18 +80,18 @@ const Bookings = () => {
       const newBooking = {
         booking_id: Date.now(),
         ...data,
-        status: 'PENDING',
+        status: "PENDING",
         created_at: new Date().toISOString().split("T")[0],
       };
 
       // Mark room as booked
-      setRooms(prev =>
-        prev.map(r =>
-          r.room_id === data.room_id ? { ...r, status: 'BOOKED' } : r
+      setRooms((prev) =>
+        prev.map((r) =>
+          r.room_id === data.room_id ? { ...r, status: "BOOKED" } : r
         )
       );
 
-      setBookings(prev => [...prev, newBooking]);
+      setBookings((prev) => [...prev, newBooking]);
       message.success("Tạo đặt phòng thành công");
     }
 
@@ -97,16 +99,14 @@ const Bookings = () => {
   };
 
   const handleDelete = (id) => {
-    setBookings(prev => prev.filter(b => b.booking_id !== id));
-    message.success('Đã xóa đặt phòng');
+    setBookings((prev) => prev.filter((b) => b.booking_id !== id));
+    message.success("Đã xóa đặt phòng");
   };
 
   const updateStatus = (record, newStatus) => {
-    setBookings(prev =>
-      prev.map(b =>
-        b.booking_id === record.booking_id
-          ? { ...b, status: newStatus }
-          : b
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.booking_id === record.booking_id ? { ...b, status: newStatus } : b
       )
     );
 
@@ -117,57 +117,73 @@ const Bookings = () => {
 
   const columns = [
     {
-      title: 'Khách hàng',
+      title: "Khách hàng",
       render: (_, record) => {
         const c = customerMap[record.customer_id];
         return `${c.full_name} (${c.phone})`;
       },
     },
     {
-      title: 'Phòng',
+      title: "Phòng",
       render: (_, r) => {
         const room = roomMap[r.room_id];
-        const roomType = roomTypeMap[room.room_type_id];
-        return `Phòng ${room.room_number} - ${roomType.name}`;
+        return `Phòng ${room.room_number}`;
       },
     },
-    { title: 'Check-in', dataIndex: 'check_in' },
-    { title: 'Check-out', dataIndex: 'check_out' },
+
+    { title: "Check-in", dataIndex: "check_in" },
+    { title: "Check-out", dataIndex: "check_out" },
     {
-      title: 'Tổng tiền',
-      dataIndex: 'total_price',
-      render: v => v.toLocaleString('vi-VN') + ' VNĐ',
+      title: "Tổng tiền",
+      dataIndex: "total_price",
+      render: (v) => v.toLocaleString("vi-VN") + " VNĐ",
     },
     {
-      title: 'Trạng thái',
-      dataIndex: 'status',
+      title: "Trạng thái",
+      dataIndex: "status",
       render: (st) => {
         const color = {
-          PENDING: 'blue',
-          CHECKED_IN: 'green',
-          COMPLETED: 'orange',
-          CANCELED: 'red',
+          PENDING: "blue",
+          CHECKED_IN: "green",
+          COMPLETED: "orange",
+          CANCELED: "red",
         }[st];
         return <Tag color={color}>{st}</Tag>;
       },
     },
     {
-      title: 'Hành động',
+      title: "Hành động",
       render: (_, r) => (
         <Space>
-          <Button size="small" icon={<EditOutlined />} 
-            onClick={() => { setEditingBooking(r); setIsModalOpen(true); }}>
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => {
+              setEditingBooking(r);
+              setIsModalOpen(true);
+            }}
+          >
             Sửa
           </Button>
 
           {r.status === "PENDING" && (
-            <Button size="small" onClick={() => updateStatus(r, "CHECKED_IN")}>Check-in</Button>
+            <Button size="small" onClick={() => updateStatus(r, "CHECKED_IN")}>
+              Check-in
+            </Button>
           )}
           {r.status === "CHECKED_IN" && (
-            <Button size="small" onClick={() => updateStatus(r, "COMPLETED")}>Check-out</Button>
+            <Button size="small" onClick={() => updateStatus(r, "COMPLETED")}>
+              Check-out
+            </Button>
           )}
           {r.status !== "COMPLETED" && (
-            <Button size="small" danger onClick={() => updateStatus(r, "CANCELED")}>Hủy</Button>
+            <Button
+              size="small"
+              danger
+              onClick={() => updateStatus(r, "CANCELED")}
+            >
+              Hủy
+            </Button>
           )}
 
           <Popconfirm
@@ -189,7 +205,11 @@ const Bookings = () => {
     <Card
       title="Quản lý đặt phòng"
       extra={
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={openCreateModal}
+        >
           Tạo đặt phòng
         </Button>
       }
@@ -200,7 +220,7 @@ const Bookings = () => {
           placeholder="Tìm theo tên KH hoặc SĐT..."
           prefix={<SearchOutlined />}
           value={searchText}
-          onChange={e => setSearchText(e.target.value)}
+          onChange={(e) => setSearchText(e.target.value)}
           allowClear
           style={{ width: 260 }}
         />
@@ -210,7 +230,7 @@ const Bookings = () => {
           allowClear
           style={{ width: 180 }}
           value={filterStatus || undefined}
-          onChange={v => setFilterStatus(v)}
+          onChange={(v) => setFilterStatus(v)}
         >
           <Option value="PENDING">Đang chờ</Option>
           <Option value="CHECKED_IN">Đã nhận phòng</Option>
@@ -223,7 +243,7 @@ const Bookings = () => {
         rowKey="booking_id"
         columns={columns}
         dataSource={filteredBookings}
-        pagination={{ pageSize: 5 }}
+        pagination={{ pageSize: 10 }}
       />
 
       <BookingForm

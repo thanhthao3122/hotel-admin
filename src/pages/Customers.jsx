@@ -1,36 +1,74 @@
 // src/pages/Customers.jsx
-import { useMemo, useState } from 'react';
-import {
-  Button,
-  Card,
-  Input,
-  Space,
-  Table,
-  Popconfirm,
-  message,
-} from 'antd';
+import { useEffect, useMemo, useState } from "react";
+import { Button, Card, Input, Space, Table, Popconfirm, message } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   SearchOutlined,
-} from '@ant-design/icons';
-import CustomerForm from '../components/CustomerForm.jsx';
-import { MOCK_CUSTOMERS } from '../mock/customers.js';
+} from "@ant-design/icons";
+import CustomerForm from "../components/CustomerForm.jsx";
+import userApi from "../api/userApi";
 
 const Customers = () => {
-  const [customers, setCustomers] = useState(MOCK_CUSTOMERS);
-  const [searchText, setSearchText] = useState('');
+  const [customers, setCustomers] = useState([]);
+  const [searchText, setSearchText] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  // search theo tên hoặc sđt
+  // state phân trang
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+
+  // ====== GỌI API LẤY DS KHÁCH HÀNG ======
+  const fetchCustomers = async (page = 1, limit = pagination.pageSize) => {
+    try {
+      setLoading(true);
+      const res = await userApi.getAll(page, limit);
+      // backend dùng paginationResponse: { success, data, pagination }
+      const list = res.data || [];
+      const pag = res.pagination;
+
+      setCustomers(list);
+      if (pag) {
+        setPagination({
+          current: pag.page,
+          pageSize: pag.limit,
+          total: pag.total,
+        });
+      } else {
+        setPagination((prev) => ({
+          ...prev,
+          current: page,
+          pageSize: limit,
+          total: list.length,
+        }));
+      }
+    } catch (error) {
+      console.error(error);
+      message.error("Không tải được danh sách khách hàng");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // load lần đầu
+  useEffect(() => {
+    fetchCustomers(1, pagination.pageSize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // search theo tên hoặc sđt (lọc trên data đã load)
   const filteredCustomers = useMemo(() => {
-    return customers.filter(c => {
-      const keyword = searchText.toLowerCase();
+    const keyword = searchText.toLowerCase();
+    return customers.filter((c) => {
       return (
         c.full_name.toLowerCase().includes(keyword) ||
-        c.phone.includes(keyword)
+        (c.phone && c.phone.includes(keyword))
       );
     });
   }, [customers, searchText]);
@@ -45,68 +83,90 @@ const Customers = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id) => {
-    setCustomers(prev => prev.filter(c => c.customer_id !== id));
-    message.success('Đã xóa khách hàng');
+  // Xóa khách hàng – gọi API thật
+  const handleDelete = async (id) => {
+    try {
+      await userApi.remove(id);
+      message.success("Đã xóa khách hàng");
+      fetchCustomers(pagination.current, pagination.pageSize);
+    } catch (error) {
+      console.error(error);
+      message.error("Không xóa được khách hàng");
+    }
   };
 
-  const handleSubmitForm = (values) => {
-    if (editingCustomer) {
-      // update
-      setCustomers(prev =>
-        prev.map(c =>
-          c.customer_id === editingCustomer.customer_id
-            ? { ...c, ...values }
-            : c
-        )
-      );
-      message.success('Cập nhật khách hàng thành công');
-    } else {
-      // create
-      const newCustomer = {
-        customer_id: Date.now(), // fake id
-        ...values,
-      };
-      setCustomers(prev => [...prev, newCustomer]);
-      message.success('Thêm khách hàng thành công');
-    }
+  // Submit form: create / update qua API
+  const handleSubmitForm = async (values) => {
+    try {
+      if (editingCustomer) {
+        // UPDATE
+        await userApi.update(editingCustomer.user_id, values);
+        message.success("Cập nhật khách hàng thành công");
+      } else {
+        // CREATE
+        await userApi.create(values);
+        message.success("Thêm khách hàng thành công");
+      }
 
-    setIsModalOpen(false);
-    setEditingCustomer(null);
+      setIsModalOpen(false);
+      setEditingCustomer(null);
+      // reload danh sách
+      fetchCustomers(1, pagination.pageSize);
+    } catch (error) {
+      console.error(error);
+      const msg =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        "Có lỗi khi lưu khách hàng";
+      message.error(msg);
+    }
+  };
+
+  // đổi trang / pageSize
+  const handleTableChange = (pager) => {
+    const { current, pageSize } = pager;
+    setPagination((prev) => ({
+      ...prev,
+      current,
+      pageSize,
+    }));
+    fetchCustomers(current, pageSize);
   };
 
   const columns = [
     {
-      title: 'ID',
-      dataIndex: 'customer_id',
-      key: 'customer_id',
+      title: "ID",
+      key: "index",
       width: 80,
+      align: "center",
+      render: (text, record, index) =>
+        (pagination.current - 1) * pagination.pageSize + index + 1,
     },
     {
-      title: 'Họ và tên',
-      dataIndex: 'full_name',
-      key: 'full_name',
+      title: "Họ và tên",
+      dataIndex: "full_name",
+      key: "full_name",
     },
     {
-      title: 'Số điện thoại',
-      dataIndex: 'phone',
-      key: 'phone',
+      title: "Số điện thoại",
+      dataIndex: "phone",
+      key: "phone",
       width: 140,
     },
     {
-      title: 'Email',
-      dataIndex: 'email',
-      key: 'email',
+      title: "Email",
+      dataIndex: "email",
+      key: "email",
     },
     {
-      title: 'CCCD',
-      dataIndex: 'id_card',
-      key: 'id_card',
+      title: "CCCD",
+      dataIndex: "id_card",
+      key: "id_card",
       width: 150,
     },
     {
-      title: 'Hành động',
-      key: 'actions',
+      title: "Hành động",
+      key: "actions",
       render: (_, record) => (
         <Space>
           <Button
@@ -121,12 +181,16 @@ const Customers = () => {
             description={`Bạn có chắc muốn xóa khách hàng "${record.full_name}"?`}
             okText="Xóa"
             cancelText="Hủy"
-            onConfirm={() => handleDelete(record.customer_id)}
+            onConfirm={() => handleDelete(record.user_id)}
           >
             <Button
               size="small"
-              danger
               icon={<DeleteOutlined />}
+              style={{
+                backgroundColor: "#ff4d4f", // đỏ dịu 
+                borderColor: "#ff4d4f",
+                color: "#fff",
+              }}
             >
               Xóa
             </Button>
@@ -155,7 +219,7 @@ const Customers = () => {
           placeholder="Tìm theo tên hoặc số điện thoại..."
           prefix={<SearchOutlined />}
           value={searchText}
-          onChange={e => setSearchText(e.target.value)}
+          onChange={(e) => setSearchText(e.target.value)}
           allowClear
           style={{ width: 300 }}
         />
@@ -163,10 +227,18 @@ const Customers = () => {
 
       {/* Table */}
       <Table
-        rowKey="customer_id"
+        rowKey="user_id"
         columns={columns}
         dataSource={filteredCustomers}
-        pagination={{ pageSize: 5 }}
+        loading={loading}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          showSizeChanger: true,
+          pageSizeOptions: ["5", "10", "20"],
+        }}
+        onChange={handleTableChange}
       />
 
       {/* Modal Thêm/Sửa */}

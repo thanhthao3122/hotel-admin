@@ -1,10 +1,11 @@
 // src/api/roomApi.js
-import axiosClient from './axiosClient';
+import axiosClient from "./axiosClient";
 
 const roomApi = {
-  getAll: (page = 1, limit = 10) => {
-    return axiosClient.get('/rooms', {
-      params: { page, limit },
+  // ✅ getAll cho phép truyền thêm filters (vd: { status: 'booked' })
+  getAll: (page = 1, limit = 10, filters = {}) => {
+    return axiosClient.get("/rooms", {
+      params: { page, limit, ...filters },
     });
   },
 
@@ -12,12 +13,13 @@ const roomApi = {
     return axiosClient.get(`/rooms/${id}`);
   },
 
-  create: (data) => {
-    return axiosClient.post('/rooms', data);
+  // 🟢 create & update nhận FormData (có file ảnh)
+  create: (formData) => {
+    return axiosClient.post("/rooms", formData);
   },
 
-  update: (id, data) => {
-    return axiosClient.put(`/rooms/${id}`, data);
+  update: (id, formData) => {
+    return axiosClient.put(`/rooms/${id}`, formData);
   },
 
   updateStatus: (id, status) => {
@@ -29,7 +31,7 @@ const roomApi = {
   },
 
   getAvailable: (checkin_date, checkout_date) => {
-    return axiosClient.get('/rooms/available', {
+    return axiosClient.get("/rooms/available", {
       params: { checkin_date, checkout_date },
     });
   },

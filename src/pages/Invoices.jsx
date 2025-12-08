@@ -16,7 +16,7 @@ const Invoices = () => {
       title: "Tổng tiền",
       dataIndex: "total_amount",
       render: (v) => (
-        <Tag color="blue">{v.toLocaleString("vi-VN")} VNĐ</Tag>
+        <Tag color="red">{v.toLocaleString("vi-VN")} VNĐ</Tag>
       ),
     },
     { title: "Ngày tạo", dataIndex: "created_at" },
@@ -28,7 +28,7 @@ const Invoices = () => {
         rowKey="invoice_id"
         columns={columns}
         dataSource={invoices}
-        pagination={{ pageSize: 5 }}
+        pagination={{ pageSize: 10 }}
       />
     </Card>
   );

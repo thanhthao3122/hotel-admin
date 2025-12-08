@@ -1,20 +1,27 @@
-// src/api/axiosClient.js
 import axios from 'axios';
 
 const axiosClient = axios.create({
-  baseURL: 'http://localhost:5000/api', // 👈 sửa lại nếu backend bạn khác
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: 'http://localhost:5000/api',
 });
 
-// Interceptor response: luôn trả về response.data
+// ❌ KHÔNG set Content-Type cứng ở đây nữa
+// headers: { 'Content-Type': 'application/json' },
+
+// Nếu gửi FormData thì bỏ Content-Type để browser tự set multipart
+axiosClient.interceptors.request.use((config) => {
+  if (config.data instanceof FormData) {
+    // để browser tự gắn boundary
+    delete config.headers['Content-Type'];
+  } else {
+    config.headers['Content-Type'] = 'application/json';
+  }
+  return config;
+});
+
 axiosClient.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    // có thể log lỗi ở đây
     console.error('API error:', error);
-    // ném lại để chỗ gọi .catch được
     throw error;
   }
 );
