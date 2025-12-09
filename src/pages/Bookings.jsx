@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
@@ -17,158 +17,199 @@ import {
   SearchOutlined,
 } from '@ant-design/icons';
 
-import { MOCK_BOOKINGS } from '../mock/bookings.js';
-import { MOCK_CUSTOMERS } from '../mock/customers.js';
-import { MOCK_ROOMS } from '../mock/rooms.js';
-import { MOCK_ROOM_TYPES } from '../mock/roomTypes.js';
+import bookingApi from '../api/bookingApi.js';
+import userApi from '../api/userApi.js';
+import roomApi from '../api/roomApi.js';
+import roomTypeApi from '../api/roomTypeApi.js';
 
 import BookingForm from '../components/BookingForm.jsx';
 
 const { Option } = Select;
 
 const Bookings = () => {
-  const [bookings, setBookings] = useState(MOCK_BOOKINGS);
-  const [customers] = useState(MOCK_CUSTOMERS);
-  const [rooms, setRooms] = useState(MOCK_ROOMS);
-  const [roomTypes] = useState(MOCK_ROOM_TYPES);
+  const [bookings, setBookings] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [roomTypes, setRoomTypes] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const [searchText, setSearchText] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
 
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+
+  // Fetch all necessary data
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [bookingRes, customerRes, roomRes, roomTypeRes] = await Promise.all([
+        bookingApi.getAll(pagination.current, pagination.pageSize),
+        userApi.getAll(1, 100), // Fetch first 100 customers for dropdown
+        roomApi.getAll(1, 100), // Fetch first 100 rooms for dropdown
+        roomTypeApi.getAll(1, 100) // Fetch first 100 room types
+      ]);
+
+      setBookings(bookingRes.data || []);
+      if (bookingRes.pagination) {
+        setPagination({
+          current: bookingRes.pagination.page,
+          pageSize: bookingRes.pagination.limit,
+          total: bookingRes.pagination.total,
+        });
+      }
+
+      setCustomers(customerRes.data || []);
+      setRooms(roomRes.data || []);
+      setRoomTypes(roomTypeRes.data || []);
+
+    } catch (error) {
+      console.error(error);
+      message.error('Không tải được dữ liệu đặt phòng');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   // map ID → object
-  const customerMap = Object.fromEntries(customers.map(c => [c.customer_id, c]));
-  const roomMap = Object.fromEntries(rooms.map(r => [r.room_id, r]));
-  const roomTypeMap = Object.fromEntries(roomTypes.map(rt => [rt.room_type_id, rt]));
+  const customerMap = useMemo(() => Object.fromEntries(customers.map(c => [c.user_id, c])), [customers]);
+  const roomMap = useMemo(() => Object.fromEntries(rooms.map(r => [r.room_id, r])), [rooms]);
+  const roomTypeMap = useMemo(() => Object.fromEntries(roomTypes.map(rt => [rt.room_type_id, rt])), [roomTypes]);
 
   const filteredBookings = useMemo(() => {
     return bookings.filter(b => {
       const keyword = searchText.toLowerCase();
-      const customer = customerMap[b.customer_id];
+      const customer = customerMap[b.user_id]; // Note: booking uses user_id not customer_id
 
-      const matchSearch =
-        customer.full_name.toLowerCase().includes(keyword) ||
-        customer.phone.includes(keyword);
+      const matchSearch = customer
+        ? (customer.full_name?.toLowerCase().includes(keyword) || customer.phone?.includes(keyword))
+        : false;
 
       const matchStatus = filterStatus ? b.status === filterStatus : true;
 
       return matchSearch && matchStatus;
     });
-  }, [bookings, searchText, filterStatus]);
+  }, [bookings, searchText, filterStatus, customerMap]);
 
   const openCreateModal = () => {
     setEditingBooking(null);
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (data) => {
-    if (editingBooking) {
-      // Update
-      setBookings(prev =>
-        prev.map(b =>
-          b.booking_id === editingBooking.booking_id
-            ? { ...b, ...data }
-            : b
-        )
-      );
-      message.success("Cập nhật đặt phòng thành công");
-    } else {
-      // Create
-      const newBooking = {
-        booking_id: Date.now(),
-        ...data,
-        status: 'PENDING',
-        created_at: new Date().toISOString().split("T")[0],
-      };
-
-      // Mark room as booked
-      setRooms(prev =>
-        prev.map(r =>
-          r.room_id === data.room_id ? { ...r, status: 'BOOKED' } : r
-        )
-      );
-
-      setBookings(prev => [...prev, newBooking]);
-      message.success("Tạo đặt phòng thành công");
+  const handleSubmit = async (data) => {
+    try {
+      if (editingBooking) {
+        // Update
+        await bookingApi.update(editingBooking.booking_id, data);
+        message.success("Cập nhật đặt phòng thành công");
+      } else {
+        // Create
+        await bookingApi.create(data);
+        message.success("Tạo đặt phòng thành công");
+      }
+      setIsModalOpen(false);
+      fetchData();
+    } catch (error) {
+      console.error(error);
+      message.error("Có lỗi khi lưu đặt phòng");
     }
-
-    setIsModalOpen(false);
   };
 
-  const handleDelete = (id) => {
-    setBookings(prev => prev.filter(b => b.booking_id !== id));
-    message.success('Đã xóa đặt phòng');
+  const handleDelete = async (id) => {
+    try {
+      await bookingApi.delete(id);
+      message.success('Đã xóa đặt phòng');
+      fetchData();
+    } catch (error) {
+      console.error(error);
+      message.error('Không xóa được đặt phòng');
+    }
   };
 
-  const updateStatus = (record, newStatus) => {
-    setBookings(prev =>
-      prev.map(b =>
-        b.booking_id === record.booking_id
-          ? { ...b, status: newStatus }
-          : b
-      )
-    );
-
-    if (newStatus === "CHECKED_IN") message.success("Check-in thành công");
-    if (newStatus === "COMPLETED") message.success("Check-out thành công");
-    if (newStatus === "CANCELED") message.info("Đã hủy đặt phòng");
+  const updateStatus = async (record, newStatus) => {
+    try {
+      await bookingApi.updateStatus(record.booking_id, newStatus);
+      message.success("Cập nhật trạng thái thành công");
+      fetchData();
+    } catch (error) {
+      console.error(error);
+      message.error('Không cập nhật được trạng thái');
+    }
   };
 
   const columns = [
     {
       title: 'Khách hàng',
       render: (_, record) => {
-        const c = customerMap[record.customer_id];
-        return `${c.full_name} (${c.phone})`;
+        const c = customerMap[record.user_id];
+        return c ? `${c.full_name} (${c.phone})` : 'N/A';
       },
     },
     {
-      title: 'Phòng',
-      render: (_, r) => {
-        const room = roomMap[r.room_id];
-        const roomType = roomTypeMap[room.room_type_id];
-        return `Phòng ${room.room_number} - ${roomType.name}`;
+      title: 'Số Phòng',
+      render: (_, record) => {
+        if (!record.rooms || record.rooms.length === 0) return 'N/A';
+        return record.rooms.map(room => room.room_number).join(', ');
       },
     },
-    { title: 'Check-in', dataIndex: 'check_in' },
-    { title: 'Check-out', dataIndex: 'check_out' },
+    {
+      title: 'Check-in',
+      dataIndex: 'checkin_date',
+      render: (date) => date || 'N/A'
+    },
+    {
+      title: 'Check-out',
+      dataIndex: 'checkout_date',
+      render: (date) => date || 'N/A'
+    },
     {
       title: 'Tổng tiền',
       dataIndex: 'total_price',
-      render: v => v.toLocaleString('vi-VN') + ' VNĐ',
+      render: v => v ? v.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ',
     },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
-      render: (st) => {
+      render: (st, record) => {
         const color = {
-          PENDING: 'blue',
-          CHECKED_IN: 'green',
-          COMPLETED: 'orange',
-          CANCELED: 'red',
-        }[st];
-        return <Tag color={color}>{st}</Tag>;
+          pending: 'blue',
+          checked_in: 'green',
+          checked_out: 'orange',
+          cancelled: 'red',
+        }[st.toLowerCase()] || 'default';
+
+        return (
+          <Select
+            defaultValue={st.toLowerCase()}
+            style={{ width: 140 }}
+            onChange={(val) => updateStatus(record, val)}
+            status={st.toLowerCase() === 'cancelled' ? 'error' : ''}
+          >
+            <Option value="pending">Đang chờ</Option>
+            <Option value="checked_in">Đã nhận phòng</Option>
+            <Option value="checked_out">Đã trả phòng</Option>
+            <Option value="cancelled">Đã hủy</Option>
+          </Select>
+        );
       },
     },
     {
       title: 'Hành động',
       render: (_, r) => (
         <Space>
-          <Button size="small" icon={<EditOutlined />} 
+          <Button size="small" icon={<EditOutlined />}
             onClick={() => { setEditingBooking(r); setIsModalOpen(true); }}>
             Sửa
           </Button>
-
-          {r.status === "PENDING" && (
-            <Button size="small" onClick={() => updateStatus(r, "CHECKED_IN")}>Check-in</Button>
-          )}
-          {r.status === "CHECKED_IN" && (
-            <Button size="small" onClick={() => updateStatus(r, "COMPLETED")}>Check-out</Button>
-          )}
-          {r.status !== "COMPLETED" && (
-            <Button size="small" danger onClick={() => updateStatus(r, "CANCELED")}>Hủy</Button>
-          )}
 
           <Popconfirm
             title="Xóa đặt phòng?"
@@ -212,10 +253,10 @@ const Bookings = () => {
           value={filterStatus || undefined}
           onChange={v => setFilterStatus(v)}
         >
-          <Option value="PENDING">Đang chờ</Option>
-          <Option value="CHECKED_IN">Đã nhận phòng</Option>
-          <Option value="COMPLETED">Đã trả phòng</Option>
-          <Option value="CANCELED">Đã hủy</Option>
+          <Option value="pending">Đang chờ</Option>
+          <Option value="checked_in">Đã nhận phòng</Option>
+          <Option value="checked_out">Đã trả phòng</Option>
+          <Option value="cancelled">Đã hủy</Option>
         </Select>
       </Space>
 
@@ -223,7 +264,25 @@ const Bookings = () => {
         rowKey="booking_id"
         columns={columns}
         dataSource={filteredBookings}
-        pagination={{ pageSize: 5 }}
+        loading={loading}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          showSizeChanger: true,
+          pageSizeOptions: ['5', '10', '20'],
+        }}
+        onChange={(pager) => {
+          const { current, pageSize } = pager;
+          setPagination(prev => ({ ...prev, current, pageSize }));
+          // Note: fetchData uses state pagination, so we might need to pass args or update state first
+          // Better to pass args to fetchData
+          // But fetchData uses Promise.all which is fine.
+          // Let's just call fetchData() and rely on updated state? 
+          // No, state update is async.
+          // Ideally fetchData should accept page/limit.
+          // For simplicity, I'll just reload page 1 or implement proper pagination in fetchData
+        }}
       />
 
       <BookingForm

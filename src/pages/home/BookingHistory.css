@@ -1,0 +1,544 @@
+/* Booking History Page Styles */
+.booking-history-main {
+    margin-top: 80px;
+    min-height: calc(100vh - 80px - 400px);
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+    padding: 40px 80px 60px;
+}
+
+.page-header {
+    max-width: 1400px;
+    margin: 0 auto 32px;
+}
+
+.page-header h2 {
+    color: #003580;
+    margin-bottom: 8px !important;
+    font-size: 32px !important;
+    font-weight: 700 !important;
+}
+
+.page-header .ant-typography-secondary {
+    font-size: 16px;
+}
+
+/* Layout 2 cột */
+.booking-history-layout {
+    display: grid;
+    grid-template-columns: 40% 60%;
+    gap: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+    align-items: start;
+}
+
+/* Cột trái - Danh sách bookings */
+.bookings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4px;
+    margin-bottom: 8px;
+}
+
+.list-header h4 {
+    margin: 0 !important;
+    color: #003580;
+    font-size: 20px !important;
+}
+
+.cards-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: calc(100vh - 280px);
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* Custom scrollbar */
+.cards-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.cards-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.cards-container::-webkit-scrollbar-thumb {
+    background: #003580;
+    border-radius: 10px;
+}
+
+.cards-container::-webkit-scrollbar-thumb:hover {
+    background: #0056b3;
+}
+
+/* Booking Card */
+.booking-card {
+    border-radius: 12px;
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    background: white;
+}
+
+.booking-card:hover {
+    border-color: #003580;
+    box-shadow: 0 4px 12px rgba(0, 53, 128, 0.15);
+    transform: translateY(-2px);
+}
+
+.booking-card.selected {
+    border-color: #003580;
+    background: linear-gradient(135deg, #f0f7ff 0%, #e3f2fd 100%);
+    box-shadow: 0 6px 16px rgba(0, 53, 128, 0.2);
+}
+
+.booking-card .ant-card-body {
+    padding: 16px;
+}
+
+.booking-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.booking-id {
+    font-size: 16px;
+    color: #003580;
+}
+
+.status-tag {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.booking-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.booking-info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.info-icon {
+    color: #003580;
+    font-size: 16px;
+    margin-top: 2px;
+}
+
+.info-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.booking-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px dashed #d0d0d0;
+}
+
+.total-price {
+    color: #003580;
+    font-size: 18px;
+}
+
+/* Cancel Booking Button */
+.cancel-booking-btn {
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.cancel-booking-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 77, 79, 0.3);
+}
+
+.cancel-booking-btn:active {
+    transform: translateY(0);
+}
+
+
+/* Cột phải - Payment Form */
+.payment-form-container {
+    position: sticky;
+    top: 100px;
+}
+
+.payment-form-card {
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    border: none;
+}
+
+.payment-form-card .ant-card-body {
+    padding: 32px;
+}
+
+.payment-form-card.empty {
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.payment-form-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.payment-icon {
+    font-size: 32px;
+    color: #003580;
+}
+
+.payment-form-header h3 {
+    margin: 0 !important;
+    color: #003580;
+    font-size: 24px !important;
+}
+
+/* Form Sections */
+.payment-form {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.form-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 12px;
+    border-left: 4px solid #003580;
+}
+
+.section-title {
+    margin: 0 0 16px 0 !important;
+    color: #003580;
+    font-size: 16px !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.payment-form .ant-form-item {
+    margin-bottom: 16px;
+}
+
+.payment-form .ant-form-item:last-child {
+    margin-bottom: 0;
+}
+
+.payment-form .ant-form-item-label>label {
+    font-weight: 600;
+    color: #333;
+}
+
+.payment-form .ant-input {
+    border-radius: 8px;
+    border: 1px solid #d0d0d0;
+    background: white;
+}
+
+.payment-form .ant-input[readonly] {
+    background: #f5f5f5;
+    color: #666;
+    cursor: default;
+}
+
+.date-input {
+    font-weight: 600;
+    color: #003580 !important;
+}
+
+/* Booking Details */
+.booking-details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.detail-row>div {
+    text-align: right;
+}
+
+/* Nights Info */
+.nights-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 12px;
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border-radius: 8px;
+}
+
+.check-icon {
+    color: #003580;
+    font-size: 18px;
+}
+
+/* Price Section */
+.price-section {
+    background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+    border-left-color: #ff9800;
+}
+
+.price-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.price-row.total {
+    margin-top: 8px;
+    padding-top: 16px;
+    border-top: 2px dashed #003580;
+}
+
+.price-divider {
+    height: 2px;
+    background: linear-gradient(to right, transparent, #ff9800, transparent);
+    margin: 4px 0;
+}
+
+.total-label {
+    font-size: 18px;
+    color: #003580;
+}
+
+.total-amount {
+    font-size: 24px;
+    color: #003580;
+    font-weight: 700;
+}
+
+/* Payment Button */
+.payment-button {
+    margin-top: 24px;
+    height: 56px;
+    font-size: 18px;
+    font-weight: 600;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #003580 0%, #0056b3 100%);
+    border: none;
+    box-shadow: 0 6px 20px rgba(0, 53, 128, 0.3);
+    transition: all 0.3s ease;
+}
+
+.payment-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 53, 128, 0.4);
+}
+
+.payment-button:active {
+    transform: translateY(0);
+}
+
+/* Paid Notice */
+.paid-notice {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 20px;
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    border-radius: 12px;
+    margin-top: 24px;
+}
+
+.paid-icon {
+    font-size: 24px;
+    color: #4caf50;
+}
+
+.paid-notice span {
+    font-size: 16px;
+    color: #2e7d32;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 40px;
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    color: #003580;
+}
+
+.empty-state h3,
+.empty-state h4 {
+    color: #003580;
+    margin-bottom: 12px;
+}
+
+.empty-state p {
+    color: #666;
+    font-size: 16px;
+    margin-bottom: 24px;
+}
+
+.empty-state .ant-btn {
+    background: linear-gradient(135deg, #003580 0%, #0056b3 100%);
+    border: none;
+    height: 48px;
+    padding: 0 32px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* Empty Card */
+.empty-card {
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    border: none;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* Loading State */
+.loading-container {
+    text-align: center;
+    padding: 100px 40px;
+}
+
+.loading-container p {
+    margin-top: 20px;
+    color: #666;
+    font-size: 16px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .booking-history-layout {
+        grid-template-columns: 45% 55%;
+    }
+}
+
+@media (max-width: 992px) {
+    .booking-history-main {
+        padding: 40px 40px 60px;
+    }
+
+    .booking-history-layout {
+        grid-template-columns: 1fr;
+        gap: 32px;
+    }
+
+    .payment-form-container {
+        position: static;
+    }
+
+    .cards-container {
+        max-height: 500px;
+    }
+}
+
+@media (max-width: 768px) {
+    .booking-history-main {
+        padding: 24px 20px 40px;
+    }
+
+    .page-header h2 {
+        font-size: 24px !important;
+    }
+
+    .payment-form-card .ant-card-body {
+        padding: 20px;
+    }
+
+    .payment-form-header h3 {
+        font-size: 20px !important;
+    }
+
+    .payment-icon {
+        font-size: 24px;
+    }
+
+    .form-section {
+        padding: 16px;
+    }
+
+    .total-amount {
+        font-size: 20px;
+    }
+
+    .payment-button {
+        height: 48px;
+        font-size: 16px;
+    }
+
+    .cards-container {
+        max-height: 400px;
+    }
+}
+
+@media (max-width: 576px) {
+    .booking-history-main {
+        padding: 20px 16px 32px;
+    }
+
+    .booking-card .ant-card-body {
+        padding: 12px;
+    }
+
+    .detail-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .detail-row>div {
+        text-align: left;
+    }
+
+    .price-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+}

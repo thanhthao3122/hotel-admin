@@ -71,12 +71,12 @@ const BookingForm = ({
       <Form form={form} layout="vertical">
         <Form.Item
           label="Khách hàng"
-          name="customer_id"
+          name="user_id"
           rules={[{ required: true, message: 'Chọn khách hàng' }]}
         >
           <Select placeholder="Chọn khách hàng">
             {customers.map(c => (
-              <Option value={c.customer_id} key={c.customer_id}>
+              <Option value={c.user_id} key={c.user_id}>
                 {c.full_name} - {c.phone}
               </Option>
             ))}
@@ -90,10 +90,10 @@ const BookingForm = ({
         >
           <Select placeholder="Chọn phòng" onChange={handleRoomSelect}>
             {rooms
-              .filter(r => r.status === 'AVAILABLE')
+              .filter(r => r.status === 'available')
               .map(r => (
                 <Option key={r.room_id} value={r.room_id}>
-                  Phòng {r.room_number} (Tầng {r.floor})
+                  Phòng {r.room_number}
                 </Option>
               ))}
           </Select>
@@ -113,15 +113,52 @@ const BookingForm = ({
           name="check_in"
           rules={[{ required: true, message: 'Chọn ngày nhận' }]}
         >
-          <DatePicker style={{ width: '100%' }} />
+          <DatePicker
+            style={{ width: '100%' }}
+            format="DD/MM/YYYY"
+            disabledDate={(current) => {
+              // Can not select days before today
+              return current && current < dayjs().startOf('day');
+            }}
+            onChange={(date) => {
+              // Reset check_out if it becomes invalid (must be strictly after check_in)
+              const checkOut = form.getFieldValue('check_out');
+              if (checkOut && date && (checkOut.isBefore(date) || checkOut.isSame(date, 'day'))) {
+                form.setFieldValue('check_out', null);
+              }
+            }}
+          />
         </Form.Item>
 
         <Form.Item
           label="Ngày trả phòng"
           name="check_out"
-          rules={[{ required: true, message: 'Chọn ngày trả' }]}
+          rules={[
+            { required: true, message: 'Chọn ngày trả' },
+            ({ getFieldValue }) => ({
+              validator(_, value) {
+                if (!value || !getFieldValue('check_in')) {
+                  return Promise.resolve();
+                }
+                if (value.isAfter(getFieldValue('check_in'))) {
+                  return Promise.resolve();
+                }
+                return Promise.reject(new Error('Ngày trả phòng phải sau ngày nhận phòng!'));
+              },
+            }),
+          ]}
         >
-          <DatePicker style={{ width: '100%' }} />
+          <DatePicker
+            style={{ width: '100%' }}
+            format="DD/MM/YYYY"
+            disabledDate={(current) => {
+              const checkIn = form.getFieldValue('check_in');
+              if (checkIn) {
+                return current && current <= checkIn.endOf('day');
+              }
+              return current && current < dayjs().endOf('day');
+            }}
+          />
         </Form.Item>
       </Form>
     </Modal>

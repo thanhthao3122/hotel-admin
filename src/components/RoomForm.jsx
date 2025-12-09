@@ -1,6 +1,7 @@
 // src/components/RoomForm.jsx
-import { Form, Input, Modal, Select } from 'antd';
-import { useEffect } from 'react';
+import { Form, Input, Modal, Select, Upload, Button, message as antMessage } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
+import { useEffect, useState } from 'react';
 
 const { Option } = Select;
 
@@ -13,6 +14,8 @@ const RoomForm = ({
   roomTypes,
 }) => {
   const [form] = Form.useForm();
+  const [fileList, setFileList] = useState([]);
+  const [imagePreview, setImagePreview] = useState(null);
 
   useEffect(() => {
     if (open) {
@@ -21,22 +24,78 @@ const RoomForm = ({
           room_number: '',
           room_type_id: roomTypes?.[0]?.room_type_id || undefined,
           status: 'available',
-          image: '',
         }
       );
+
+      // Set preview if editing with existing image
+      if (initialValues?.image) {
+        setImagePreview(initialValues.image);
+      } else {
+        setImagePreview(null);
+      }
+      setFileList([]);
     }
   }, [open, initialValues, form, roomTypes]);
 
   const handleOk = () => {
     form.validateFields().then((values) => {
-      onSubmit(values);
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('room_number', values.room_number);
+      formData.append('room_type_id', values.room_type_id);
+      formData.append('status', values.status);
+
+      // Add image file if selected
+      if (fileList.length > 0) {
+        formData.append('image', fileList[0].originFileObj);
+      }
+
+      onSubmit(formData);
       form.resetFields();
+      setFileList([]);
+      setImagePreview(null);
     });
   };
 
   const handleCancel = () => {
     form.resetFields();
+    setFileList([]);
+    setImagePreview(null);
     onCancel();
+  };
+
+  const handleFileChange = ({ fileList: newFileList }) => {
+    // Only keep the last file
+    const latestFile = newFileList.slice(-1);
+    setFileList(latestFile);
+
+    // Create preview
+    if (latestFile.length > 0) {
+      const file = latestFile[0].originFileObj;
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setImagePreview(null);
+    }
+  };
+
+  const beforeUpload = (file) => {
+    const isImage = file.type.startsWith('image/');
+    if (!isImage) {
+      antMessage.error('Chỉ được upload file ảnh!');
+      return Upload.LIST_IGNORE;
+    }
+
+    const isLt5M = file.size / 1024 / 1024 < 5;
+    if (!isLt5M) {
+      antMessage.error('Ảnh phải nhỏ hơn 5MB!');
+      return Upload.LIST_IGNORE;
+    }
+
+    return false; // Prevent auto upload
   };
 
   return (
@@ -48,6 +107,7 @@ const RoomForm = ({
       okText={isEditing ? 'Lưu' : 'Thêm'}
       cancelText="Hủy"
       destroyOnClose
+      width={600}
     >
       <Form form={form} layout="vertical">
         <Form.Item
@@ -86,8 +146,36 @@ const RoomForm = ({
           </Select>
         </Form.Item>
 
-        <Form.Item label="Hình ảnh (URL)" name="image">
-          <Input placeholder="Link hình ảnh (không bắt buộc)" />
+        <Form.Item label="Hình ảnh phòng">
+          <Upload
+            listType="picture"
+            fileList={fileList}
+            onChange={handleFileChange}
+            beforeUpload={beforeUpload}
+            maxCount={1}
+            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/avif"
+          >
+            <Button icon={<UploadOutlined />}>Chọn ảnh từ máy tính</Button>
+          </Upload>
+          <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+            Hỗ trợ: JPG, PNG, GIF, WebP, AVIF (Max 5MB)
+          </div>
+
+          {/* Image Preview */}
+          {imagePreview && (
+            <div style={{ marginTop: 16 }}>
+              <img
+                src={imagePreview}
+                alt="Preview"
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: 300,
+                  borderRadius: 8,
+                  border: '1px solid #d9d9d9'
+                }}
+              />
+            </div>
+          )}
         </Form.Item>
       </Form>
     </Modal>

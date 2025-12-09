@@ -1,5 +1,5 @@
 // src/pages/Customers.jsx
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
@@ -16,21 +16,53 @@ import {
   SearchOutlined,
 } from '@ant-design/icons';
 import CustomerForm from '../components/CustomerForm.jsx';
-import { MOCK_CUSTOMERS } from '../mock/customers.js';
+import userApi from '../api/userApi.js';
 
 const Customers = () => {
-  const [customers, setCustomers] = useState(MOCK_CUSTOMERS);
+  const [customers, setCustomers] = useState([]);
   const [searchText, setSearchText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+
+  // Fetch customers from API
+  const fetchCustomers = async (page = pagination.current, limit = pagination.pageSize) => {
+    try {
+      setLoading(true);
+      const res = await userApi.getAll(page, limit);
+      setCustomers(res.data || []);
+      if (res.pagination) {
+        setPagination({
+          current: res.pagination.page,
+          pageSize: res.pagination.limit,
+          total: res.pagination.total,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      message.error('Không tải được danh sách khách hàng');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers(1, pagination.pageSize);
+  }, []);
 
   // search theo tên hoặc sđt
   const filteredCustomers = useMemo(() => {
     return customers.filter(c => {
       const keyword = searchText.toLowerCase();
       return (
-        c.full_name.toLowerCase().includes(keyword) ||
-        c.phone.includes(keyword)
+        c.full_name?.toLowerCase().includes(keyword) ||
+        c.phone?.includes(keyword) ||
+        c.email?.toLowerCase().includes(keyword)
       );
     });
   }, [customers, searchText]);
@@ -45,41 +77,42 @@ const Customers = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id) => {
-    setCustomers(prev => prev.filter(c => c.customer_id !== id));
-    message.success('Đã xóa khách hàng');
+  const handleDelete = async (id) => {
+    try {
+      await userApi.delete(id);
+      message.success('Đã xóa khách hàng');
+      fetchCustomers();
+    } catch (error) {
+      console.error(error);
+      message.error('Không xóa được khách hàng');
+    }
   };
 
-  const handleSubmitForm = (values) => {
-    if (editingCustomer) {
-      // update
-      setCustomers(prev =>
-        prev.map(c =>
-          c.customer_id === editingCustomer.customer_id
-            ? { ...c, ...values }
-            : c
-        )
-      );
-      message.success('Cập nhật khách hàng thành công');
-    } else {
-      // create
-      const newCustomer = {
-        customer_id: Date.now(), // fake id
-        ...values,
-      };
-      setCustomers(prev => [...prev, newCustomer]);
-      message.success('Thêm khách hàng thành công');
+  const handleSubmitForm = async (values) => {
+    try {
+      if (editingCustomer) {
+        // update
+        await userApi.update(editingCustomer.user_id, values);
+        message.success('Cập nhật khách hàng thành công');
+      } else {
+        // create
+        await userApi.create(values);
+        message.success('Thêm khách hàng thành công');
+      }
+      setIsModalOpen(false);
+      setEditingCustomer(null);
+      fetchCustomers();
+    } catch (error) {
+      console.error(error);
+      message.error('Có lỗi khi lưu khách hàng');
     }
-
-    setIsModalOpen(false);
-    setEditingCustomer(null);
   };
 
   const columns = [
     {
       title: 'ID',
-      dataIndex: 'customer_id',
-      key: 'customer_id',
+      dataIndex: 'user_id',
+      key: 'user_id',
       width: 80,
     },
     {
@@ -99,10 +132,10 @@ const Customers = () => {
       key: 'email',
     },
     {
-      title: 'CCCD',
-      dataIndex: 'id_card',
-      key: 'id_card',
-      width: 150,
+      title: 'Vai trò',
+      dataIndex: 'role',
+      key: 'role',
+      width: 100,
     },
     {
       title: 'Hành động',
@@ -121,7 +154,7 @@ const Customers = () => {
             description={`Bạn có chắc muốn xóa khách hàng "${record.full_name}"?`}
             okText="Xóa"
             cancelText="Hủy"
-            onConfirm={() => handleDelete(record.customer_id)}
+            onConfirm={() => handleDelete(record.user_id)}
           >
             <Button
               size="small"
@@ -163,10 +196,22 @@ const Customers = () => {
 
       {/* Table */}
       <Table
-        rowKey="customer_id"
+        rowKey="user_id"
         columns={columns}
         dataSource={filteredCustomers}
-        pagination={{ pageSize: 5 }}
+        loading={loading}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          showSizeChanger: true,
+          pageSizeOptions: ['5', '10', '20'],
+        }}
+        onChange={(pager) => {
+          const { current, pageSize } = pager;
+          setPagination(prev => ({ ...prev, current, pageSize }));
+          fetchCustomers(current, pageSize);
+        }}
       />
 
       {/* Modal Thêm/Sửa */}

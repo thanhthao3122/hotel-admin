@@ -1,0 +1,350 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import Navbar from '../../components/home/Navbar';
+import Footer from '../../components/home/Footer';
+import roomApi from '../../api/roomApi';
+import bookingApi from '../../api/bookingApi';
+import { BASE_URL } from '../../components/home/constants';
+import './roomDetail.css';
+
+// Helper function to format currency in VND
+const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('vi-VN').format(Math.floor(amount));
+};
+
+const RoomDetail = () => {
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const [room, setRoom] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [isBooking, setIsBooking] = useState(false);
+    const [validationError, setValidationError] = useState('');
+    const [bookingData, setBookingData] = useState({
+        checkin_date: '',
+        checkout_date: '',
+        guests: 1
+    });
+
+    useEffect(() => {
+        const fetchRoomDetail = async () => {
+            try {
+                const response = await roomApi.getById(id);
+                setRoom(response.data);
+            } catch (error) {
+                console.error('Error fetching room:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchRoomDetail();
+    }, [id]);
+
+    const handleBookingChange = (e) => {
+        const { name, value } = e.target;
+        setBookingData({
+            ...bookingData,
+            [name]: value
+        });
+
+        // Clear validation error when user changes input
+        setValidationError('');
+
+        // Validate dates
+        if (name === 'checkout_date' && bookingData.checkin_date) {
+            const checkin = new Date(bookingData.checkin_date);
+            const checkout = new Date(value);
+            if (checkout <= checkin) {
+                setValidationError('Ngày trả phòng phải sau ngày nhận phòng ít nhất 1 ngày');
+            }
+        }
+
+        if (name === 'checkin_date' && bookingData.checkout_date) {
+            const checkin = new Date(value);
+            const checkout = new Date(bookingData.checkout_date);
+            if (checkout <= checkin) {
+                setValidationError('Ngày trả phòng phải sau ngày nhận phòng ít nhất 1 ngày');
+            }
+        }
+    };
+
+    const handleBooking = async () => {
+        // Check if user is logged in
+        const user = JSON.parse(localStorage.getItem('user'));
+        const token = localStorage.getItem('token');
+
+        if (!user || !token) {
+            alert('Vui lòng đăng nhập để đặt phòng');
+            navigate('/login');
+            return;
+        }
+
+        // Validate dates
+        if (!bookingData.checkin_date || !bookingData.checkout_date) {
+            setValidationError('Vui lòng chọn ngày nhận phòng và trả phòng');
+            return;
+        }
+
+        const checkin = new Date(bookingData.checkin_date);
+        const checkout = new Date(bookingData.checkout_date);
+
+        if (checkout <= checkin) {
+            setValidationError('Ngày trả phòng phải sau ngày nhận phòng ít nhất 1 ngày');
+            return;
+        }
+
+        // Validate guests
+        const maxCapacity = room.roomType?.capacity || 2;
+        if (bookingData.guests > maxCapacity) {
+            setValidationError(`Số khách không được vượt quá ${maxCapacity} người`);
+            return;
+        }
+
+        setValidationError('');
+
+        // Proceed with booking directly
+        try {
+            setIsBooking(true);
+
+            const finalBookingData = {
+                user_id: user.user_id,
+                checkin_date: bookingData.checkin_date,
+                checkout_date: bookingData.checkout_date,
+                rooms: [
+                    {
+                        room_id: Number(id),
+                        price_per_night: room.roomType?.base_price || 0
+                    }
+                ],
+                source: 'online'
+            };
+
+            await bookingApi.create(finalBookingData);
+
+            alert('Đặt phòng thành công! Bạn sẽ được chuyển đến trang lịch sử đặt phòng.');
+            navigate('/booking-history');
+        } catch (error) {
+            console.error(error);
+            const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi đặt phòng';
+            alert('Có lỗi xảy ra: ' + errorMessage);
+        } finally {
+            setIsBooking(false);
+        }
+    };
+
+    const calculateTotalPrice = () => {
+        if (!bookingData.checkin_date || !bookingData.checkout_date || !room) return 0;
+        const start = new Date(bookingData.checkin_date);
+        const end = new Date(bookingData.checkout_date);
+        const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+        return nights * (room.roomType?.base_price || 0);
+    };
+
+    if (loading) {
+        return (
+            <div className="loading-page">
+                <div className="spinner"></div>
+            </div>
+        );
+    }
+
+    if (!room) {
+        return (
+            <div className="error-page">
+                <h2>Không tìm thấy phòng</h2>
+                <button onClick={() => navigate('/home')}>Quay lại trang chủ</button>
+            </div>
+        );
+    }
+
+    const roomImage = room.image?.startsWith('http')
+        ? room.image
+        : room.image
+            ? `${BASE_URL}${room.image}`
+            : 'https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=1170&q=80';
+
+    return (
+        <div className="room-detail-page">
+            <Navbar />
+
+            <div className="room-detail-container">
+                <button className="back-button" onClick={() => navigate('/home')}>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" />
+                    </svg>
+                    Quay lại
+                </button>
+
+                <div className="room-content">
+                    <div className="room-info-section">
+                        <h1 className="room-title">
+                            {room.roomType?.name || `Phòng ${room.room_number}`}
+                        </h1>
+
+                        <div className="room-meta">
+                            <span className="room-number">Phòng số: {room.room_number}</span>
+                            <span className="room-rating">
+                                <svg width="14" height="14" viewBox="0 0 32 32" fill="currentColor">
+                                    <path d="M15.094 1.579l-4.124 8.885-9.86 1.27a1 1 0 0 0-.54 1.736l7.293 6.815-1.991 9.692a1 1 0 0 0 1.488 1.081L16 24.248l8.64 4.808a1 1 0 0 0 1.488-1.08l-1.991-9.692 7.293-6.815a1 1 0 0 0-.54-1.736l-9.86-1.27-4.124-8.885a1 1 0 0 0-1.798 0z" />
+                                </svg>
+                                4.8 (128 đánh giá)
+                            </span>
+                        </div>
+
+                        <div className="room-image-container">
+                            <img src={roomImage} alt={room.room_number} className="room-image" />
+                        </div>
+
+                        <div className="room-details">
+                            <h2>Thông tin phòng</h2>
+                            <div className="detail-grid">
+                                <div className="detail-item">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                        <circle cx="9" cy="7" r="4" />
+                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                    </svg>
+                                    <div>
+                                        <strong>Sức chứa</strong>
+                                        <p>{room.roomType?.capacity || 2} khách</p>
+                                    </div>
+                                </div>
+                                <div className="detail-item">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                    </svg>
+                                    <div>
+                                        <strong>Trạng thái</strong>
+                                        <p>{room.status === 'available' ? 'Còn trống' : 'Đã đặt'}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="room-description">
+                                <h3>Mô tả</h3>
+                                <p>{room.roomType?.description || 'Phòng được trang bị đầy đủ tiện nghi hiện đại, không gian thoáng mát, view đẹp. Phù hợp cho gia đình hoặc nhóm bạn.'}</p>
+                            </div>
+
+                            <div className="amenities">
+                                <h3>Tiện nghi</h3>
+                                <div className="amenity-list">
+                                    <div className="amenity-item">✓ WiFi miễn phí</div>
+                                    <div className="amenity-item">✓ Điều hòa</div>
+                                    <div className="amenity-item">✓ TV màn hình phẳng</div>
+                                    <div className="amenity-item">✓ Tủ lạnh</div>
+                                    <div className="amenity-item">✓ Phòng tắm riêng</div>
+                                    <div className="amenity-item">✓ Dịch vụ phòng 24/7</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="booking-section">
+                        <div className="booking-card">
+                            <div className="price-section">
+                                <span className="price">{formatCurrency(room.roomType?.base_price || 0)}đ</span>
+                                <span className="price-unit">/ đêm</span>
+                            </div>
+
+                            <div className="booking-form">
+                                <div className="form-row">
+                                    <div className="form-field">
+                                        <label>Ngày nhận phòng</label>
+                                        <input
+                                            type="date"
+                                            name="checkin_date"
+                                            value={bookingData.checkin_date}
+                                            onChange={handleBookingChange}
+                                            min={new Date().toISOString().split('T')[0]}
+                                        />
+                                    </div>
+                                    <div className="form-field">
+                                        <label>Ngày trả phòng</label>
+                                        <input
+                                            type="date"
+                                            name="checkout_date"
+                                            value={bookingData.checkout_date}
+                                            onChange={handleBookingChange}
+                                            min={bookingData.checkin_date || new Date().toISOString().split('T')[0]}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-field">
+                                    <label>Số khách</label>
+                                    <select
+                                        name="guests"
+                                        value={bookingData.guests}
+                                        onChange={handleBookingChange}
+                                    >
+                                        {[1, 2, 3, 4, 5, 6].map(num => (
+                                            <option key={num} value={num}>{num} khách</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {validationError && (
+                                    <div className="validation-error" style={{
+                                        color: '#d32f2f',
+                                        backgroundColor: '#ffebee',
+                                        padding: '10px',
+                                        borderRadius: '8px',
+                                        marginBottom: '15px',
+                                        fontSize: '14px'
+                                    }}>
+                                        {validationError}
+                                    </div>
+                                )}
+
+                                {bookingData.checkin_date && bookingData.checkout_date && !validationError && (
+                                    <div className="price-summary" style={{
+                                        backgroundColor: '#f5f5f5',
+                                        padding: '15px',
+                                        borderRadius: '8px',
+                                        marginBottom: '15px'
+                                    }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                            <span>Giá mỗi đêm:</span>
+                                            <span>{formatCurrency(room.roomType?.base_price || 0)}đ</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                            <span>Số đêm:</span>
+                                            <span>{Math.ceil((new Date(bookingData.checkout_date) - new Date(bookingData.checkin_date)) / (1000 * 60 * 60 * 24))}</span>
+                                        </div>
+                                        <div style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            fontWeight: 'bold',
+                                            fontSize: '16px',
+                                            paddingTop: '8px',
+                                            borderTop: '1px solid #ddd'
+                                        }}>
+                                            <span>Tổng cộng:</span>
+                                            <span>{formatCurrency(calculateTotalPrice())}đ</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <button
+                                    className="book-button"
+                                    onClick={handleBooking}
+                                    disabled={!bookingData.checkin_date || !bookingData.checkout_date || !!validationError || isBooking}
+                                >
+                                    {isBooking ? 'Đang xử lý...' : 'Đặt phòng ngay'}
+                                </button>
+
+                                <p className="booking-note">Bạn sẽ không bị tính phí ngay</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <Footer />
+        </div>
+    );
+};
+
+export default RoomDetail;
