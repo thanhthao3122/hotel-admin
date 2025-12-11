@@ -122,7 +122,7 @@ const Invoices = () => {
               </tr>
               ${booking?.serviceUsages?.map(usage => `
                 <tr>
-                  <td>${usage.service?.name || 'Dịch vụ'} (SL: ${usage.quantity})</td>
+                  <td>${usage.service?.name || 'Dịch vụ'} ( SL: ${usage.quantity})</td>
                   <td>${Number(usage.total_price).toLocaleString('vi-VN')} VNĐ</td>
                 </tr>
               `).join('') || ''}
