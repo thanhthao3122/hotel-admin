@@ -1,5 +1,5 @@
 // src/pages/Services.jsx
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
   Button,
   Card,
@@ -7,31 +7,35 @@ import {
   Popconfirm,
   Space,
   Table,
+  Tag,
   message,
-} from 'antd';
+} from "antd";
 import {
-  PlusOutlined,
-  EditOutlined,
   DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
   SearchOutlined,
-} from '@ant-design/icons';
+} from "@ant-design/icons";
 
-import ServiceForm from '../components/ServiceForm.jsx';
-import serviceApi from '../api/serviceApi.js';
+import serviceApi from "../api/serviceApi";
+import ServiceForm from "../components/ServiceForm.jsx";
 
 const Services = () => {
   const [services, setServices] = useState([]);
-  const [searchText, setSearchText] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const [searchText, setSearchText] = useState("");
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingService, setEditingService] = useState(null);
-  const [loading, setLoading] = useState(false);
 
   const [pagination, setPagination] = useState({
     current: 1,
-    pageSize: 5,
+    pageSize: 10,
     total: 0,
   });
 
+  // ====== LOAD DỮ LIỆU TỪ API ======
   const fetchServices = async (
     page = pagination.current,
     limit = pagination.pageSize
@@ -39,25 +43,28 @@ const Services = () => {
     try {
       setLoading(true);
       const res = await serviceApi.getAll(page, limit);
-      // Giả định backend trả: { success, data, pagination }
-      setServices(res.data || []);
-      if (res.pagination) {
+      const list = res.data || [];
+      const pag = res.pagination;
+
+      setServices(list);
+
+      if (pag) {
         setPagination({
-          current: res.pagination.page,
-          pageSize: res.pagination.limit,
-          total: res.pagination.total,
+          current: pag.page,
+          pageSize: pag.limit,
+          total: pag.total,
         });
       } else {
         setPagination((prev) => ({
           ...prev,
           current: page,
           pageSize: limit,
-          total: (res.data || []).length,
+          total: list.length,
         }));
       }
     } catch (error) {
       console.error(error);
-      message.error('Không tải được danh sách dịch vụ');
+      message.error("Không tải được danh sách dịch vụ");
     } finally {
       setLoading(false);
     }
@@ -65,15 +72,16 @@ const Services = () => {
 
   useEffect(() => {
     fetchServices(1, pagination.pageSize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ====== FILTER THEO TÊN ======
   const filteredServices = useMemo(() => {
     const keyword = searchText.toLowerCase();
-    return services.filter((s) =>
-      s.name.toLowerCase().includes(keyword)
-    );
+    return services.filter((s) => s.name?.toLowerCase().includes(keyword));
   }, [services, searchText]);
 
+  // ====== CRUD ======
   const openCreateModal = () => {
     setEditingService(null);
     setIsModalOpen(true);
@@ -87,71 +95,87 @@ const Services = () => {
   const handleDelete = async (id) => {
     try {
       await serviceApi.delete(id);
-      message.success('Đã xóa dịch vụ');
+      message.success("Đã xóa dịch vụ");
       fetchServices();
     } catch (error) {
       console.error(error);
       const msg =
         error.response?.data?.message ||
         error.response?.data?.error ||
-        'Không xóa được dịch vụ';
+        "Không xóa được dịch vụ";
       message.error(msg);
     }
   };
 
   const handleSubmitForm = async (values) => {
     try {
+      console.log("Submitting service form values:", values);
       if (editingService) {
         await serviceApi.update(editingService.service_id, values);
-        message.success('Cập nhật dịch vụ thành công');
+        message.success("Cập nhật dịch vụ thành công");
       } else {
         await serviceApi.create(values);
-        message.success('Thêm dịch vụ thành công');
+        message.success("Thêm dịch vụ thành công");
       }
+
       setIsModalOpen(false);
       setEditingService(null);
-      fetchServices();
+      fetchServices(1, pagination.pageSize);
     } catch (error) {
       console.error(error);
       const msg =
         error.response?.data?.message ||
         error.response?.data?.error ||
-        'Có lỗi khi lưu dịch vụ';
+        "Có lỗi khi lưu dịch vụ";
       message.error(msg);
     }
   };
 
+  const handleTableChange = (pager) => {
+    const { current, pageSize } = pager;
+    setPagination((prev) => ({
+      ...prev,
+      current,
+      pageSize,
+    }));
+    fetchServices(current, pageSize);
+  };
+
+  // ====== CỘT BẢNG ======
   const columns = [
     {
-      title: 'ID',
-      dataIndex: 'service_id',
-      key: 'service_id',
-      width: 80,
+      title: "Tên dịch vụ",
+      dataIndex: "name",
+      key: "name",
     },
     {
-      title: 'Tên dịch vụ',
-      dataIndex: 'name',
-      key: 'name',
+      title: "Đơn giá",
+      dataIndex: "price",
+      key: "price",
+      render: (value) => (
+        <Tag color="red">{Number(value).toLocaleString("vi-VN")} VNĐ</Tag>
+      ),
     },
     {
-      title: 'Giá',
-      dataIndex: 'price',
-      key: 'price',
-      render: (value) =>
-        `${Number(value)
-          .toString()
-          .replace(/\B(?=(\d{3})+(?!\d))/g, '.')} VNĐ`,
-      sorter: (a, b) => Number(a.price) - Number(b.price),
+      title: "Đơn vị tính",
+      dataIndex: "unit",
+      key: "unit",
+      render: (v) => v || "-",
     },
     {
-      title: 'Đơn vị',
-      dataIndex: 'unit',
-      key: 'unit',
-      width: 120,
+      title: "Ngày tạo",
+      dataIndex: "created_at",
+      render: (value) => {
+        if (!value) return "-";
+        return new Date(value).toLocaleString("vi-VN", {
+          timeZone: "Asia/Ho_Chi_Minh",
+        });
+      },
     },
+
     {
-      title: 'Hành động',
-      key: 'actions',
+      title: "Hành động",
+      key: "actions",
       render: (_, record) => (
         <Space>
           <Button
@@ -163,12 +187,20 @@ const Services = () => {
           </Button>
           <Popconfirm
             title="Xóa dịch vụ"
-            description={`Bạn có chắc muốn xóa "${record.name}"?`}
+            description={`Bạn có chắc muốn xóa dịch vụ "${record.name}"?`}
             okText="Xóa"
             cancelText="Hủy"
             onConfirm={() => handleDelete(record.service_id)}
           >
-            <Button size="small" danger icon={<DeleteOutlined />}>
+            <Button
+              size="small"
+              icon={<DeleteOutlined />}
+              style={{
+                backgroundColor: "#ff4d4f",
+                color: "#fff",
+                borderColor: "#ff4d4f",
+              }}
+            >
               Xóa
             </Button>
           </Popconfirm>
@@ -176,16 +208,6 @@ const Services = () => {
       ),
     },
   ];
-
-  const handleTableChange = (pager) => {
-    const { current, pageSize } = pager;
-    setPagination((prev) => ({
-      ...prev,
-      current,
-      pageSize,
-    }));
-    fetchServices(current, pageSize);
-  };
 
   return (
     <Card
@@ -200,19 +222,17 @@ const Services = () => {
         </Button>
       }
     >
-      {/* Search */}
-      <Space style={{ marginBottom: 16 }} wrap>
-        <Input
-          placeholder="Tìm theo tên dịch vụ..."
-          prefix={<SearchOutlined />}
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          allowClear
-          style={{ width: 260 }}
-        />
-      </Space>
+      {/* Ô tìm kiếm */}
+      <Input
+        placeholder="Tìm theo tên dịch vụ..."
+        prefix={<SearchOutlined />}
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
+        allowClear
+        style={{ width: 260, marginBottom: 16 }}
+      />
 
-      {/* Table */}
+      {/* Bảng dịch vụ */}
       <Table
         rowKey="service_id"
         columns={columns}
@@ -223,12 +243,12 @@ const Services = () => {
           pageSize: pagination.pageSize,
           total: pagination.total,
           showSizeChanger: true,
-          pageSizeOptions: ['5', '10', '20'],
+          pageSizeOptions: ["5", "10", "20"],
         }}
         onChange={handleTableChange}
       />
 
-      {/* Modal Thêm/Sửa */}
+      {/* Modal thêm / sửa */}
       <ServiceForm
         open={isModalOpen}
         onCancel={() => {

@@ -1,6 +1,6 @@
 // src/components/ServiceUsageForm.jsx
 import { Form, InputNumber, Modal, Select } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 const { Option } = Select;
 
@@ -19,8 +19,8 @@ const ServiceUsageForm = ({
 
   // Map id -> object để tiện lookup
   // NOTE: booking.user_id, không phải customer_id
-  const customerMap = Object.fromEntries(customers.map(c => [c.user_id, c]));
-  const serviceMap = Object.fromEntries(services.map(s => [s.service_id, s]));
+  const customerMap = useMemo(() => Object.fromEntries(customers.map(c => [c.user_id, c])), [customers]);
+  const serviceMap = useMemo(() => Object.fromEntries(services.map(s => [s.service_id, s])), [services]);
 
   useEffect(() => {
     if (open) {
@@ -70,7 +70,15 @@ const ServiceUsageForm = ({
     const roomNumbers = booking.bookingRooms?.map(br => br.room?.room_number).filter(Boolean) || [];
     const roomText = roomNumbers.length > 0 ? `Phòng ${roomNumbers.join(', ')}` : 'N/A';
 
-    return `#${booking.booking_id} - ${customer?.full_name || 'N/A'} - ${roomText}`;
+    const statusText = {
+      pending: 'Chờ xác nhận',
+      confirmed: 'Đã xác nhận',
+      checked_in: 'Đang ở',
+      checked_out: 'Đã trả phòng',
+      cancelled: 'Đã hủy'
+    }[booking.status] || booking.status;
+
+    return `#${booking.booking_id} - ${customer?.full_name || 'N/A'} - ${roomText} (${statusText})`;
   };
 
   return (
@@ -79,6 +87,7 @@ const ServiceUsageForm = ({
       open={open}
       onOk={handleOk}
       onCancel={() => {
+        console.log("Closing ServiceUsageForm");
         form.resetFields();
         onCancel();
       }}
@@ -86,7 +95,16 @@ const ServiceUsageForm = ({
       cancelText="Hủy"
       destroyOnClose
     >
-      <Form form={form} layout="vertical">
+      <Form
+        form={form}
+        layout="vertical"
+        onValuesChange={(changedValues, allValues) => {
+          if (changedValues.service_id) {
+            const service = serviceMap[changedValues.service_id];
+            setPricePerUnit(service?.price || 0);
+          }
+        }}
+      >
         <Form.Item
           label="Đơn đặt phòng"
           name="booking_id"
@@ -106,10 +124,7 @@ const ServiceUsageForm = ({
           name="service_id"
           rules={[{ required: true, message: 'Vui lòng chọn dịch vụ' }]}
         >
-          <Select
-            placeholder="Chọn dịch vụ"
-            onChange={handleServiceChange}
-          >
+          <Select placeholder="Chọn dịch vụ">
             {services.map(s => (
               <Option key={s.service_id} value={s.service_id}>
                 {s.name} - {parseFloat(s.price).toLocaleString('vi-VN')} VNĐ / {s.unit}
@@ -136,13 +151,17 @@ const ServiceUsageForm = ({
           />
         </Form.Item>
 
-        <Form.Item label="Tổng tiền (VNĐ)">
-          <InputNumber
-            style={{ width: '100%' }}
-            readOnly
-            value={pricePerUnit * (form.getFieldValue('quantity') || 1)}
-            formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
-          />
+        <Form.Item shouldUpdate={(prevValues, curValues) => prevValues.quantity !== curValues.quantity}>
+          {() => (
+            <Form.Item label="Tổng tiền (VNĐ)">
+              <InputNumber
+                style={{ width: '100%' }}
+                readOnly
+                value={pricePerUnit * (form.getFieldValue('quantity') || 0)}
+                formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+              />
+            </Form.Item>
+          )}
         </Form.Item>
       </Form>
     </Modal>

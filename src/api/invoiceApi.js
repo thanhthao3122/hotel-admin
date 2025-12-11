@@ -31,6 +31,11 @@ const invoiceApi = {
     // Get invoices by booking
     getByBooking: (bookingId) => {
         return axiosClient.get(`/invoices/booking/${bookingId}`);
+    },
+
+    // Update invoice status
+    updateStatus: (id, status) => {
+        return axiosClient.put(`/invoices/${id}/status`, { status });
     }
 };
 

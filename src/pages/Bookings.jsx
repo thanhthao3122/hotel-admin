@@ -1,4 +1,6 @@
+
 import { useEffect, useMemo, useState } from 'react';
+
 import {
   Button,
   Card,
@@ -9,20 +11,22 @@ import {
   Input,
   Select,
   Popconfirm,
-} from 'antd';
+} from "antd";
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   SearchOutlined,
-} from '@ant-design/icons';
+} from "@ant-design/icons";
+
 
 import bookingApi from '../api/bookingApi.js';
 import userApi from '../api/userApi.js';
 import roomApi from '../api/roomApi.js';
 import roomTypeApi from '../api/roomTypeApi.js';
 
-import BookingForm from '../components/BookingForm.jsx';
+
+import BookingForm from "../components/BookingForm.jsx";
 
 const { Option } = Select;
 
@@ -33,8 +37,8 @@ const Bookings = () => {
   const [roomTypes, setRoomTypes] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const [searchText, setSearchText] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [searchText, setSearchText] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
 
@@ -81,12 +85,14 @@ const Bookings = () => {
   }, []);
 
   // map ID → object
+
   const customerMap = useMemo(() => Object.fromEntries(customers.map(c => [c.user_id, c])), [customers]);
   const roomMap = useMemo(() => Object.fromEntries(rooms.map(r => [r.room_id, r])), [rooms]);
   const roomTypeMap = useMemo(() => Object.fromEntries(roomTypes.map(rt => [rt.room_type_id, rt])), [roomTypes]);
 
+
   const filteredBookings = useMemo(() => {
-    return bookings.filter(b => {
+    return bookings.filter((b) => {
       const keyword = searchText.toLowerCase();
       const customer = customerMap[b.user_id]; // Note: booking uses user_id not customer_id
 
@@ -105,6 +111,7 @@ const Bookings = () => {
     setIsModalOpen(true);
   };
 
+
   const handleSubmit = async (data) => {
     try {
       if (editingBooking) {
@@ -121,6 +128,7 @@ const Bookings = () => {
     } catch (error) {
       console.error(error);
       message.error("Có lỗi khi lưu đặt phòng");
+
     }
   };
 
@@ -144,17 +152,19 @@ const Bookings = () => {
       console.error(error);
       message.error('Không cập nhật được trạng thái');
     }
+
   };
 
   const columns = [
     {
-      title: 'Khách hàng',
+      title: "Khách hàng",
       render: (_, record) => {
         const c = customerMap[record.user_id];
         return c ? `${c.full_name} (${c.phone})` : 'N/A';
       },
     },
     {
+
       title: 'Số Phòng',
       render: (_, record) => {
         if (!record.rooms || record.rooms.length === 0) return 'N/A';
@@ -200,12 +210,14 @@ const Bookings = () => {
             <Option value="cancelled">Đã hủy</Option>
           </Select>
         );
+
       },
     },
     {
-      title: 'Hành động',
+      title: "Hành động",
       render: (_, r) => (
         <Space>
+
           <Button size="small" icon={<EditOutlined />}
             onClick={() => { setEditingBooking(r); setIsModalOpen(true); }}>
             Sửa
@@ -230,7 +242,11 @@ const Bookings = () => {
     <Card
       title="Quản lý đặt phòng"
       extra={
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={openCreateModal}
+        >
           Tạo đặt phòng
         </Button>
       }
@@ -241,7 +257,7 @@ const Bookings = () => {
           placeholder="Tìm theo tên KH hoặc SĐT..."
           prefix={<SearchOutlined />}
           value={searchText}
-          onChange={e => setSearchText(e.target.value)}
+          onChange={(e) => setSearchText(e.target.value)}
           allowClear
           style={{ width: 260 }}
         />
@@ -251,7 +267,7 @@ const Bookings = () => {
           allowClear
           style={{ width: 180 }}
           value={filterStatus || undefined}
-          onChange={v => setFilterStatus(v)}
+          onChange={(v) => setFilterStatus(v)}
         >
           <Option value="pending">Đang chờ</Option>
           <Option value="checked_in">Đã nhận phòng</Option>
@@ -283,6 +299,7 @@ const Bookings = () => {
           // Ideally fetchData should accept page/limit.
           // For simplicity, I'll just reload page 1 or implement proper pagination in fetchData
         }}
+
       />
 
       <BookingForm

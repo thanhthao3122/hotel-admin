@@ -1,5 +1,4 @@
-// src/pages/Customers.jsx
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
   Button,
   Card,
@@ -8,57 +7,73 @@ import {
   Table,
   Popconfirm,
   message,
-} from 'antd';
+} from "antd";
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   SearchOutlined,
-} from '@ant-design/icons';
-import CustomerForm from '../components/CustomerForm.jsx';
-import userApi from '../api/userApi.js';
+} from "@ant-design/icons";
+
+import CustomerForm from "../components/CustomerForm.jsx";
+import userApi from "../api/userApi.js";
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // Chỉ khai báo 1 lần
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
     total: 0,
   });
 
-  // Fetch customers from API
-  const fetchCustomers = async (page = pagination.current, limit = pagination.pageSize) => {
+  // ==================== Fetch Customers ====================
+  const fetchCustomers = async (page = 1, limit = pagination.pageSize) => {
     try {
       setLoading(true);
       const res = await userApi.getAll(page, limit);
-      setCustomers(res.data || []);
-      if (res.pagination) {
+
+      const list = res.data || [];
+      const pag = res.pagination;
+
+      setCustomers(list);
+
+      if (pag) {
         setPagination({
-          current: res.pagination.page,
-          pageSize: res.pagination.limit,
-          total: res.pagination.total,
+          current: pag.page,
+          pageSize: pag.limit,
+          total: pag.total,
         });
+      } else {
+        setPagination((prev) => ({
+          ...prev,
+          current: page,
+          pageSize: limit,
+          total: list.length,
+        }));
       }
     } catch (error) {
       console.error(error);
-      message.error('Không tải được danh sách khách hàng');
+      message.error("Không tải được danh sách khách hàng");
     } finally {
       setLoading(false);
     }
   };
 
+  // Load lần đầu
   useEffect(() => {
     fetchCustomers(1, pagination.pageSize);
   }, []);
 
-  // search theo tên hoặc sđt
+  // ==================== Search Local ====================
   const filteredCustomers = useMemo(() => {
-    return customers.filter(c => {
-      const keyword = searchText.toLowerCase();
+    const keyword = searchText.toLowerCase();
+    return customers.filter((c) => {
       return (
         c.full_name?.toLowerCase().includes(keyword) ||
         c.phone?.includes(keyword) ||
@@ -67,6 +82,7 @@ const Customers = () => {
     });
   }, [customers, searchText]);
 
+  // ==================== Actions ====================
   const openCreateModal = () => {
     setEditingCustomer(null);
     setIsModalOpen(true);
@@ -80,66 +96,63 @@ const Customers = () => {
   const handleDelete = async (id) => {
     try {
       await userApi.delete(id);
-      message.success('Đã xóa khách hàng');
-      fetchCustomers();
+      message.success("Đã xóa khách hàng");
+      fetchCustomers(pagination.current, pagination.pageSize);
     } catch (error) {
       console.error(error);
-      message.error('Không xóa được khách hàng');
+      message.error("Không xóa được khách hàng");
     }
   };
 
   const handleSubmitForm = async (values) => {
     try {
       if (editingCustomer) {
-        // update
         await userApi.update(editingCustomer.user_id, values);
-        message.success('Cập nhật khách hàng thành công');
+        message.success("Cập nhật khách hàng thành công");
       } else {
-        // create
         await userApi.create(values);
-        message.success('Thêm khách hàng thành công');
+        message.success("Thêm khách hàng thành công");
       }
+
       setIsModalOpen(false);
       setEditingCustomer(null);
-      fetchCustomers();
+      fetchCustomers(pagination.current, pagination.pageSize);
     } catch (error) {
       console.error(error);
-      message.error('Có lỗi khi lưu khách hàng');
+      message.error("Có lỗi khi lưu khách hàng");
     }
   };
 
+  // ==================== Columns ====================
   const columns = [
     {
-      title: 'ID',
-      dataIndex: 'user_id',
-      key: 'user_id',
+      title: "STT",
+      key: "index",
       width: 80,
+      align: "center",
+      render: (_, __, index) =>
+        (pagination.current - 1) * pagination.pageSize + index + 1,
     },
     {
-      title: 'Họ và tên',
-      dataIndex: 'full_name',
-      key: 'full_name',
+      title: "Họ và tên",
+      dataIndex: "full_name",
     },
     {
-      title: 'Số điện thoại',
-      dataIndex: 'phone',
-      key: 'phone',
+      title: "Số điện thoại",
+      dataIndex: "phone",
       width: 140,
     },
     {
-      title: 'Email',
-      dataIndex: 'email',
-      key: 'email',
+      title: "Email",
+      dataIndex: "email",
     },
     {
-      title: 'Vai trò',
-      dataIndex: 'role',
-      key: 'role',
+      title: "Vai trò",
+      dataIndex: "role",
       width: 100,
     },
     {
-      title: 'Hành động',
-      key: 'actions',
+      title: "Hành động",
       render: (_, record) => (
         <Space>
           <Button
@@ -149,6 +162,7 @@ const Customers = () => {
           >
             Sửa
           </Button>
+
           <Popconfirm
             title="Xóa khách hàng"
             description={`Bạn có chắc muốn xóa khách hàng "${record.full_name}"?`}
@@ -158,8 +172,12 @@ const Customers = () => {
           >
             <Button
               size="small"
-              danger
               icon={<DeleteOutlined />}
+              style={{
+                backgroundColor: "#ff4d4f",
+                borderColor: "#ff4d4f",
+                color: "#fff",
+              }}
             >
               Xóa
             </Button>
@@ -173,22 +191,18 @@ const Customers = () => {
     <Card
       title="Quản lý khách hàng"
       extra={
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={openCreateModal}
-        >
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
           Thêm khách hàng
         </Button>
       }
     >
-      {/* Search */}
+      {/* Search Box */}
       <Space style={{ marginBottom: 16 }} wrap>
         <Input
-          placeholder="Tìm theo tên hoặc số điện thoại..."
+          placeholder="Tìm theo tên, số điện thoại, email..."
           prefix={<SearchOutlined />}
           value={searchText}
-          onChange={e => setSearchText(e.target.value)}
+          onChange={(e) => setSearchText(e.target.value)}
           allowClear
           style={{ width: 300 }}
         />
@@ -205,16 +219,19 @@ const Customers = () => {
           pageSize: pagination.pageSize,
           total: pagination.total,
           showSizeChanger: true,
-          pageSizeOptions: ['5', '10', '20'],
+          pageSizeOptions: ["5", "10", "20"],
         }}
         onChange={(pager) => {
-          const { current, pageSize } = pager;
-          setPagination(prev => ({ ...prev, current, pageSize }));
-          fetchCustomers(current, pageSize);
+          setPagination((prev) => ({
+            ...prev,
+            current: pager.current,
+            pageSize: pager.pageSize,
+          }));
+          fetchCustomers(pager.current, pager.pageSize);
         }}
       />
 
-      {/* Modal Thêm/Sửa */}
+      {/* Modal */}
       <CustomerForm
         open={isModalOpen}
         onCancel={() => {

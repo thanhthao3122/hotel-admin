@@ -14,8 +14,9 @@ const serviceUsageApi = {
     },
 
     // Create new service usage
+    // Create new service usage
     create: (data) => {
-        return axiosClient.post('/service-usage', data);
+        return axiosClient.post(`/service-usage/${data.booking_id}/services`, data);
     },
 
     // Update service usage

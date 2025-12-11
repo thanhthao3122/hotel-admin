@@ -18,11 +18,13 @@ import {
   SearchOutlined,
 } from "@ant-design/icons";
 
+
 import serviceUsageApi from "../api/serviceUsageApi";
 import bookingApi from "../api/bookingApi";
 import userApi from "../api/userApi";
 import roomApi from "../api/roomApi";
 import serviceApi from "../api/serviceApi";
+
 
 import ServiceUsageForm from "../components/ServiceUsageForm.jsx";
 
@@ -115,6 +117,7 @@ const ServiceUsage = () => {
 
       const keyword = searchText.toLowerCase();
 
+
       // Get room number from booking.bookingRooms
       const roomNumbers = booking.bookingRooms?.map(br => br.room?.room_number).filter(Boolean) || [];
       const roomText = roomNumbers.join(' ');
@@ -131,7 +134,6 @@ const ServiceUsage = () => {
       return matchSearch && matchService;
     });
   }, [usages, searchText, filterService, bookingMap, customerMap, serviceMap]);
-
   const openCreateModal = () => {
     setEditingUsage(null);
     setIsModalOpen(true);
@@ -164,6 +166,15 @@ const ServiceUsage = () => {
       console.error(error);
       message.error("Không xóa được sử dụng dịch vụ");
     }
+
+  };
+
+  const handleTableChange = (pager) => {
+    setPagination((prev) => ({
+      ...prev,
+      current: pager.current,
+      pageSize: pager.pageSize,
+    }));
   };
 
   const columns = [
@@ -171,6 +182,9 @@ const ServiceUsage = () => {
       title: "ID",
       dataIndex: "usage_id",
       width: 80,
+      align: "center",
+      render: (text, record, index) =>
+        (pagination.current - 1) * pagination.pageSize + index + 1,
     },
     {
       title: "Khách hàng",
@@ -182,7 +196,7 @@ const ServiceUsage = () => {
         return (
           <>
             <div>{customer.full_name}</div>
-            <div style={{ fontSize: 12, color: "#888" }}>{customer.phone}</div>
+            <div style={{ fontSize: 12, color: "#999" }}>{customer.phone}</div>
           </>
         );
       },
@@ -264,7 +278,15 @@ const ServiceUsage = () => {
             cancelText="Hủy"
             onConfirm={() => handleDelete(record.usage_id)}
           >
-            <Button size="small" danger icon={<DeleteOutlined />}>
+            <Button
+              size="small"
+              icon={<DeleteOutlined />}
+              style={{
+                backgroundColor: "#ff4d4f", // đỏ dịu
+                color: "#fff",
+                borderColor: "#ff4d4f",
+              }}
+            >
               Xóa
             </Button>
           </Popconfirm>
@@ -276,6 +298,11 @@ const ServiceUsage = () => {
   return (
     <Card
       title="Sử dụng dịch vụ"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "calc(100vh - 280px)", // ✅ đảm bảo chiếm đủ chiều cao trang
+      }}
       extra={
         <Button
           type="primary"
@@ -312,10 +339,12 @@ const ServiceUsage = () => {
       </Space>
 
       <Table
+
         rowKey="usage_id"
         columns={columns}
         dataSource={filteredUsages}
         loading={loading}
+
         pagination={{
           current: pagination.current,
           pageSize: pagination.pageSize,
@@ -330,7 +359,6 @@ const ServiceUsage = () => {
           // For simplicity, just reload page 1 or implement proper pagination in fetchData
         }}
       />
-
       <ServiceUsageForm
         open={isModalOpen}
         onCancel={() => {
@@ -340,7 +368,7 @@ const ServiceUsage = () => {
         onSubmit={handleSubmit}
         initialValues={editingUsage}
         isEditing={!!editingUsage}
-        bookings={bookings}
+        bookings={bookings.filter(b => ['checked_in', 'confirmed'].includes(b.status))}
         rooms={rooms}
         services={services}
         customers={customers}

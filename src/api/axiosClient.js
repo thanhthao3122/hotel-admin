@@ -1,4 +1,3 @@
-// src/api/axiosClient.js
 import axios from 'axios';
 
 const axiosClient = axios.create({
@@ -32,9 +31,7 @@ axiosClient.interceptors.request.use(
 axiosClient.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    // có thể log lỗi ở đây
     console.error('API error:', error);
-    // ném lại để chỗ gọi .catch được
     throw error;
   }
 );

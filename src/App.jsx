@@ -29,7 +29,6 @@ function App() {
       <Route path="/room/:id" element={<RoomDetail />} />
       <Route path="/booking-history" element={<BookingHistory />} />
       <Route path="/my-services" element={<UserServiceRequest />} />
-
       <Route path="/payment/result" element={<PaymentResult />} />
 
       {/* Admin Routes */}

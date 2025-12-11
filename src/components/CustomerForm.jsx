@@ -1,6 +1,6 @@
 // src/components/CustomerForm.jsx
-import { Form, Input, Modal } from 'antd';
-import { useEffect } from 'react';
+import { Form, Input, Modal } from "antd";
+import { useEffect } from "react";
 
 const CustomerForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) => {
   const [form] = Form.useForm();
@@ -9,10 +9,11 @@ const CustomerForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) =>
     if (open) {
       form.setFieldsValue(
         initialValues || {
-          full_name: '',
-          phone: '',
-          email: '',
-          id_card: '',
+          full_name: "",
+          phone: "",
+          email: "",
+          id_card: "",
+
         }
       );
     }
@@ -21,11 +22,11 @@ const CustomerForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) =>
   const handleOk = () => {
     form
       .validateFields()
-      .then(values => {
+      .then((values) => {
         onSubmit(values);
         form.resetFields();
       })
-      .catch(err => console.log(err));
+      .catch((err) => console.log(err));
   };
 
   const handleCancel = () => {
@@ -35,19 +36,19 @@ const CustomerForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) =>
 
   return (
     <Modal
-      title={isEditing ? 'Chỉnh sửa khách hàng' : 'Thêm khách hàng mới'}
+      title={isEditing ? "Chỉnh sửa khách hàng" : "Thêm khách hàng mới"}
       open={open}
       onOk={handleOk}
       onCancel={handleCancel}
       destroyOnClose
-      okText={isEditing ? 'Lưu' : 'Thêm'}
+      okText={isEditing ? "Lưu" : "Thêm"}
       cancelText="Hủy"
     >
       <Form form={form} layout="vertical">
         <Form.Item
           label="Họ và tên"
           name="full_name"
-          rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}
+          rules={[{ required: true, message: "Vui lòng nhập họ tên" }]}
         >
           <Input placeholder="VD: Nguyễn Văn A" />
         </Form.Item>
@@ -56,10 +57,10 @@ const CustomerForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) =>
           label="Số điện thoại"
           name="phone"
           rules={[
-            { required: true, message: 'Vui lòng nhập số điện thoại' },
+            { required: true, message: "Vui lòng nhập số điện thoại" },
             {
               pattern: /^0\d{9}$/,
-              message: 'Số điện thoại không hợp lệ (10 số, bắt đầu bằng 0)',
+              message: "Số điện thoại không hợp lệ (10 số, bắt đầu bằng 0)",
             },
           ]}
         >
@@ -70,8 +71,8 @@ const CustomerForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) =>
           label="Email"
           name="email"
           rules={[
-            { required: true, message: 'Vui lòng nhập email' },
-            { type: 'email', message: 'Email không hợp lệ' },
+            { required: true, message: "Vui lòng nhập email" },
+            { type: "email", message: "Email không hợp lệ" },
           ]}
         >
           <Input placeholder="VD: ten@example.com" />
@@ -81,15 +82,17 @@ const CustomerForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) =>
           label="CCCD"
           name="id_card"
           rules={[
-            { required: true, message: 'Vui lòng nhập CCCD' },
+            { required: false, message: "Vui lòng nhập CCCD" },
             {
               pattern: /^\d{12}$/,
-              message: 'CCCD phải có 12 số',
+              message: "CCCD phải có 12 số",
             },
           ]}
         >
           <Input placeholder="VD: 012345678901" />
         </Form.Item>
+
+
       </Form>
     </Modal>
   );

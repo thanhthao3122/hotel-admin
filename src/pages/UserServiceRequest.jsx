@@ -89,7 +89,7 @@ const UserServiceRequest = () => {
         // Check if user has selected a booking
         if (!selectedBookingId) {
             message.warning({
-                content: "Vui lòng chọn phòng để gọi dịch vụ",
+                content: "Vui lòng đặt phòng và check in để gọi dịch vụ",
                 duration: 5
             });
             return;

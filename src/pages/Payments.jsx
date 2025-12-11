@@ -37,6 +37,7 @@ const Payments = () => {
     total: 0,
   });
 
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -72,6 +73,7 @@ const Payments = () => {
 
   const customerMap = useMemo(() => Object.fromEntries(customers.map((c) => [c.user_id, c])), [customers]);
   const bookingMap = useMemo(() => Object.fromEntries(bookings.map((b) => [b.booking_id, b])), [bookings]);
+
 
   const filteredPayments = useMemo(() => {
     return payments.filter((p) => {
@@ -128,6 +130,19 @@ const Payments = () => {
       },
     },
     {
+      title: "Trạng thái",
+      dataIndex: "status",
+      render: (status) => {
+        // Handle boolean vs string status
+        const isCompleted = status === 'completed' || status === true || status === 1;
+        const isFailed = status === 'failed';
+
+        let color = isCompleted ? 'success' : isFailed ? 'error' : 'warning';
+        let text = isCompleted ? 'Đã thanh toán' : isFailed ? 'Thất bại' : 'Chờ xử lý';
+        return <Tag color={color}>{text}</Tag>;
+      }
+    },
+    {
       title: "Tiền phòng",
       dataIndex: "room_charge",
       render: (v) => v ? v.toLocaleString("vi-VN") + " VNĐ" : "0 VNĐ",
@@ -146,21 +161,8 @@ const Payments = () => {
     },
     {
       title: "Ngày thanh toán",
-      dataIndex: "created_at",
-      render: (v) => v ? new Date(v).toLocaleString("vi-VN") : "",
-    },
-    {
-      title: "Hành động",
-      render: (_, r) => (
-        <Space>
-          <Popconfirm
-            title="Xóa thanh toán?"
-            onConfirm={() => handleDelete(r.payment_id)}
-          >
-            <Button danger size="small" icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
+      dataIndex: "payment_date",
+      render: (v) => v ? new Date(v).toLocaleString("vi-VN") : "Chưa thanh toán",
     },
   ];
 
@@ -182,6 +184,7 @@ const Payments = () => {
         rowKey="payment_id"
         columns={columns}
         dataSource={filteredPayments}
+
         loading={loading}
         pagination={{
           current: pagination.current,
@@ -193,9 +196,8 @@ const Payments = () => {
         onChange={(pager) => {
           const { current, pageSize } = pager;
           setPagination(prev => ({ ...prev, current, pageSize }));
-          // Note: fetchData uses state pagination, so we might need to pass args or update state first
-          // For simplicity, just reload page 1 or implement proper pagination in fetchData
         }}
+
       />
 
       {selectedBooking && (

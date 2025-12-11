@@ -1,9 +1,12 @@
+
 // src/components/RoomForm.jsx
-import { Form, Input, Modal, Select, Upload, Button, message as antMessage } from 'antd';
+import { Form, Input, Modal, Select, Upload, Button, Divider, message as antMessage } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 
+
 const { Option } = Select;
+const IMAGE_BASE_URL = "http://localhost:5000";
 
 const RoomForm = ({
   open,
@@ -18,6 +21,7 @@ const RoomForm = ({
   const [imagePreview, setImagePreview] = useState(null);
 
   useEffect(() => {
+
     if (open) {
       form.setFieldsValue(
         initialValues || {
@@ -29,13 +33,21 @@ const RoomForm = ({
 
       // Set preview if editing with existing image
       if (initialValues?.image) {
-        setImagePreview(initialValues.image);
+        const imgPath = initialValues.image;
+        const fullUrl = imgPath.startsWith("http")
+          ? imgPath
+          : `${IMAGE_BASE_URL}${imgPath.startsWith("/") ? "" : "/"}${imgPath}`;
+        setImagePreview(fullUrl);
       } else {
         setImagePreview(null);
       }
       setFileList([]);
+
+
     }
   }, [open, initialValues, form, roomTypes]);
+
+  const normFile = (e) => (Array.isArray(e) ? e : e?.fileList);
 
   const handleOk = () => {
     form.validateFields().then((values) => {
@@ -56,6 +68,7 @@ const RoomForm = ({
       setImagePreview(null);
     });
   };
+
 
   const handleCancel = () => {
     form.resetFields();
@@ -98,22 +111,25 @@ const RoomForm = ({
     return false; // Prevent auto upload
   };
 
+
   return (
     <Modal
-      title={isEditing ? 'Chỉnh sửa phòng' : 'Thêm phòng mới'}
+      title={isEditing ? "Chỉnh sửa phòng" : "Thêm phòng mới"}
       open={open}
       onOk={handleOk}
-      onCancel={handleCancel}
-      okText={isEditing ? 'Lưu' : 'Thêm'}
+      onCancel={onCancel}
+      okText={isEditing ? "Lưu" : "Thêm"}
       cancelText="Hủy"
-      destroyOnClose
-      width={600}
+      width={560}                // ✅ RỘNG HƠN
+
     >
       <Form form={form} layout="vertical">
+        <Divider orientation="left">Thông tin phòng</Divider>
+
         <Form.Item
           label="Số phòng"
           name="room_number"
-          rules={[{ required: true, message: 'Vui lòng nhập số phòng' }]}
+          rules={[{ required: true, message: "Vui lòng nhập số phòng" }]}
         >
           <Input placeholder="VD: 101, 202..." />
         </Form.Item>
@@ -121,7 +137,7 @@ const RoomForm = ({
         <Form.Item
           label="Loại phòng"
           name="room_type_id"
-          rules={[{ required: true, message: 'Vui lòng chọn loại phòng' }]}
+          rules={[{ required: true, message: "Vui lòng chọn loại phòng" }]}
         >
           <Select placeholder="Chọn loại phòng">
             {roomTypes?.map((rt) => (
@@ -135,7 +151,7 @@ const RoomForm = ({
         <Form.Item
           label="Trạng thái"
           name="status"
-          rules={[{ required: true, message: 'Vui lòng chọn trạng thái' }]}
+          rules={[{ required: true, message: "Vui lòng chọn trạng thái" }]}
         >
           <Select>
             <Option value="available">Trống</Option>
@@ -145,6 +161,7 @@ const RoomForm = ({
             <Option value="maintenance">Bảo trì</Option>
           </Select>
         </Form.Item>
+
 
         <Form.Item label="Hình ảnh phòng">
           <Upload
@@ -176,6 +193,7 @@ const RoomForm = ({
               />
             </div>
           )}
+
         </Form.Item>
       </Form>
     </Modal>

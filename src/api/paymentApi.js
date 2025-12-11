@@ -1,3 +1,4 @@
+
 import axiosClient from './axiosClient';
 
 const paymentApi = {
@@ -12,6 +13,7 @@ const paymentApi = {
     // Common functions
     getByBooking: (bookingId) => axiosClient.get(`/payments/booking/${bookingId}`),
     getById: (id) => axiosClient.get(`/payments/${id}`)
+
 };
 
 export default paymentApi;

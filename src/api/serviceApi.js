@@ -1,26 +1,32 @@
 // src/api/serviceApi.js
-import axiosClient from './axiosClient';
+import axiosClient from "./axiosClient";
 
 const serviceApi = {
-  getAll: (page = 1, limit = 10) => {
-    return axiosClient.get('/services', {
+  // GET /services?page=&limit=
+  getAll(page = 1, limit = 10) {
+    // axiosClient đã trả về { success, data, pagination }
+    return axiosClient.get("/services", {
       params: { page, limit },
     });
   },
 
-  getById: (id) => {
+  // GET /services/:id
+  getById(id) {
     return axiosClient.get(`/services/${id}`);
   },
 
-  create: (data) => {
-    return axiosClient.post('/services', data);
+  // POST /services
+  create(data) {
+    return axiosClient.post("/services", data);
   },
 
-  update: (id, data) => {
+  // PUT /services/:id
+  update(id, data) {
     return axiosClient.put(`/services/${id}`, data);
   },
 
-  delete: (id) => {
+  // DELETE /services/:id
+  delete(id) {
     return axiosClient.delete(`/services/${id}`);
   },
 };
