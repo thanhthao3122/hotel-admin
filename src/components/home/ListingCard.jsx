@@ -39,9 +39,22 @@ const ListingCard = ({ room }) => {
                         <span>4.8</span>
                     </div>
                 </div>
-                <div className="listing-price">
-                    <span className="price-amount">{formatCurrency(room.roomType?.base_price || room.price_per_night)}đ</span>
-                    <span className="price-period"> đêm</span>
+
+                <div className="listing-footer">
+                    <div className="listing-price">
+                        <span className="price-amount">{formatCurrency(room.roomType?.base_price || room.price_per_night)}đ</span>
+                        <span className="price-period">/đêm</span>
+                    </div>
+
+                    {/* Guest capacity info - inline with price */}
+                    {room.roomType?.capacity && (
+                        <div className="listing-capacity">
+                            <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="presentation" focusable="false" style={{ display: 'inline-block', height: '14px', width: '14px', fill: 'currentcolor', marginRight: '4px' }}>
+                                <path d="M16 .7C7.56.7.7 7.56.7 16S7.56 31.3 16 31.3 31.3 24.44 31.3 16 24.44.7 16 .7zm0 28c-4.02 0-7.6-1.88-9.93-4.81a12.43 12.43 0 0 1 6.45-4.4A6.5 6.5 0 0 1 9.5 14a6.5 6.5 0 0 1 13 0 6.5 6.5 0 0 1-3.02 5.49 12.42 12.42 0 0 1 6.45 4.4A12.67 12.67 0 0 1 16 28.7z"></path>
+                            </svg>
+                            <span>{room.roomType.capacity} khách</span>
+                        </div>
+                    )}
                 </div>
             </div>
         </Link>

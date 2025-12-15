@@ -1,0 +1,77 @@
+/* UserProfile.css */
+.user-profile-main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    min-height: calc(100vh - 200px);
+}
+
+.page-header {
+    margin-bottom: 32px;
+    text-align: center;
+}
+
+.page-header h2 {
+    color: #003580;
+    margin-bottom: 8px;
+}
+
+.profile-container {
+    width: 100%;
+}
+
+.profile-card,
+.password-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.profile-card .ant-card-head,
+.password-card .ant-card-head {
+    background: linear-gradient(135deg, #003580 0%, #0057b8 100%);
+    color: white;
+    border-radius: 12px 12px 0 0;
+}
+
+.profile-card .ant-card-head-title,
+.password-card .ant-card-head-title {
+    color: white;
+    font-weight: 600;
+}
+
+.profile-card .ant-btn-primary,
+.password-card .ant-btn-primary {
+    background: #003580;
+    border-color: #003580;
+    height: 40px;
+    font-weight: 500;
+}
+
+.profile-card .ant-btn-primary:hover,
+.password-card .ant-btn-primary:hover {
+    background: #0057b8;
+    border-color: #0057b8;
+}
+
+.profile-card .ant-form-item-label > label,
+.password-card .ant-form-item-label > label {
+    font-weight: 500;
+    color: #333;
+}
+
+.profile-card .ant-input-disabled,
+.password-card .ant-input-disabled {
+    background-color: #f5f5f5;
+    color: #666;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .user-profile-main {
+        padding: 20px 16px;
+    }
+    
+    .page-header h2 {
+        font-size: 24px;
+    }
+}

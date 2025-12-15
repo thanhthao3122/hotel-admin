@@ -131,6 +131,17 @@ const UserServiceRequest = () => {
             render: (name) => name || "N/A"
         },
         {
+            title: "Phòng",
+            dataIndex: ["booking", "bookingRooms"],
+            render: (bookingRooms) => {
+                if (!bookingRooms || bookingRooms.length === 0) return "N/A";
+                return bookingRooms
+                    .map((br) => `Phòng ${br.room?.room_number || "N/A"}`)
+                    .join(", ");
+            },
+            width: 120
+        },
+        {
             title: "Số lượng",
             dataIndex: "quantity",
             align: "center",

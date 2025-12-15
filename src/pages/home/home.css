@@ -315,6 +315,12 @@
     margin: 0;
 }
 
+.listing-info-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .listing-rating {
     display: flex;
     align-items: center;
@@ -329,9 +335,25 @@
     margin: 0;
 }
 
-.listing-price {
+/* Footer row containing Price and Capacity */
+.listing-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-top: 6px;
+}
+
+.listing-price {
     font-size: 15px;
+    /* margin-top removed as it is handled by footer container */
+}
+
+.listing-capacity {
+    display: flex;
+    align-items: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+    /* margin-top removed */
 }
 
 .price-amount {

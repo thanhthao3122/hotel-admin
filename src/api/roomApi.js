@@ -30,9 +30,9 @@ const roomApi = {
     return axiosClient.delete(`/rooms/${id}`);
   },
 
-  getAvailable: (checkin_date, checkout_date) => {
+  getAvailable: (params) => {
     return axiosClient.get("/rooms/available", {
-      params: { checkin_date, checkout_date },
+      params,
     });
   },
 };

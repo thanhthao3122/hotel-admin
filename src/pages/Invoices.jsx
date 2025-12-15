@@ -1,6 +1,6 @@
 // src/pages/Invoices.jsx
-import { Card, Table, Tag, message, Button, Tooltip, Popconfirm } from "antd";
-import { CheckOutlined, CloseOutlined, PrinterOutlined } from "@ant-design/icons";
+import { Card, Table, Tag, message, Button, Tooltip, Popconfirm, Input, Select } from "antd";
+import { CheckOutlined, CloseOutlined, PrinterOutlined, SearchOutlined } from "@ant-design/icons";
 import { useState, useEffect, useMemo } from "react";
 
 import invoiceApi from "../api/invoiceApi";
@@ -15,6 +15,10 @@ const Invoices = () => {
   const [customers, setCustomers] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState(null);
+
+  const { Option } = Select;
 
   const [pagination, setPagination] = useState({
     current: 1,
@@ -22,11 +26,14 @@ const Invoices = () => {
     total: 0,
   });
 
-  const fetchData = async () => {
+  const fetchData = async (
+    page = pagination.current,
+    limit = pagination.pageSize
+  ) => {
     try {
       setLoading(true);
       const [invoiceRes, bookingRes, customerRes, roomRes] = await Promise.all([
-        invoiceApi.getAll(pagination.current, pagination.pageSize),
+        invoiceApi.getAll(page, limit),
         bookingApi.getAll(1, 100),
         userApi.getAll(1, 100),
         roomApi.getAll(1, 100)
@@ -68,7 +75,7 @@ const Invoices = () => {
   };
 
   const handlePrint = (invoice) => {
-    const booking = invoice.booking;
+    const booking = bookingMap[invoice.booking_id] || invoice.booking;
     const customer = booking?.user;
 
     // Get room names from bookingRooms
@@ -136,7 +143,7 @@ const Invoices = () => {
           </table>
 
           <div class="invoice-total">
-            <p>Tổng cộng: ${invoice.total_amount?.toLocaleString('vi-VN')} VNĐ</p>
+            <p>Tổng cộng: ${invoice.total_amount ? new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(invoice.total_amount) : 0} VNĐ</p>
           </div>
 
           <div class="no-print" style="margin-top: 20px; text-align: center;">
@@ -156,6 +163,26 @@ const Invoices = () => {
   const bookingMap = useMemo(() => Object.fromEntries(bookings.map(b => [b.booking_id, b])), [bookings]);
   const roomMap = useMemo(() => Object.fromEntries(rooms.map(r => [r.room_id, r])), [rooms]);
 
+  const filteredInvoices = useMemo(() => {
+    return invoices.filter(inv => {
+      const booking = bookingMap[inv.booking_id];
+      const customer = booking ? customerMap[booking.user_id] : null;
+      const payment = inv.payment;// payment is nested in invoice from API usually? No, invoiceRes.data has payment object? 
+      // Logic check: api/invoiceApi probably returns list.
+      // Let's assume invoice object structure has 'payment' or we map it.
+      // The column render used r.payment. So it exists.
+
+      const matchSearch = !search || (customer && (
+        customer.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+        customer.phone?.includes(search)
+      ));
+
+      const matchStatus = !filterStatus || (inv.payment?.status === filterStatus);
+
+      return matchSearch && matchStatus;
+    });
+  }, [invoices, search, filterStatus, bookingMap, customerMap]);
+
   const columns = [
     { title: "Mã HĐ", dataIndex: "invoice_id", width: 100 },
     { title: "Booking", dataIndex: "booking_id" },
@@ -174,9 +201,14 @@ const Invoices = () => {
     {
       title: "Tổng tiền",
       dataIndex: "total_amount",
-      render: (v) => (
-        <Tag color="blue">{v ? v.toLocaleString("vi-VN") : 0} VNĐ</Tag>
-      ),
+      render: (_, r) => {
+        const amount = r.total_amount || r.amount || 0;
+        return (
+          <Tag color="blue">
+            {new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(amount)} VNĐ
+          </Tag>
+        );
+      },
     },
     {
       title: "Ngày tạo",
@@ -266,11 +298,31 @@ const Invoices = () => {
 
   return (
     <Card title="Danh sách hóa đơn">
+      <div style={{ marginBottom: 16, display: 'flex', gap: '8px' }}>
+        <Input
+          prefix={<SearchOutlined />}
+          placeholder="Tìm theo tên KH..."
+          allowClear
+          style={{ width: 250 }}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <Select
+          placeholder="Trạng thái"
+          allowClear
+          style={{ width: 150 }}
+          onChange={setFilterStatus}
+        >
+          <Option value="completed">Đã thanh toán</Option>
+          <Option value="pending">Chờ xử lý</Option>
+          <Option value="failed">Thất bại</Option>
+        </Select>
+      </div>
+
       <Table
         rowKey="invoice_id"
         columns={columns}
-        dataSource={invoices}
-
+        dataSource={filteredInvoices}
         loading={loading}
         pagination={{
           current: pagination.current,
@@ -282,10 +334,8 @@ const Invoices = () => {
         onChange={(pager) => {
           const { current, pageSize } = pager;
           setPagination(prev => ({ ...prev, current, pageSize }));
-          // Note: fetchData uses state pagination, so we might need to pass args or update state first
-          // For simplicity, just reload page 1 or implement proper pagination in fetchData
+          fetchData(current, pageSize);
         }}
-
       />
     </Card>
   );

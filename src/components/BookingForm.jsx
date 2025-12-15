@@ -48,10 +48,14 @@ const BookingForm = ({
       const total_price = nights * pricePerNight;
 
       onSubmit({
-        ...values,
-        check_in: values.check_in.format("YYYY-MM-DD"),
-        check_out: values.check_out.format("YYYY-MM-DD"),
-        total_price,
+        user_id: values.user_id,
+        checkin_date: values.check_in.format("YYYY-MM-DD"),
+        checkout_date: values.check_out.format("YYYY-MM-DD"),
+        rooms: [{
+          room_id: values.room_id,
+          price_per_night: pricePerNight // Ensure price is passed
+        }],
+        source: 'admin'
       });
 
       form.resetFields();
@@ -60,7 +64,7 @@ const BookingForm = ({
 
   return (
     <Modal
-      title={isEditing ? 'Sửa đặt phòng' : 'Tạo đặt phòng'}
+      title={isEditing ? 'Sửa đặt phòng' : 'Tạo 1 đặt phòng'}
       open={open}
       onOk={handleOk}
       onCancel={onCancel}

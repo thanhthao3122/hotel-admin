@@ -12,7 +12,9 @@ const paymentApi = {
 
     // Common functions
     getByBooking: (bookingId) => axiosClient.get(`/payments/booking/${bookingId}`),
-    getById: (id) => axiosClient.get(`/payments/${id}`)
+    getStats: (year) => axiosClient.get('/payments/stats', { params: { year } }),
+    getById: (id) => axiosClient.get(`/payments/${id}`),
+    delete: (id) => axiosClient.delete(`/payments/${id}`)
 
 };
 

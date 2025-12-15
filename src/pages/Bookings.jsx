@@ -49,11 +49,14 @@ const Bookings = () => {
   });
 
   // Fetch all necessary data
-  const fetchData = async () => {
+  const fetchData = async (
+    page = pagination.current,
+    limit = pagination.pageSize
+  ) => {
     try {
       setLoading(true);
       const [bookingRes, customerRes, roomRes, roomTypeRes] = await Promise.all([
-        bookingApi.getAll(pagination.current, pagination.pageSize),
+        bookingApi.getAll(page, limit),
         userApi.getAll(1, 100), // Fetch first 100 customers for dropdown
         roomApi.getAll(1, 100), // Fetch first 100 rooms for dropdown
         roomTypeApi.getAll(1, 100) // Fetch first 100 room types
@@ -184,7 +187,7 @@ const Bookings = () => {
     {
       title: 'Tổng tiền',
       dataIndex: 'total_price',
-      render: v => v ? v.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ',
+      render: v => v ? Number(v).toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ',
     },
     {
       title: 'Trạng thái',
@@ -192,6 +195,7 @@ const Bookings = () => {
       render: (st, record) => {
         const color = {
           pending: 'blue',
+          confirmed: 'cyan',
           checked_in: 'green',
           checked_out: 'orange',
           cancelled: 'red',
@@ -205,6 +209,7 @@ const Bookings = () => {
             status={st.toLowerCase() === 'cancelled' ? 'error' : ''}
           >
             <Option value="pending">Đang chờ</Option>
+            <Option value="confirmed">Đã xác nhận</Option>
             <Option value="checked_in">Đã nhận phòng</Option>
             <Option value="checked_out">Đã trả phòng</Option>
             <Option value="cancelled">Đã hủy</Option>
@@ -270,6 +275,7 @@ const Bookings = () => {
           onChange={(v) => setFilterStatus(v)}
         >
           <Option value="pending">Đang chờ</Option>
+          <Option value="confirmed">Đã xác nhận</Option>
           <Option value="checked_in">Đã nhận phòng</Option>
           <Option value="checked_out">Đã trả phòng</Option>
           <Option value="cancelled">Đã hủy</Option>
@@ -291,13 +297,7 @@ const Bookings = () => {
         onChange={(pager) => {
           const { current, pageSize } = pager;
           setPagination(prev => ({ ...prev, current, pageSize }));
-          // Note: fetchData uses state pagination, so we might need to pass args or update state first
-          // Better to pass args to fetchData
-          // But fetchData uses Promise.all which is fine.
-          // Let's just call fetchData() and rely on updated state? 
-          // No, state update is async.
-          // Ideally fetchData should accept page/limit.
-          // For simplicity, I'll just reload page 1 or implement proper pagination in fetchData
+          fetchData(current, pageSize);
         }}
 
       />

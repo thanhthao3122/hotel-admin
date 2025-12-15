@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
+import SearchBar from './SearchBar';
 
 const Navbar = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -22,23 +23,8 @@ const Navbar = () => {
                     <span className="logo-text">BOOKING</span>
                 </Link>
 
-                {/* Search Bar (Placeholder for now) */}
-                <div className="navbar-search">
-                    <button className="search-button">
-                        <div className="search-text">Ngày nhận phòng</div>
-                        <div className="search-divider"></div>
-                        <div className="search-text">Ngày trả phòng</div>
-                        <div className="search-divider"></div>
-                        <div className="search-text light">Tìm phòng</div>
-                        <div className="search-icon-container">
-                            <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="presentation" focusable="false" style={{ display: 'block', fill: 'none', height: '12px', width: '12px', stroke: 'white', strokeWidth: 5.33333, overflow: 'visible' }}>
-                                <g fill="none">
-                                    <path d="m13 24c6.0751322 0 11-4.9248678 11-11 0-6.07513225-4.9248678-11-11-11-6.07513225 0-11 4.92486775-11 11 0 6.0751322 4.92486775 11 11 11zm8-3 9 9"></path>
-                                </g>
-                            </svg>
-                        </div>
-                    </button>
-                </div>
+                {/* Search Bar */}
+                <SearchBar />
 
                 {/* User Menu */}
                 <div className="navbar-user">
@@ -62,7 +48,16 @@ const Navbar = () => {
                             <div className="user-dropdown">
                                 {user ? (
                                     <>
-                                        
+                                        <div className="menu-item user-info">
+                                            <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                                                {user.full_name || 'Người dùng'}
+                                            </div>
+                                        </div>
+                                        <div className="menu-divider"></div>
+                                        <Link to="/user-profile" className="menu-item">Thông tin cá nhân</Link>
+                                        <Link to="/booking-history" className="menu-item">Lịch sử đặt phòng</Link>
+                                        <Link to="/my-services" className="menu-item">Dịch vụ của tôi</Link>
+                                        <div className="menu-divider"></div>
                                         <div className="menu-item" onClick={handleLogout}>Đăng xuất</div>
                                     </>
                                 ) : (

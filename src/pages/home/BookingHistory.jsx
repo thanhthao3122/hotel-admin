@@ -38,9 +38,9 @@ const calculateBookingDetails = (booking) => {
 const getStatusConfig = (status) => {
     const statusMap = {
         'pending': { color: 'orange', text: 'Chờ xác nhận', icon: '⏳' },
-        'confirmed': { color: 'cyan', text: 'Đã xác nhận', icon: '📋' },
-        'checked_in': { color: 'green', text: 'Đã nhận phòng', icon: '🏨' },
-        'checked_out': { color: 'purple', text: 'Đã trả phòng', icon: '🚪' },
+        'confirmed': { color: 'cyan', text: 'Chờ nhận phòng', icon: '🏨' },
+        'checked_in': { color: 'green', text: 'Đã nhận phòng', icon: '🛌' },
+        'checked_out': { color: 'purple', text: 'Đã trả phòng', icon: '👋' },
         'paid': { color: 'blue', text: 'Đã thanh toán', icon: '💳' },
         'cancelled': { color: 'red', text: 'Đã hủy', icon: '❌' }
     };
@@ -60,7 +60,8 @@ const formatDate = (dateString) => {
 // Sub-component: BookingCard
 const BookingCard = ({ booking, isSelected, onClick, onCancel, cancelling }) => {
     const { nights, grandTotal } = calculateBookingDetails(booking);
-    const statusConfig = getStatusConfig(booking.status);
+    const isPaid = booking.payments?.some(p => p.status === 'completed');
+    const statusConfig = getStatusConfig(booking.status, isPaid);
     // Chỉ cho phép hủy khi đang chờ xác nhận hoặc đã xác nhận (chưa nhận phòng)
     const canCancel = ['pending', 'confirmed'].includes(booking.status);
 
@@ -152,7 +153,8 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
     }
 
     const { nights, roomTotal, serviceTotal, grandTotal } = calculateBookingDetails(booking);
-    const statusConfig = getStatusConfig(booking.status);
+    const isPaid = booking.payments?.some(p => p.status === 'completed');
+    const statusConfig = getStatusConfig(booking.status, isPaid);
     const canPay = booking.status === 'pending';
 
     // Check if there is any pending payment - BUT user wants to ignore "Processing" state

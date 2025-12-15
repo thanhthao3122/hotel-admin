@@ -16,8 +16,10 @@ import Login from "./pages/home/Login.jsx";
 import RoomDetail from "./pages/home/RoomDetail.jsx";
 import BookingHistory from "./pages/home/BookingHistory.jsx";
 import UserServiceRequest from "./pages/UserServiceRequest.jsx";
+import Profile from "./pages/Profile.jsx";
 
 import PaymentResult from "./pages/home/PaymentResult.jsx";
+import UserProfile from "./pages/home/UserProfile.jsx";
 
 function App() {
   return (
@@ -26,6 +28,7 @@ function App() {
       <Route path="/home" element={<Home />} />
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/user-profile" element={<UserProfile />} />
       <Route path="/room/:id" element={<RoomDetail />} />
       <Route path="/booking-history" element={<BookingHistory />} />
       <Route path="/my-services" element={<UserServiceRequest />} />
@@ -34,6 +37,7 @@ function App() {
       {/* Admin Routes */}
       <Route element={<AdminLayout />}>
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/reception" element={<Reception />} />
         <Route path="/rooms" element={<Rooms />} />
         <Route path="/room-types" element={<RoomTypes />} />

@@ -20,13 +20,14 @@ import {
   LogoutOutlined,
   UserSwitchOutlined,
 } from "@ant-design/icons";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 const { Header, Sider, Content, Footer } = Layout;
 const { Title, Text } = Typography;
 
 const AdminLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Lấy segment đầu tiên trong URL ("/rooms/123" -> "/rooms")
   const rootPath = "/" + location.pathname.split("/")[1];
@@ -116,6 +117,19 @@ const AdminLayout = () => {
   const currentMenu = menuConfig.find((m) => m.key === selectedKey);
   const currentTitle = currentMenu?.label || "Dashboard";
 
+  // Xử lý khi click vào menu user (logout, profile, etc.)
+  const handleMenuClick = ({ key }) => {
+    if (key === "logout") {
+      // Xóa token khỏi localStorage
+      localStorage.removeItem("token");
+      // Chuyển về trang login
+      navigate("/login");
+    } else if (key === "profile") {
+      // Chuyển đến trang profile
+      navigate("/profile");
+    }
+  };
+
   // Dropdown ở góc phải header (tài khoản admin)
   const userMenu = {
     items: [
@@ -133,6 +147,7 @@ const AdminLayout = () => {
         icon: <LogoutOutlined />,
       },
     ],
+    onClick: handleMenuClick,
   };
 
   // Breadcrumb: Dashboard / Trang hiện tại

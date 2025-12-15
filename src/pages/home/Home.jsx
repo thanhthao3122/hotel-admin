@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Navbar from '../../components/home/Navbar';
 import SubNavbar from '../../components/home/SubNavbar';
 import CategoryBar from '../../components/home/CategoryBar';
@@ -10,16 +11,29 @@ import './home.css';
 const Home = () => {
     const [rooms, setRooms] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searchParams] = useSearchParams();
 
     useEffect(() => {
         const fetchRooms = async () => {
+            setLoading(true);
             try {
-                const response = await roomApi.getAll(1, 100);
-                // Filter only available rooms
-                const availableRooms = (response.data || []).filter(
-                    room => room.status === 'available'
-                );
-                setRooms(availableRooms);
+                // Check if we have search filters
+                const guests = searchParams.get('guests');
+
+                let response;
+
+                if (guests) {
+                    // Use new search API if filtering
+                    const searchParams = { guests };
+                    response = await roomApi.getAvailable(searchParams);
+                } else {
+                    // Default list
+                    const filters = { status: 'available' };
+                    response = await roomApi.getAll(1, 100, filters);
+                }
+
+                // Backend now handles filtering, so just use the data directly
+                setRooms(response.data || []);
             } catch (error) {
                 console.error('Error fetching rooms:', error);
             } finally {
@@ -28,7 +42,7 @@ const Home = () => {
         };
 
         fetchRooms();
-    }, []);
+    }, [searchParams]);
 
     return (
         <div className="landing-page">

@@ -1,103 +1,135 @@
 // src/components/PaymentForm.jsx
-import { Form, InputNumber, Modal, Select } from "antd";
-import { useEffect } from "react";
+import { Form, InputNumber, Modal, Select, Input, Typography, Divider, Descriptions } from "antd";
+import { useEffect, useState, useMemo } from "react";
+import dayjs from "dayjs";
 
 const { Option } = Select;
+const { Text } = Typography;
 
 const PaymentForm = ({
   open,
   onCancel,
   onSubmit,
-  booking,
-  roomTypes,
-  servicesUsage,
+  bookings = [], // List of pending bookings to choose from
+  initialBooking = null, // If paying for a specific booking passed from parent
 }) => {
   const [form] = Form.useForm();
-
-  // Tính tiền phòng = số ngày * giá theo đêm
-  const calcRoomCharge = () => {
-    const roomType = roomTypes.find(
-      (rt) => rt.room_type_id === booking.room_type_id
-    );
-
-    const price = roomType.base_price;
-    const nights =
-      (new Date(booking.check_out) - new Date(booking.check_in)) /
-      (1000 * 60 * 60 * 24);
-
-    return price * nights;
-  };
-
-  // Tính tiền dịch vụ
-  const calcServiceCharge = () => {
-    return servicesUsage
-      .filter((u) => u.booking_id === booking.booking_id)
-      .reduce((s, u) => s + u.total_price, 0);
-  };
-
-  const roomCharge = calcRoomCharge();
-  const serviceCharge = calcServiceCharge();
-  const totalAmount = roomCharge + serviceCharge;
+  const [selectedBookingId, setSelectedBookingId] = useState(null);
 
   useEffect(() => {
     if (open) {
-      form.setFieldsValue({
-        room_charge: roomCharge,
-        service_charge: serviceCharge,
-        total_amount: totalAmount,
-        payment_method: "CASH",
-      });
+      form.resetFields();
+      if (initialBooking) {
+        setSelectedBookingId(initialBooking.booking_id);
+        form.setFieldValue('booking_id', initialBooking.booking_id);
+      } else {
+        setSelectedBookingId(null);
+      }
     }
-  }, [open]);
+  }, [open, initialBooking]);
+
+  const selectedBooking = useMemo(() => {
+    if (!selectedBookingId) return null;
+    return bookings.find(b => b.booking_id === selectedBookingId) || initialBooking;
+  }, [selectedBookingId, bookings, initialBooking]);
+
+  const bookingDetails = useMemo(() => {
+    if (!selectedBooking) return null;
+
+    const checkIn = dayjs(selectedBooking.checkin_date);
+    const checkOut = dayjs(selectedBooking.checkout_date);
+    const nights = Math.max(1, checkOut.diff(checkIn, 'day'));
+
+    // Validate rooms array structure
+    const rooms = selectedBooking.rooms || [];
+
+    // Calculate Room Total
+    // Backend: sum(price_per_night * nights)
+    const roomTotal = rooms.reduce((sum, room) => {
+      // Handle room.BookingRoom?.price_per_night if nested, or room.price_per_night if direct
+      const price = parseFloat(room.BookingRoom?.price_per_night || room.price_per_night || 0);
+      return sum + (price * nights);
+    }, 0);
+
+    // Calculate Service Total
+    // Check if services are included in booking object
+    const services = selectedBooking.services || [];
+    const serviceTotal = services.reduce((sum, s) => {
+      return sum + parseFloat(s.ServiceUsage?.total_price || 0);
+    }, 0);
+
+    return {
+      customerName: selectedBooking.user?.full_name || 'Khách vãng lai',
+      nights,
+      roomTotal,
+      serviceTotal,
+      grandTotal: roomTotal + serviceTotal
+    };
+  }, [selectedBooking]);
 
   return (
     <Modal
       open={open}
-      title="Thanh toán"
+      title="Tạo thanh toán mới"
       onCancel={onCancel}
       okText="Xác nhận thanh toán"
       onOk={() => {
         form.validateFields().then((values) => {
-          onSubmit(values);
+          onSubmit({
+            booking_id: values.booking_id,
+            notes: values.notes
+          });
           form.resetFields();
         });
       }}
       destroyOnClose
+      width={600}
     >
       <Form layout="vertical" form={form}>
-        <Form.Item label="Tiền phòng (VNĐ)" name="room_charge">
-          <InputNumber
-            readOnly
-            style={{ width: "100%" }}
-            formatter={(v) => v.toLocaleString("vi-VN")}
-          />
-        </Form.Item>
-
-        <Form.Item label="Tiền dịch vụ (VNĐ)" name="service_charge">
-          <InputNumber
-            readOnly
-            style={{ width: "100%" }}
-            formatter={(v) => v.toLocaleString("vi-VN")}
-          />
-        </Form.Item>
-
-        <Form.Item label="Tổng cộng (VNĐ)" name="total_amount">
-          <InputNumber
-            readOnly
-            style={{ width: "100%" }}
-            formatter={(v) => v.toLocaleString("vi-VN")}
-          />
-        </Form.Item>
-
         <Form.Item
-          label="Hình thức thanh toán"
-          name="payment_method"
-          rules={[{ required: true, message: "Chọn phương thức thanh toán" }]}
+          label="Chọn Booking cần thanh toán"
+          name="booking_id"
+          rules={[{ required: true, message: "Vui lòng chọn booking" }]}
         >
-          <Select>
-            <Option value="CASH">Tiền mặt</Option>
-            <Option value="BANKING">Chuyển khoản</Option>
+          <Select
+            placeholder="Tìm kiếm booking..."
+            showSearch
+            optionFilterProp="children"
+            onChange={setSelectedBookingId}
+            disabled={!!initialBooking}
+          >
+            {bookings.map(b => (
+              <Option key={b.booking_id} value={b.booking_id}>
+                #{b.booking_id} - {b.user?.full_name} ({dayjs(b.checkin_date).format('DD/MM')} - {dayjs(b.checkout_date).format('DD/MM')})
+              </Option>
+            ))}
           </Select>
+        </Form.Item>
+
+        {selectedBooking && bookingDetails && (
+          <div style={{ background: '#f5f5f5', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
+            <Descriptions title="Chi tiết thanh toán" column={1} size="small">
+              <Descriptions.Item label="Khách hàng">{bookingDetails.customerName}</Descriptions.Item>
+              <Descriptions.Item label="Thời gian lưu trú">{bookingDetails.nights} đêm</Descriptions.Item>
+              <Descriptions.Item label="Tiền phòng">
+                {bookingDetails.roomTotal.toLocaleString('vi-VN')} VNĐ
+              </Descriptions.Item>
+              <Descriptions.Item label="Tiền dịch vụ">
+                {bookingDetails.serviceTotal.toLocaleString('vi-VN')} VNĐ
+              </Descriptions.Item>
+            </Descriptions>
+            <Divider style={{ margin: '12px 0' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text strong style={{ fontSize: '16px' }}>Tổng cộng:</Text>
+              <Text strong style={{ fontSize: '18px', color: '#1677ff' }}>
+                {bookingDetails.grandTotal.toLocaleString('vi-VN')} VNĐ
+              </Text>
+            </div>
+          </div>
+        )}
+
+        <Form.Item label="Ghi chú" name="notes">
+          <Input.TextArea rows={3} placeholder="Ghi chú thanh toán..." />
         </Form.Item>
       </Form>
     </Modal>

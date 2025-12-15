@@ -279,7 +279,7 @@ const RoomDetail = () => {
                                         value={bookingData.guests}
                                         onChange={handleBookingChange}
                                     >
-                                        {[1, 2, 3, 4, 5, 6].map(num => (
+                                        {Array.from({ length: room.roomType?.capacity || 2 }, (_, i) => i + 1).map(num => (
                                             <option key={num} value={num}>{num} khách</option>
                                         ))}
                                     </select>
