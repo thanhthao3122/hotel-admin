@@ -199,6 +199,30 @@ const Invoices = () => {
       }
     },
     {
+      title: "Tiền phòng",
+      dataIndex: "room_charge",
+      render: (val) => {
+        const amount = val || 0;
+        return (
+          <span>
+            {new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(amount)} VNĐ
+          </span>
+        );
+      },
+    },
+    {
+      title: "Tiền dịch vụ",
+      dataIndex: "service_charge",
+      render: (val) => {
+        const amount = val || 0;
+        return (
+          <span style={{ color: amount > 0 ? '#1890ff' : '#999' }}>
+            {new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(amount)} VNĐ
+          </span>
+        );
+      },
+    },
+    {
       title: "Tổng tiền",
       dataIndex: "total_amount",
       render: (_, r) => {

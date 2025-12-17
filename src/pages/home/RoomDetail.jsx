@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { message } from 'antd';
 import Navbar from '../../components/home/Navbar';
 import Footer from '../../components/home/Footer';
 import roomApi from '../../api/roomApi';
 import bookingApi from '../../api/bookingApi';
 import { BASE_URL } from '../../components/home/constants';
 import './roomDetail.css';
+import socketClient from '../../services/socketClient';
+import moment from 'moment';
 
 // Helper function to format currency in VND
 const formatCurrency = (amount) => {
@@ -38,6 +41,35 @@ const RoomDetail = () => {
         };
 
         fetchRoomDetail();
+
+        // Socket listener
+        const socket = socketClient.getSocket();
+
+        const handleBookingCreated = (data) => {
+            // Check if this booking involves the current room
+            const isCurrentRoom = data.rooms.some(r => {
+                const rId = typeof r === 'object' ? r.room_id : r;
+                return Number(rId) === Number(id);
+            });
+
+            if (isCurrentRoom) {
+                // If user has selected dates, check for overlap
+                // For now, just alert generic message
+                message.warning(
+                    `⚠️ CHÚ Ý: Phòng này vừa mới được đặt từ ngày ${moment(data.checkin_date).format('DD/MM/YYYY')} đến ${moment(data.checkout_date).format('DD/MM/YYYY')}. Vui lòng kiểm tra lại lựa chọn của bạn.`,
+                    20
+                );
+
+                // Optional: Force reload or validation
+                // fetchRoomDetail();
+            }
+        };
+
+        socket.on('booking_created', handleBookingCreated);
+
+        return () => {
+            socket.off('booking_created', handleBookingCreated);
+        };
     }, [id]);
 
     const handleBookingChange = (e) => {
@@ -74,7 +106,7 @@ const RoomDetail = () => {
         const token = localStorage.getItem('token');
 
         if (!user || !token) {
-            alert('Vui lòng đăng nhập để đặt phòng');
+            message.warning('Vui lòng đăng nhập để đặt phòng', 20);
             navigate('/login');
             return;
         }
@@ -121,12 +153,12 @@ const RoomDetail = () => {
 
             await bookingApi.create(finalBookingData);
 
-            alert('Đặt phòng thành công! Bạn sẽ được chuyển đến trang lịch sử đặt phòng.');
+            message.success('Đặt phòng thành công! Bạn sẽ được chuyển đến trang lịch sử đặt phòng.', 20);
             navigate('/booking-history');
         } catch (error) {
             console.error(error);
             const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi đặt phòng';
-            alert('Có lỗi xảy ra: ' + errorMessage);
+            message.error(errorMessage, 20);
         } finally {
             setIsBooking(false);
         }

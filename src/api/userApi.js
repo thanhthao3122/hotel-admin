@@ -34,8 +34,12 @@ const userApi = {
     return axiosClient.get('/users', {
       params: { role }
     });
-  }
+  },
 
+  // Update user role
+  updateRole: (id, role) => {
+    return axiosClient.patch(`/users/${id}/role`, { role });
+  }
 
 };
 

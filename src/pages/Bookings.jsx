@@ -24,6 +24,7 @@ import bookingApi from '../api/bookingApi.js';
 import userApi from '../api/userApi.js';
 import roomApi from '../api/roomApi.js';
 import roomTypeApi from '../api/roomTypeApi.js';
+import socketClient from '../services/socketClient.js';
 
 
 import BookingForm from "../components/BookingForm.jsx";
@@ -83,8 +84,31 @@ const Bookings = () => {
     }
   };
 
+
+
+  // ... imports
+
   useEffect(() => {
     fetchData();
+
+    // Socket listeners
+    const socket = socketClient.getSocket();
+
+    const handleBookingChange = (data) => {
+      // console.log('Socket event received:', data);
+      message.info('Dữ liệu đặt phòng vừa được cập nhật');
+      fetchData(); // Reload data
+    };
+
+    socket.on('booking_created', handleBookingChange);
+    socket.on('booking_updated', handleBookingChange);
+    socket.on('booking_deleted', handleBookingChange);
+
+    return () => {
+      socket.off('booking_created', handleBookingChange);
+      socket.off('booking_updated', handleBookingChange);
+      socket.off('booking_deleted', handleBookingChange);
+    };
   }, []);
 
   // map ID → object
@@ -233,6 +257,7 @@ const Bookings = () => {
             onConfirm={() => handleDelete(r.booking_id)}
             okText="Xóa"
             cancelText="Hủy"
+            placement="topRight"
           >
             <Button size="small" danger icon={<DeleteOutlined />}>
               Xóa
@@ -312,6 +337,7 @@ const Bookings = () => {
         roomTypes={roomTypes}
         isEditing={!!editingBooking}
       />
+
     </Card>
   );
 };

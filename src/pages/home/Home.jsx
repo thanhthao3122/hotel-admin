@@ -6,12 +6,14 @@ import CategoryBar from '../../components/home/CategoryBar';
 import ListingCard from '../../components/home/ListingCard';
 import Footer from '../../components/home/Footer';
 import roomApi from '../../api/roomApi';
+import socketClient from '../../services/socketClient';
 import './home.css';
 
 const Home = () => {
     const [rooms, setRooms] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchParams] = useSearchParams();
+    const [refreshKey, setRefreshKey] = useState(0);
 
     useEffect(() => {
         const fetchRooms = async () => {
@@ -19,16 +21,24 @@ const Home = () => {
             try {
                 // Check if we have search filters
                 const guests = searchParams.get('guests');
+                const checkin_date = searchParams.get('checkin_date');
+                const checkout_date = searchParams.get('checkout_date');
 
                 let response;
 
-                if (guests) {
+                // If any filter is present, use getAvailable
+                if (guests || (checkin_date && checkout_date)) {
                     // Use new search API if filtering
-                    const searchParams = { guests };
-                    response = await roomApi.getAvailable(searchParams);
-                } else {
+                    const params = {};
+                    if (guests) params.guests = guests;
+                    if (checkin_date) params.checkin_date = checkin_date;
+                    if (checkout_date) params.checkout_date = checkout_date;
+
+                    response = await roomApi.getAvailable(params);
+                }
+                else {
                     // Default list
-                    const filters = { status: 'available' };
+                    const filters = {};
                     response = await roomApi.getAll(1, 100, filters);
                 }
 
@@ -42,7 +52,23 @@ const Home = () => {
         };
 
         fetchRooms();
-    }, [searchParams]);
+    }, [searchParams, refreshKey]);
+
+    // Socket listener for real-time updates
+    useEffect(() => {
+        const socket = socketClient.getSocket();
+
+        const handleBookingChange = () => {
+            // Refresh the list when any booking occurs
+            setRefreshKey(prev => prev + 1);
+        };
+
+        socket.on('booking_created', handleBookingChange);
+
+        return () => {
+            socket.off('booking_created', handleBookingChange);
+        };
+    }, []);
 
     return (
         <div className="landing-page">
@@ -57,11 +83,29 @@ const Home = () => {
                         <div className="spinner"></div>
                     </div>
                 ) : (
-                    <div className="listings-grid">
-                        {rooms.map((room) => (
-                            <ListingCard key={room.room_id} room={room} />
+                    <>
+                        {Object.entries(rooms.reduce((acc, room) => {
+                            const typeName = room.roomType?.name || 'Phòng khác';
+                            if (!acc[typeName]) acc[typeName] = [];
+                            acc[typeName].push(room);
+                            return acc;
+                        }, {})).sort().map(([typeName, typeRooms]) => (
+                            <div key={typeName} className="room-category-section">
+                                <h2 className="category-title">{typeName}</h2>
+                                <div className="listings-grid">
+                                    {typeRooms.map((room) => (
+                                        <ListingCard key={room.room_id} room={room} />
+                                    ))}
+                                </div>
+                            </div>
                         ))}
-                    </div>
+                        {rooms.length === 0 && (
+                            <div className="no-results">
+                                <h3>Không tìm thấy phòng phù hợp</h3>
+                                <p>Vui lòng thử lại với tiêu chí tìm kiếm khác.</p>
+                            </div>
+                        )}
+                    </>
                 )}
             </main>
 

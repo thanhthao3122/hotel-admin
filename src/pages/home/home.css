@@ -528,3 +528,40 @@
         align-items: flex-start;
     }
 }
+
+/* Room Categories */
+.room-category-section {
+    margin-bottom: 48px;
+}
+
+.category-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    color: var(--text-primary);
+    position: relative;
+    padding-left: 16px;
+    display: flex;
+    align-items: center;
+}
+
+.category-title::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    height: 24px;
+    width: 6px;
+    background-color: var(--primary);
+    border-radius: 4px;
+}
+
+.no-results {
+    text-align: center;
+    padding: 60px 0;
+    color: var(--text-secondary);
+}
+
+.no-results h3 {
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}

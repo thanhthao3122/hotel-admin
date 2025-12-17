@@ -83,8 +83,13 @@ const Dashboard = () => {
   const fetchPaymentStats = async (y) => {
     try {
       setLoadingPayments(true);
+      console.log('Fetching stats for year:', y);
       const res = await paymentApi.getStats(y);
-      const stats = res.data?.data || res.data || res;
+      console.log('API Response:', res);
+
+      const stats = res.data || res;
+      console.log('Parsed stats:', stats);
+
       setPaymentStats(stats);
     } catch (error) {
       console.error("Error fetching payment stats:", error);

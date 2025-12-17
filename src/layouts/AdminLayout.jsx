@@ -94,6 +94,12 @@ const AdminLayout = () => {
       label: "Khách hàng",
       group: "NGHIỆP VỤ",
     },
+    {
+      key: "/user-roles",
+      icon: <UserSwitchOutlined />,
+      label: "Phân quyền",
+      group: "NGHIỆP VỤ",
+    },
   ];
 
   // Gom các item theo group để dùng Menu group

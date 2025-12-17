@@ -62,8 +62,8 @@ const BookingCard = ({ booking, isSelected, onClick, onCancel, cancelling }) => 
     const { nights, grandTotal } = calculateBookingDetails(booking);
     const isPaid = booking.payments?.some(p => p.status === 'completed');
     const statusConfig = getStatusConfig(booking.status, isPaid);
-    // Chỉ cho phép hủy khi đang chờ xác nhận hoặc đã xác nhận (chưa nhận phòng)
-    const canCancel = ['pending', 'confirmed'].includes(booking.status);
+    // Chỉ cho phép hủy khi đang chờ xác nhận hoặc đã xác nhận (chưa nhận phòng) VÀ chưa thanh toán
+    const canCancel = ['pending', 'confirmed'].includes(booking.status) && !isPaid;
 
     return (
         <Card
@@ -82,11 +82,11 @@ const BookingCard = ({ booking, isSelected, onClick, onCancel, cancelling }) => 
                 <div className="booking-info-row">
                     <HomeOutlined className="info-icon" />
                     <div className="info-content">
-                        {booking.rooms && booking.rooms.length > 0 ? (
-                            booking.rooms.map(room => (
-                                <div key={room.room_id}>
-                                    <Text strong>{room.roomType?.name}</Text>
-                                    <Text type="secondary"> - Phòng {room.room_number}</Text>
+                        {booking.bookingRooms && booking.bookingRooms.length > 0 ? (
+                            booking.bookingRooms.map(br => (
+                                <div key={br.room_id}>
+                                    <Text strong>{br.room?.roomType?.name}</Text>
+                                    <Text type="secondary"> - Phòng {br.room?.room_number}</Text>
                                 </div>
                             ))
                         ) : (
@@ -220,9 +220,9 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                         <div className="detail-row">
                             <Text strong>Phòng:</Text>
                             <div>
-                                {booking.rooms?.map(room => (
-                                    <div key={room.room_id}>
-                                        {room.roomType?.name} - Phòng {room.room_number}
+                                {booking.bookingRooms?.map(br => (
+                                    <div key={br.room_id}>
+                                        {br.room?.roomType?.name} - Phòng {br.room?.room_number}
                                     </div>
                                 ))}
                             </div>
@@ -356,12 +356,12 @@ const BookingHistory = () => {
         const fetchBookings = async () => {
             try {
                 const response = await bookingApi.getByUser(user.user_id);
-                const validBookings = response.data.filter(b => b.status !== 'cancelled') || [];
-                setBookings(validBookings);
+                const allBookings = response.data || [];
+                setBookings(allBookings);
 
                 // Auto-select first booking if available
-                if (validBookings.length > 0) {
-                    setSelectedBooking(validBookings[0]);
+                if (allBookings.length > 0) {
+                    setSelectedBooking(allBookings[0]);
                 }
             } catch (error) {
                 console.error('Error fetching bookings:', error);

@@ -8,22 +8,52 @@ const SearchBar = () => {
     const [searchParams] = useSearchParams(); // Hook to read URL params
     const [showGuestPicker, setShowGuestPicker] = useState(false);
 
-    // Initialize state from URL param or default to 2
+    // Initialize state from URL
     const initialGuests = parseInt(searchParams.get('guests')) || 2;
-    const [guests, setGuests] = useState(initialGuests);
+    const initialCheckin = searchParams.get('checkin_date') || '';
+    const initialCheckout = searchParams.get('checkout_date') || '';
 
-    // Sync local state if URL changes (optional, but good for consistency)
+    const [guests, setGuests] = useState(initialGuests);
+    const [checkinDate, setCheckinDate] = useState(initialCheckin);
+    const [checkoutDate, setCheckoutDate] = useState(initialCheckout);
+
+    // Sync local state if URL changes
     useEffect(() => {
         const urlGuests = parseInt(searchParams.get('guests'));
-        if (urlGuests && urlGuests !== guests) {
-            setGuests(urlGuests);
-        }
+        const urlCheckin = searchParams.get('checkin_date');
+        const urlCheckout = searchParams.get('checkout_date');
+
+        if (urlGuests && urlGuests !== guests) setGuests(urlGuests);
+        if (urlCheckin !== checkinDate) setCheckinDate(urlCheckin || '');
+        if (urlCheckout !== checkoutDate) setCheckoutDate(urlCheckout || '');
     }, [searchParams]);
 
     const handleSearch = () => {
+        // Validation
+        if (checkinDate && checkoutDate) {
+            const start = new Date(checkinDate);
+            const end = new Date(checkoutDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (start < today) {
+                // message.error requires 'antd' import, let's assume we can add it or use alert for now if import is missing
+                // Ideally we add import message from 'antd' at top
+                alert('Ngày nhận phòng không thể trong quá khứ');
+                return;
+            }
+
+            if (end <= start) {
+                alert('Ngày trả phòng phải sau ngày nhận phòng');
+                return;
+            }
+        }
+
         // Build search params
         const params = new URLSearchParams();
         if (guests) params.append('guests', guests);
+        if (checkinDate) params.append('checkin_date', checkinDate);
+        if (checkoutDate) params.append('checkout_date', checkoutDate);
 
         // Navigate to home with search params
         navigate({
@@ -35,6 +65,43 @@ const SearchBar = () => {
     return (
         <div className="navbar-search">
             <div className="search-container">
+                {/* Date Inputs */}
+                <div className="search-field date-field" style={{ display: 'flex', alignItems: 'center', marginRight: '10px' }}>
+                    <label className="search-label" style={{ marginRight: '5px', marginBottom: 0, whiteSpace: 'nowrap' }}>
+                        Ngày nhận
+                    </label>
+                    <input
+                        type="date"
+                        className="search-input"
+                        value={checkinDate}
+                        onChange={(e) => setCheckinDate(e.target.value)}
+                        min={new Date().toISOString().split('T')[0]}
+                        style={{
+                            border: '1px solid #ddd',
+                            padding: '4px 8px',
+                            borderRadius: '4px'
+                        }}
+                    />
+                </div>
+
+                <div className="search-field date-field" style={{ display: 'flex', alignItems: 'center', marginRight: '10px' }}>
+                    <label className="search-label" style={{ marginRight: '5px', marginBottom: 0, whiteSpace: 'nowrap' }}>
+                        Ngày trả
+                    </label>
+                    <input
+                        type="date"
+                        className="search-input"
+                        value={checkoutDate}
+                        onChange={(e) => setCheckoutDate(e.target.value)}
+                        min={checkinDate || new Date().toISOString().split('T')[0]}
+                        style={{
+                            border: '1px solid #ddd',
+                            padding: '4px 8px',
+                            borderRadius: '4px'
+                        }}
+                    />
+                </div>
+
                 {/* Guest Input - Direct Number Entry */}
                 <div className="search-field single-field" style={{ display: 'flex', alignItems: 'center' }}>
                     <label className="search-label" style={{ marginRight: '10px', marginBottom: 0, whiteSpace: 'nowrap' }}>
@@ -57,7 +124,6 @@ const SearchBar = () => {
                             textAlign: 'center'
                         }}
                     />
-                    <span style={{ marginLeft: '8px', fontSize: '14px' }}></span>
                 </div>
 
                 {/* Search Button */}
@@ -87,5 +153,4 @@ const SearchBar = () => {
         </div>
     );
 };
-
 export default SearchBar;

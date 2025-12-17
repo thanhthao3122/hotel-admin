@@ -20,26 +20,44 @@ const BookingForm = ({
   useEffect(() => {
     if (open) {
       if (initialValues) {
-        const room = rooms.find(r => r.room_id === initialValues.room_id);
-        const roomType = roomTypes.find(rt => rt.room_type_id === room.room_type_id);
+        // Handle case where booking has rooms array
+        const roomId = initialValues.room_id || (initialValues.rooms && initialValues.rooms.length > 0 ? initialValues.rooms[0].room_id : null);
 
-        setPricePerNight(roomType.base_price);
+        let roomTypeBasePrice = 0;
+
+        if (roomId) {
+          const room = rooms.find(r => r.room_id === roomId);
+          if (room) {
+            const roomType = roomTypes.find(rt => rt.room_type_id === room.room_type_id);
+            if (roomType) {
+              roomTypeBasePrice = roomType.base_price;
+            }
+          }
+        }
+
+        setPricePerNight(roomTypeBasePrice);
 
         form.setFieldsValue({
           ...initialValues,
-          check_in: dayjs(initialValues.check_in),
-          check_out: dayjs(initialValues.check_out),
+          room_id: roomId,
+          check_in: dayjs(initialValues.checkin_date || initialValues.check_in), // Handle both naming conventions if needed
+          check_out: dayjs(initialValues.checkout_date || initialValues.check_out),
         });
       } else {
         form.resetFields();
+        setPricePerNight(0);
       }
     }
-  }, [open]);
+  }, [open, initialValues, rooms, roomTypes, form]); // Add dependencies
 
   const handleRoomSelect = (room_id) => {
     const room = rooms.find(r => r.room_id === room_id);
+    if (!room) return;
+
     const roomType = roomTypes.find(rt => rt.room_type_id === room.room_type_id);
-    setPricePerNight(roomType.base_price);
+    if (roomType) {
+      setPricePerNight(roomType.base_price);
+    }
   };
 
   const handleOk = () => {
@@ -94,7 +112,7 @@ const BookingForm = ({
         >
           <Select placeholder="Chọn phòng" onChange={handleRoomSelect}>
             {rooms
-              .filter(r => r.status === 'available')
+              .filter(r => r.status === 'available' || (initialValues && initialValues.room_id === r.room_id) || (initialValues && initialValues.rooms && initialValues.rooms.some(br => br.room_id === r.room_id)))
               .map(r => (
                 <Option key={r.room_id} value={r.room_id}>
                   Phòng {r.room_number}
