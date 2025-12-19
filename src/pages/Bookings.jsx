@@ -232,11 +232,11 @@ const Bookings = () => {
             onChange={(val) => updateStatus(record, val)}
             status={st.toLowerCase() === 'cancelled' ? 'error' : ''}
           >
-            <Option value="pending">Đang chờ</Option>
+
             <Option value="confirmed">Đã xác nhận</Option>
             <Option value="checked_in">Đã nhận phòng</Option>
             <Option value="checked_out">Đã trả phòng</Option>
-            <Option value="cancelled">Đã hủy</Option>
+
           </Select>
         );
 

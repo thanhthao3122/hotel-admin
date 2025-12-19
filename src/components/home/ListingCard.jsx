@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 import { BASE_URL } from './constants';
 
@@ -8,6 +8,8 @@ const formatCurrency = (amount) => {
 };
 
 const ListingCard = ({ room }) => {
+    const location = useLocation();
+
     // Use placeholder image if no image provided
     let image = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80';
 
@@ -20,7 +22,7 @@ const ListingCard = ({ room }) => {
     }
 
     return (
-        <Link to={`/room/${room.room_id}`} className="listing-card">
+        <Link to={`/room/${room.room_id}${location.search}`} className="listing-card">
             <div className="listing-image-container">
                 <img src={image} alt={room.room_number} className="listing-image" />
                 <button className="favorite-button">

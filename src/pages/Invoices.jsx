@@ -1,11 +1,11 @@
 // src/pages/Invoices.jsx
 import { Card, Table, Tag, message, Button, Tooltip, Popconfirm, Input, Select } from "antd";
-import { CheckOutlined, CloseOutlined, PrinterOutlined, SearchOutlined } from "@ant-design/icons";
+import { CheckOutlined, CloseOutlined, PrinterOutlined, SearchOutlined, FileExcelOutlined } from "@ant-design/icons";
 import { useState, useEffect, useMemo } from "react";
+import * as XLSX from "xlsx";
 
 import invoiceApi from "../api/invoiceApi";
 import bookingApi from "../api/bookingApi";
-import serviceApi from "../api/serviceApi";
 import userApi from "../api/userApi";
 import roomApi from "../api/roomApi";
 
@@ -75,8 +75,9 @@ const Invoices = () => {
   };
 
   const handlePrint = (invoice) => {
-    const booking = bookingMap[invoice.booking_id] || invoice.booking;
-    const customer = booking?.user;
+    // Prefer detailed booking from invoice if available
+    const booking = invoice.booking || bookingMap[invoice.booking_id];
+    const customer = booking?.user || invoice.booking?.user;
 
     // Get room names from bookingRooms
     const roomName = booking?.bookingRooms?.map(br => br.room?.room_number).join(', ') || 'N/A';
@@ -118,27 +119,31 @@ const Invoices = () => {
           <table class="invoice-table">
             <thead>
               <tr>
-                
-                <th>THÀNH TIỀN</th>
+                <th>Hạng mục</th>
+                <th>Thành tiền</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td>Tiền phòng</td>
-                <td>${invoice.room_charge?.toLocaleString('vi-VN')} VNĐ</td>
+                <td>${Number(invoice.room_charge || 0).toLocaleString('vi-VN')} VNĐ</td>
               </tr>
-              ${booking?.serviceUsages?.map(usage => `
+              ${booking?.serviceUsages?.length > 0 ? booking.serviceUsages.map(usage => `
                 <tr>
                   <td>${usage.service?.name || 'Dịch vụ'} ( SL: ${usage.quantity})</td>
                   <td>${Number(usage.total_price).toLocaleString('vi-VN')} VNĐ</td>
                 </tr>
-              `).join('') || ''}
-              ${(!booking?.serviceUsages || booking.serviceUsages.length === 0) ? `
+              `).join('') : (invoice.service_charge > 0 ? `
+              <tr>
+                <td>Tiền dịch vụ</td>
+                <td>${Number(invoice.service_charge).toLocaleString('vi-VN')} VNĐ</td>
+              </tr>
+              ` : `
               <tr>
                 <td>Dịch vụ</td>
                 <td>0 VNĐ</td>
               </tr>
-              ` : ''}
+              `)}
             </tbody>
           </table>
 
@@ -155,6 +160,76 @@ const Invoices = () => {
     printWindow.document.close();
   };
 
+  const handleExportExcel = (invoice) => {
+    const booking = invoice.booking || bookingMap[invoice.booking_id];
+    const customer = booking?.user || invoice.booking?.user;
+    const roomName = booking?.bookingRooms?.map(br => br.room?.room_number).join(', ') || 'N/A';
+
+    // Prepare data for Excel
+    const data = [
+      ["THÔNG TIN HÓA ĐƠN", ""],
+      ["Mã hóa đơn", `#${invoice.invoice_id}`],
+      ["Ngày in", new Date().toLocaleDateString('vi-VN')],
+      ["", ""],
+      ["THÔNG TIN KHÁCH HÀNG", ""],
+      ["Khách hàng", customer?.full_name || 'N/A'],
+      ["Email", customer?.email || 'N/A'],
+      ["Số điện thoại", customer?.phone || 'N/A'],
+      ["Phòng", roomName],
+      ["Ngày nhận phòng", booking ? new Date(booking.checkin_date).toLocaleDateString('vi-VN') : 'N/A'],
+      ["Ngày trả phòng", booking ? new Date(booking.checkout_date).toLocaleDateString('vi-VN') : 'N/A'],
+      ["", ""],
+      ["CHI TIẾT THANH TOÁN", "THÀNH TIỀN"],
+      ["Tiền phòng", `${Number(invoice.room_charge || 0).toLocaleString('vi-VN')} VNĐ`]
+    ];
+
+    // Add services
+    if (booking?.serviceUsages?.length > 0) {
+      booking.serviceUsages.forEach(usage => {
+        data.push([
+          `${usage.service?.name || 'Dịch vụ'} (SL: ${usage.quantity})`,
+          `${Number(usage.total_price).toLocaleString('vi-VN')} VNĐ`
+        ]);
+      });
+    } else if (invoice.service_charge > 0) {
+      data.push(["Tiền dịch vụ", `${Number(invoice.service_charge).toLocaleString('vi-VN')} VNĐ`]);
+    }
+
+    data.push(["", ""]);
+    data.push(["TỔNG CỘNG", `${Number(invoice.total_amount || 0).toLocaleString('vi-VN')} VNĐ`]);
+
+    // Create worksheet and workbook
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Invoice");
+
+    // Save file
+    XLSX.writeFile(wb, `HoaDon_${invoice.invoice_id}.xlsx`);
+  };
+
+  const handleExportListExcel = () => {
+    const data = filteredInvoices.map(inv => {
+      const booking = inv.booking || bookingMap[inv.booking_id];
+      const customer = booking?.user || inv.booking?.user;
+      return {
+        "Mã HĐ": inv.invoice_id,
+        "Booking": inv.booking_id,
+        "Khách hàng": customer?.full_name || 'N/A',
+        "Số phòng": booking?.bookingRooms?.map(br => br.room?.room_number).join(', ') || 'N/A',
+        "Tiền phòng": inv.room_charge,
+        "Tiền dịch vụ": inv.service_charge,
+        "Tổng tiền": inv.total_amount,
+        "Ngày tạo": inv.created_at ? new Date(inv.created_at).toLocaleString("vi-VN") : "",
+        "Trạng thái": inv.payment?.status === 'completed' ? 'Đã thanh toán' : (inv.payment?.status === 'pending' ? 'Chờ xử lý' : 'Thất bại')
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "DanhSachHoaDon");
+    XLSX.writeFile(wb, "DanhSachHoaDon.xlsx");
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -167,10 +242,6 @@ const Invoices = () => {
     return invoices.filter(inv => {
       const booking = bookingMap[inv.booking_id];
       const customer = booking ? customerMap[booking.user_id] : null;
-      const payment = inv.payment;// payment is nested in invoice from API usually? No, invoiceRes.data has payment object? 
-      // Logic check: api/invoiceApi probably returns list.
-      // Let's assume invoice object structure has 'payment' or we map it.
-      // The column render used r.payment. So it exists.
 
       const matchSearch = !search || (customer && (
         customer.full_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -269,18 +340,6 @@ const Invoices = () => {
       render: (_, r) => {
         const isPending = r.payment?.status === 'pending';
 
-        if (!isPending) {
-          return (
-            <Tooltip title="In hóa đơn">
-              <Button
-                size="small"
-                icon={<PrinterOutlined />}
-                onClick={() => handlePrint(r)}
-              />
-            </Tooltip>
-          );
-        }
-
         return (
           <div style={{ display: 'flex', gap: '8px' }}>
             <Tooltip title="In hóa đơn">
@@ -290,30 +349,42 @@ const Invoices = () => {
                 onClick={() => handlePrint(r)}
               />
             </Tooltip>
-            <Popconfirm
-              title="Xác nhận thanh toán"
-              description="Bạn có chắc chắn muốn xác nhận thanh toán này?"
-              onConfirm={() => handleUpdateStatus(r.invoice_id, 'completed')}
-              okText="Xác nhận"
-              cancelText="Hủy"
-            >
-              <Tooltip title="Xác nhận thanh toán">
-                <Button type="primary" size="small" icon={<CheckOutlined />} style={{ background: '#52c41a' }} />
-              </Tooltip>
-            </Popconfirm>
+            <Tooltip title="Xuất Excel">
+              <Button
+                size="small"
+                icon={<FileExcelOutlined />}
+                style={{ color: '#52c41a' }}
+                onClick={() => handleExportExcel(r)}
+              />
+            </Tooltip>
+            {isPending && (
+              <>
+                <Popconfirm
+                  title="Xác nhận thanh toán"
+                  description="Bạn có chắc chắn muốn xác nhận thanh toán này?"
+                  onConfirm={() => handleUpdateStatus(r.invoice_id, 'completed')}
+                  okText="Xác nhận"
+                  cancelText="Hủy"
+                >
+                  <Tooltip title="Xác nhận thanh toán">
+                    <Button type="primary" size="small" icon={<CheckOutlined />} style={{ background: '#52c41a' }} />
+                  </Tooltip>
+                </Popconfirm>
 
-            <Popconfirm
-              title="Hủy thanh toán"
-              description="Bạn có chắc chắn muốn hủy thanh toán này?"
-              onConfirm={() => handleUpdateStatus(r.invoice_id, 'failed')}
-              okText="Đồng ý"
-              cancelText="Không"
-              okButtonProps={{ danger: true }}
-            >
-              <Tooltip title="Hủy bỏ">
-                <Button danger size="small" icon={<CloseOutlined />} />
-              </Tooltip>
-            </Popconfirm>
+                <Popconfirm
+                  title="Hủy thanh toán"
+                  description="Bạn có chắc chắn muốn hủy thanh toán này?"
+                  onConfirm={() => handleUpdateStatus(r.invoice_id, 'failed')}
+                  okText="Đồng ý"
+                  cancelText="Không"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Tooltip title="Hủy bỏ">
+                    <Button danger size="small" icon={<CloseOutlined />} />
+                  </Tooltip>
+                </Popconfirm>
+              </>
+            )}
           </div>
         );
       }
@@ -321,7 +392,16 @@ const Invoices = () => {
   ];
 
   return (
-    <Card title="Danh sách hóa đơn">
+    <Card title="Danh sách hóa đơn" extra={
+      <Button
+        type="primary"
+        icon={<FileExcelOutlined />}
+        style={{ background: '#52c41a' }}
+        onClick={handleExportListExcel}
+      >
+        Xuất Excel Danh Sách
+      </Button>
+    }>
       <div style={{ marginBottom: 16, display: 'flex', gap: '8px' }}>
         <Input
           prefix={<SearchOutlined />}

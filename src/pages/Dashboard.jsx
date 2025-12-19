@@ -1,22 +1,7 @@
-// src/pages/Dashboard.jsx
+import { Card, Row, Col, Statistic, Tag, Progress, Table, Typography, Space, Select, Button, message } from "antd";
+import { ApartmentOutlined, CheckCircleOutlined, HomeOutlined, FileExcelOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Card,
-  Row,
-  Col,
-  Statistic,
-  Tag,
-  Progress,
-  Table,
-  Typography,
-  Space,
-  Select,
-} from "antd";
-import {
-  ApartmentOutlined,
-  CheckCircleOutlined,
-  HomeOutlined,
-} from "@ant-design/icons";
+import * as XLSX from "xlsx";
 
 import roomApi from "../api/roomApi";
 import paymentApi from "../api/paymentApi";
@@ -62,6 +47,7 @@ const Dashboard = () => {
     year: currentYear,
     months: [],
     quarters: [],
+    transactions: [],
   });
   const [loadingPayments, setLoadingPayments] = useState(false);
 
@@ -83,13 +69,8 @@ const Dashboard = () => {
   const fetchPaymentStats = async (y) => {
     try {
       setLoadingPayments(true);
-      console.log('Fetching stats for year:', y);
       const res = await paymentApi.getStats(y);
-      console.log('API Response:', res);
-
       const stats = res.data || res;
-      console.log('Parsed stats:', stats);
-
       setPaymentStats(stats);
     } catch (error) {
       console.error("Error fetching payment stats:", error);
@@ -175,6 +156,170 @@ const Dashboard = () => {
       total: Number(q.total || 0),
     }));
   }, [paymentStats.quarters]);
+
+  // EXPORT MONTHLY STATS
+  const handleExportMonthly = () => {
+    const workbook = XLSX.utils.book_new();
+
+    // 1. PRIMARY SHEET: Detailed Daily Transactions (Grouped by Month)
+    const sortedTransactions = [...(paymentStats.transactions || [])].sort((a, b) =>
+      new Date(a.payment_date) - new Date(b.payment_date)
+    );
+
+    const monthlyGroups = {};
+    for (let i = 1; i <= 12; i++) monthlyGroups[i] = [];
+
+    sortedTransactions.forEach(t => {
+      const month = new Date(t.payment_date).getMonth() + 1;
+      monthlyGroups[month].push(t);
+    });
+
+    const aoaDetails = [
+      ["DANH SÁCH CHI TIẾT GIAO DỊCH THEO THÁNG", ""],
+      ["Năm báo cáo", year],
+      ["", ""],
+      ["STT", "Ngày", "Khách hàng", "Mã đặt phòng", "Phương thức", "Số tiền (VNĐ)"]
+    ];
+
+    let grandTotal = 0;
+    let stt = 1;
+
+    for (let m = 1; m <= 12; m++) {
+      const group = monthlyGroups[m];
+      if (group.length > 0) {
+        // Month Header
+        aoaDetails.push([`BÁO CÁO THÁNG ${m}`, "", "", "", "", ""]);
+
+        let monthTotal = 0;
+        group.forEach(t => {
+          const amount = Number(t.amount || 0);
+          aoaDetails.push([
+            stt++,
+            new Date(t.payment_date).toLocaleDateString("vi-VN"),
+            t.booking?.user?.full_name || "N/A",
+            t.booking_id,
+            t.payment_method === "cash" ? "Tiền mặt" : "VNPay",
+            amount
+          ]);
+          monthTotal += amount;
+          grandTotal += amount;
+        });
+
+        // Month Subtotal
+        aoaDetails.push(["", "", "", "", `CỘNG THÁNG ${m}:`, monthTotal]);
+        aoaDetails.push([]); // Spacer
+      }
+    }
+
+    // Grand Total
+    aoaDetails.push(["", "", "", "", "TỔNG CỘNG CẢ NĂM:", grandTotal]);
+
+    const wsDetails = XLSX.utils.aoa_to_sheet(aoaDetails);
+    XLSX.utils.book_append_sheet(workbook, wsDetails, "Chi Tiết Theo Tháng");
+
+    // 2. Monthly Revenue Summary
+    const monthlyData = monthlyChartData.map(d => ({
+      "Tháng": d.label,
+      "Năm": year,
+      "Tổng doanh thu (VNĐ)": d.total
+    }));
+    const wsMonth = XLSX.utils.json_to_sheet(monthlyData);
+    XLSX.utils.book_append_sheet(workbook, wsMonth, "Tổng Hợp 12 Tháng");
+
+    // 3. Overall Summary
+    const summaryData = [
+      ["BÁO CÁO TỔNG QUAN KHÁCH SẠN", ""],
+      ["Năm", year],
+      ["Ngày xuất", new Date().toLocaleDateString("vi-VN")],
+      ["", ""],
+      ["TỔNG QUAN PHÒNG", ""],
+      ["Tổng số phòng", roomStats.total],
+      ["Phòng đang sử dụng", roomStats.inUse],
+      ["Công suất phòng (%)", `${roomStats.occupancyRate}%`],
+      ["", ""],
+      ["TÌNH TRẠNG PHÒNG CHI TIẾT", "SỐ LƯỢNG"],
+      ...Object.entries(roomStats.byStatus).map(([s, count]) => [STATUS_LABEL[s], count])
+    ];
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(workbook, wsSummary, "Tóm Tắt Tổng Quan");
+
+    // Save file
+    XLSX.writeFile(workbook, `BaoCao_Thang_${year}.xlsx`);
+    message.success("Đã xuất báo cáo tháng chi tiết thành công");
+  };
+
+  // EXPORT QUARTERLY STATS
+  const handleExportQuarterly = () => {
+    const workbook = XLSX.utils.book_new();
+
+    // 1. Transaction Log (Grouped by Quarter)
+    const transactions = [...(paymentStats.transactions || [])].sort((a, b) =>
+      new Date(a.payment_date) - new Date(b.payment_date)
+    );
+
+    const quarterlyGroups = { 1: [], 2: [], 3: [], 4: [] };
+    transactions.forEach(t => {
+      const month = new Date(t.payment_date).getMonth() + 1;
+      const q = Math.ceil(month / 3);
+      quarterlyGroups[q].push(t);
+    });
+
+    const aoaDetails = [
+      ["DANH SÁCH GIAO DỊCH CHI TIẾT THEO QUÝ", ""],
+      ["Năm báo cáo", year],
+      ["", ""],
+      ["STT", "Ngày", "Khách hàng", "Mã đặt phòng", "Phương thức", "Số tiền (VNĐ)"]
+    ];
+
+    let overallTotal = 0;
+    let stt = 1;
+
+    [1, 2, 3, 4].forEach(q => {
+      const group = quarterlyGroups[q];
+      if (group.length > 0) {
+        // Quarter Header
+        aoaDetails.push([`BÁO CÁO QUÝ ${q}`, "", "", "", "", ""]);
+
+        let qTotal = 0;
+        group.forEach(t => {
+          const amount = Number(t.amount || 0);
+          aoaDetails.push([
+            stt++,
+            new Date(t.payment_date).toLocaleDateString("vi-VN"),
+            t.booking?.user?.full_name || "N/A",
+            t.booking_id,
+            t.payment_method === "cash" ? "Tiền mặt" : "VNPay",
+            amount
+          ]);
+          qTotal += amount;
+          overallTotal += amount;
+        });
+
+        // Quarter Subtotal
+        aoaDetails.push(["", "", "", "", `CỘNG QUÝ ${q}:`, qTotal]);
+        aoaDetails.push([]); // Empty row for spacing
+      }
+    });
+
+    // Grand Total at the very bottom
+    aoaDetails.push(["", "", "", "", "TỔNG CỘNG CẢ NĂM:", overallTotal]);
+
+    const wsDetails = XLSX.utils.aoa_to_sheet(aoaDetails);
+    XLSX.utils.book_append_sheet(workbook, wsDetails, "Nhóm Theo Quý");
+
+    // 2. Quarterly Revenue Summary Sheet
+    const quarterlyData = quarterlyChartData.map(d => ({
+      "Quý": d.label,
+      "Năm": year,
+      "Tổng doanh thu (VNĐ)": d.total
+    }));
+    const wsQuarter = XLSX.utils.json_to_sheet(quarterlyData);
+    XLSX.utils.book_append_sheet(workbook, wsQuarter, "Tổng Kết Quý");
+
+    // Save file
+    XLSX.writeFile(workbook, `BaoCao_Quy_${year}.xlsx`);
+    message.success("Đã xuất báo cáo quý chi tiết thành công");
+  };
 
   // CURRENT DATE
   const today = new Date().toLocaleDateString("vi-VN");
@@ -289,21 +434,47 @@ const Dashboard = () => {
         <Col xs={24}>
           <Card
             title={
-              <Space>
-                <span>Doanh thu theo tháng & quý</span>
-                <Select
-                  size="small"
-                  value={year}
-                  onChange={handleYearChange}
-                  style={{ width: 100 }}
-                >
-                  {[currentYear - 1, currentYear, currentYear + 1].map((y) => (
-                    <Option key={y} value={y}>
-                      {y}
-                    </Option>
-                  ))}
-                </Select>
-              </Space>
+              <Row justify="space-between" align="middle" style={{ width: "100%" }}>
+                <Col>
+                  <Space>
+                    <span>Doanh thu theo tháng & quý</span>
+                    <Select
+                      size="small"
+                      value={year}
+                      onChange={handleYearChange}
+                      style={{ width: 100 }}
+                    >
+                      {[currentYear - 1, currentYear, currentYear + 1].map((y) => (
+                        <Option key={y} value={y}>
+                          {y}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Space>
+                </Col>
+                <Col>
+                  <Space>
+                    <Button
+                      type="primary"
+                      icon={<FileExcelOutlined />}
+                      size="small"
+                      style={{ background: "#52c41a" }}
+                      onClick={handleExportMonthly}
+                    >
+                      Báo cáo Tháng
+                    </Button>
+                    <Button
+                      type="primary"
+                      icon={<FileExcelOutlined />}
+                      size="small"
+                      style={{ background: "#faad14", borderColor: "#faad14" }}
+                      onClick={handleExportQuarterly}
+                    >
+                      Báo cáo Quý
+                    </Button>
+                  </Space>
+                </Col>
+              </Row>
             }
             style={{ borderRadius: 16 }}
           >

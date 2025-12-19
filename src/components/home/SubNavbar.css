@@ -1,6 +1,4 @@
 .sub-navbar {
-    position: sticky;
-    top: 80px;
     background: white;
     border-bottom: 1px solid #ebebeb;
     z-index: 10;

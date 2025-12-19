@@ -28,6 +28,7 @@ import Navbar from "../components/home/Navbar";
 import SubNavbar from "../components/home/SubNavbar";
 import serviceUsageApi from "../api/serviceUsageApi";
 import serviceApi from "../api/serviceApi";
+import paymentApi from "../api/paymentApi";
 
 const UserServiceRequest = () => {
     const [services, setServices] = useState([]);
@@ -118,11 +119,68 @@ const UserServiceRequest = () => {
             setRequesting(false);
         }
     };
+    const getSelectedBookingFinancials = () => {
+        if (!selectedBookingId || !activeBookings) return null;
+        const booking = activeBookings.find(b => b.booking_id === selectedBookingId);
+        return booking?.financials || null;
+    };
 
-    const totalServiceCost = serviceHistory.reduce(
-        (sum, item) => sum + parseFloat(item.total_price || 0),
-        0
-    );
+    const financials = getSelectedBookingFinancials();
+    const remainingAmount = financials?.remainingAmount || 0;
+    const totalPaid = financials?.totalPaid || 0;
+
+    const [paymentLoading, setPaymentLoading] = useState(false);
+
+    const handlePayment = async () => {
+        if (!selectedBookingId) {
+            message.warning("Vui lòng chọn phòng để thanh toán");
+            return;
+        }
+
+        if (remainingAmount <= 0) {
+            message.success("Đơn hàng này đã được thanh toán đủ!");
+            return;
+        }
+
+        try {
+            setPaymentLoading(true);
+            const res = await paymentApi.createPaymentUrl({
+                booking_id: selectedBookingId,
+                bankCode: '' // Optional
+            });
+
+            console.log('Payment API Response:', res);
+
+            // Check structure
+            let redirectUrl = null;
+            if (res.data && typeof res.data === 'string') {
+                redirectUrl = res.data;
+            } else if (res.data && res.data.paymentUrl) {
+                redirectUrl = res.data.paymentUrl;
+            } else if (res.paymentUrl) { // Handle case where res is the data object
+                redirectUrl = res.paymentUrl;
+            }
+
+            if (redirectUrl && typeof redirectUrl === 'string') {
+                console.log('Redirecting to:', redirectUrl);
+                // Redirect to VNPay
+                window.location.href = redirectUrl;
+            } else {
+                console.error('Invalid payment URL (not a string):', redirectUrl);
+                message.error("Lỗi: Link thanh toán không hợp lệ (Dữ liệu trả về sai định dạng)");
+            }
+        } catch (error) {
+            console.error(error);
+            // Handle specific case where booking is fully paid
+            if (error.response && error.response.status === 400 && error.response.data?.message?.includes("fully paid")) {
+                message.success("Đơn hàng này đã được thanh toán đủ!");
+            } else {
+                message.error("Lỗi khi tạo thanh toán: " + (error.response?.data?.message || "Lỗi không xác định"));
+            }
+        } finally {
+            setPaymentLoading(false);
+        }
+    };
 
     const historyColumns = [
         {
@@ -134,9 +192,9 @@ const UserServiceRequest = () => {
             title: "Phòng",
             dataIndex: ["booking", "bookingRooms"],
             render: (bookingRooms) => {
-                if (!bookingRooms || bookingRooms.length === 0) return "N/A";
+                if (!bookingRooms || !Array.isArray(bookingRooms) || bookingRooms.length === 0) return "N/A";
                 return bookingRooms
-                    .map((br) => `Phòng ${br.room?.room_number || "N/A"}`)
+                    .map((br) => `Phòng ${br?.room?.room_number || "N/A"}`)
                     .join(", ");
             },
             width: 120
@@ -180,10 +238,12 @@ const UserServiceRequest = () => {
     }
 
     return (
-        <>
-            <Navbar />
-            <SubNavbar />
-            <div style={{ padding: "24px" }}>
+        <div className="landing-page">
+            <div className="header-container" style={{ position: 'relative' }}>
+                <Navbar />
+                <SubNavbar />
+            </div>
+            <div className="main-content" style={{ marginTop: 0, padding: "24px" }}>
                 <h1 style={{ marginBottom: 24 }}>
                     <ShoppingCartOutlined /> Gọi dịch vụ
                 </h1>
@@ -211,7 +271,7 @@ const UserServiceRequest = () => {
                                     onChange={setSelectedBookingId}
                                     placeholder="Chọn phòng..."
                                 >
-                                    {activeBookings.map((booking) => (
+                                    {Array.isArray(activeBookings) && activeBookings.map((booking) => (
                                         <Select.Option key={booking.booking_id} value={booking.booking_id}>
                                             Booking #{booking.booking_id} -
                                             {booking.bookingRooms?.map((br) => ` Phòng ${br.room?.room_number}`).join(', ')}
@@ -263,7 +323,7 @@ const UserServiceRequest = () => {
                         <Empty description="Không có dịch vụ nào" />
                     ) : (
                         <Row gutter={[16, 16]}>
-                            {services.map((service) => (
+                            {Array.isArray(services) && services.map((service) => (
                                 <Col xs={24} sm={12} md={8} lg={6} key={service.service_id}>
                                     <Card
                                         hoverable
@@ -317,12 +377,36 @@ const UserServiceRequest = () => {
                         </Space>
                     }
                     extra={
-                        <Statistic
-                            title="Tổng chi phí"
-                            value={totalServiceCost}
-                            suffix="VNĐ"
-                            valueStyle={{ fontSize: 18, color: "#cf1322" }}
-                        />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                            <Statistic
+                                title="Tổng chi phí (Phòng + Dịch vụ)"
+                                value={financials?.total || 0}
+                                suffix="VNĐ"
+                                valueStyle={{ fontSize: 16 }}
+                            />
+                            <Statistic
+                                title="Đã thanh toán"
+                                value={financials?.totalPaid || 0}
+                                suffix="VNĐ"
+                                valueStyle={{ fontSize: 16, color: '#3f8600' }}
+                            />
+                            <Statistic
+                                title="Cần thanh toán thêm"
+                                value={financials?.remainingAmount || 0}
+                                suffix="VNĐ"
+                                valueStyle={{ fontSize: 18, color: "#cf1322", fontWeight: 'bold' }}
+                            />
+                            <Button
+                                type="primary"
+                                danger
+                                icon={<DollarOutlined />}
+                                onClick={handlePayment}
+                                loading={paymentLoading}
+                                disabled={remainingAmount <= 0}
+                            >
+                                {remainingAmount > 0 ? "Thanh toán ngay" : "Đã thanh toán đủ"}
+                            </Button>
+                        </div>
                     }
                 >
                     <Table
@@ -334,7 +418,7 @@ const UserServiceRequest = () => {
                     />
                 </Card>
             </div>
-        </>
+        </div>
     );
 };
 

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Navbar from '../../components/home/Navbar';
-import SubNavbar from '../../components/home/SubNavbar';
 import CategoryBar from '../../components/home/CategoryBar';
 import ListingCard from '../../components/home/ListingCard';
 import Footer from '../../components/home/Footer';
@@ -74,7 +73,6 @@ const Home = () => {
         <div className="landing-page">
             <div className="header-container">
                 <Navbar />
-                <SubNavbar />
             </div>
 
             <main className="main-content">

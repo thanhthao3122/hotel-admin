@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { message } from 'antd';
 import Navbar from '../../components/home/Navbar';
 import Footer from '../../components/home/Footer';
@@ -18,14 +18,15 @@ const formatCurrency = (amount) => {
 const RoomDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [room, setRoom] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isBooking, setIsBooking] = useState(false);
     const [validationError, setValidationError] = useState('');
     const [bookingData, setBookingData] = useState({
-        checkin_date: '',
-        checkout_date: '',
-        guests: 1
+        checkin_date: searchParams.get('checkin_date') || '',
+        checkout_date: searchParams.get('checkout_date') || '',
+        guests: Number(searchParams.get('guests')) || 1
     });
 
     useEffect(() => {

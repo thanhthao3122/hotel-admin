@@ -368,7 +368,7 @@ const ServiceUsage = () => {
         onSubmit={handleSubmit}
         initialValues={editingUsage}
         isEditing={!!editingUsage}
-        bookings={bookings.filter(b => ['checked_in', 'confirmed'].includes(b.status))}
+        bookings={bookings.filter(b => b.status === 'checked_in')}
         rooms={rooms}
         services={services}
         customers={customers}
