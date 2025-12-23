@@ -5,6 +5,7 @@ import * as XLSX from "xlsx";
 
 import roomApi from "../api/roomApi";
 import paymentApi from "../api/paymentApi";
+import socket from "../utils/socket";
 
 import {
   BarChart,
@@ -82,8 +83,36 @@ const Dashboard = () => {
   // INIT LOAD
   useEffect(() => {
     fetchRooms();
-    fetchPaymentStats(currentYear);
+    fetchPaymentStats(year);
   }, []);
+
+  // ✅ Real-time listeners
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchRooms();
+      fetchPaymentStats(year);
+    };
+
+    socket.on("room_status_updated", fetchRooms);
+    socket.on("room_created", fetchRooms);
+    socket.on("room_deleted", fetchRooms);
+    socket.on("room_updated", fetchRooms);
+    socket.on("booking_created", handleRefresh);
+    socket.on("booking_updated", handleRefresh);
+    socket.on("booking_deleted", handleRefresh);
+    socket.on("payment_received", handleRefresh);
+
+    return () => {
+      socket.off("room_status_updated", fetchRooms);
+      socket.off("room_created", fetchRooms);
+      socket.off("room_deleted", fetchRooms);
+      socket.off("room_updated", fetchRooms);
+      socket.off("booking_created", handleRefresh);
+      socket.off("booking_updated", handleRefresh);
+      socket.off("booking_deleted", handleRefresh);
+      socket.off("payment_received", handleRefresh);
+    };
+  }, [year]);
 
   // CHANGE YEAR
   const handleYearChange = (value) => {

@@ -1,6 +1,6 @@
 // src/pages/Invoices.jsx
-import { Card, Table, Tag, message, Button, Tooltip, Popconfirm, Input, Select } from "antd";
-import { CheckOutlined, CloseOutlined, PrinterOutlined, SearchOutlined, FileExcelOutlined } from "@ant-design/icons";
+import { Card, Table, Tag, message, Button, Tooltip, Popconfirm, Input, Select, Row, Col, Statistic } from "antd";
+import { CheckOutlined, CloseOutlined, PrinterOutlined, SearchOutlined, FileExcelOutlined, DollarOutlined } from "@ant-design/icons";
 import { useState, useEffect, useMemo } from "react";
 import * as XLSX from "xlsx";
 
@@ -8,6 +8,8 @@ import invoiceApi from "../api/invoiceApi";
 import bookingApi from "../api/bookingApi";
 import userApi from "../api/userApi";
 import roomApi from "../api/roomApi";
+import paymentApi from "../api/paymentApi";
+import socket from "../utils/socket";
 
 const Invoices = () => {
   const [invoices, setInvoices] = useState([]);
@@ -69,6 +71,20 @@ const Invoices = () => {
     } catch (error) {
       console.error(error);
       message.error(error.response?.data?.message || "Lỗi cập nhật trạng thái");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmBalance = async (booking_id) => {
+    try {
+      setLoading(true);
+      await paymentApi.create({ booking_id, notes: "Thanh toán số dư tại quầy" });
+      message.success("Đã xác nhận thanh toán số dư thành công");
+      fetchData();
+    } catch (error) {
+      console.error(error);
+      message.error(error.response?.data?.message || "Lỗi xác nhận thanh toán");
     } finally {
       setLoading(false);
     }
@@ -148,7 +164,9 @@ const Invoices = () => {
           </table>
 
           <div class="invoice-total">
-            <p>Tổng cộng: ${invoice.total_amount ? new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(invoice.total_amount) : 0} VNĐ</p>
+            <p><strong>Tổng cộng:</strong> ${Number(invoice.financials?.total || invoice.total_amount).toLocaleString('vi-VN')} VNĐ</p>
+            <p style="color: #52c41a;"><strong>Đã thanh toán:</strong> ${Number(invoice.financials?.totalPaid || 0).toLocaleString('vi-VN')} VNĐ</p>
+            <p style="color: #ff4d4f;"><strong>Còn lại:</strong> ${Number(invoice.financials?.remainingAmount || 0).toLocaleString('vi-VN')} VNĐ</p>
           </div>
 
           <div class="no-print" style="margin-top: 20px; text-align: center;">
@@ -232,6 +250,26 @@ const Invoices = () => {
 
   useEffect(() => {
     fetchData();
+
+    socket.on("invoice_generated", (data) => {
+      message.success(`Hóa đơn mới #${data.invoice_id} đã được tạo`);
+      fetchData();
+    });
+
+    socket.on("invoice_updated", () => {
+      fetchData();
+    });
+
+    socket.on("payment_received", (data) => {
+      message.success(`Đã nhận thanh toán mới cho hóa đơn #${data.invoice_id}`);
+      fetchData();
+    });
+
+    return () => {
+      socket.off("invoice_generated");
+      socket.off("invoice_updated");
+      socket.off("payment_received");
+    };
   }, []);
 
   const customerMap = useMemo(() => Object.fromEntries(customers.map(c => [c.user_id, c])), [customers]);
@@ -311,27 +349,49 @@ const Invoices = () => {
       render: (v) => v ? new Date(v).toLocaleString("vi-VN") : ""
     },
     {
+      title: "Đã trả",
+      render: (_, r) => {
+        const paid = r.financials?.totalPaid || 0;
+        return (
+          <span style={{ color: '#52c41a' }}>
+            {new Intl.NumberFormat("vi-VN").format(paid)} VNĐ
+          </span>
+        );
+      }
+    },
+    {
+      title: "Còn lại",
+      render: (_, r) => {
+        const remaining = r.financials?.remainingAmount || 0;
+        return (
+          <span style={{ color: remaining > 0 ? '#ff4d4f' : '#888', fontWeight: remaining > 0 ? 'bold' : 'normal' }}>
+            {new Intl.NumberFormat("vi-VN").format(remaining)} VNĐ
+          </span>
+        );
+      }
+    },
+    {
       title: "Trạng thái",
       key: "status",
       render: (_, r) => {
-        const payment = r.payment;
-        if (!payment) return <Tag>N/A</Tag>;
+        const financials = r.financials;
+        if (!financials) return <Tag>N/A</Tag>;
 
-        let color = 'default';
-        let text = payment.status;
+        const { total, totalPaid, remainingAmount } = financials;
 
-        if (payment.status === 'completed') {
-          color = 'success';
-          text = 'Đã thanh toán';
-        } else if (payment.status === 'pending') {
-          color = 'warning';
-          text = 'Chờ xử lý';
-        } else if (payment.status === 'failed') {
-          color = 'error';
-          text = 'Thất bại';
+        if (remainingAmount <= 0 && totalPaid >= total && total > 0) {
+          return <Tag color="success">ĐÃ THANH TOÁN</Tag>;
         }
 
-        return <Tag color={color}>{text.toUpperCase()}</Tag>;
+        if (totalPaid > 0 && remainingAmount > 0) {
+          return <Tag color="warning">THANH TOÁN MỘT PHẦN</Tag>;
+        }
+
+        if (totalPaid === 0 && total > 0) {
+          return <Tag color="error">CHƯA THANH TOÁN</Tag>;
+        }
+
+        return <Tag>{r.payment?.status?.toUpperCase() || 'N/A'}</Tag>;
       }
     },
     {
@@ -385,6 +445,20 @@ const Invoices = () => {
                 </Popconfirm>
               </>
             )}
+
+            {r.financials?.remainingAmount > 0 && (
+              <Popconfirm
+                title="Thanh toán số dư"
+                description={`Xác nhận thu thêm ${new Intl.NumberFormat("vi-VN").format(r.financials.remainingAmount)} VNĐ tiền mặt?`}
+                onConfirm={() => handleConfirmBalance(r.booking_id)}
+                okText="Xác nhận"
+                cancelText="Hủy"
+              >
+                <Tooltip title="Thu tiền mặt số dư">
+                  <Button size="small" icon={<DollarOutlined />} style={{ background: '#faad14', color: 'white' }} />
+                </Tooltip>
+              </Popconfirm>
+            )}
           </div>
         );
       }
@@ -402,6 +476,41 @@ const Invoices = () => {
         Xuất Excel Danh Sách
       </Button>
     }>
+      <div style={{ marginBottom: 16 }}>
+        <Row gutter={16}>
+          <Col span={8}>
+            <Card size="small" bordered={false} style={{ background: '#f0f5ff' }}>
+              <Statistic
+                title="Tổng giá trị hóa đơn"
+                value={filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.financials?.total) || 0), 0)}
+                suffix="VNĐ"
+                valueStyle={{ color: '#1890ff', fontSize: '18px' }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card size="small" bordered={false} style={{ background: '#f6ffed' }}>
+              <Statistic
+                title="Tổng đã thu"
+                value={filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.financials?.totalPaid) || 0), 0)}
+                suffix="VNĐ"
+                valueStyle={{ color: '#52c41a', fontSize: '18px' }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card size="small" bordered={false} style={{ background: '#fff1f0' }}>
+              <Statistic
+                title="Tổng nợ (Chưa thu)"
+                value={filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.financials?.remainingAmount) || 0), 0)}
+                suffix="VNĐ"
+                valueStyle={{ color: '#cf1322', fontSize: '18px' }}
+              />
+            </Card>
+          </Col>
+        </Row>
+      </div>
+
       <div style={{ marginBottom: 16, display: 'flex', gap: '8px' }}>
         <Input
           prefix={<SearchOutlined />}

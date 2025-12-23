@@ -1,4 +1,5 @@
 // src/layouts/AdminLayout.jsx
+import { useMemo } from "react";
 import {
   Layout,
   Menu,
@@ -94,12 +95,6 @@ const AdminLayout = () => {
       label: "Khách hàng",
       group: "NGHIỆP VỤ",
     },
-    {
-      key: "/user-roles",
-      icon: <UserSwitchOutlined />,
-      label: "Phân quyền",
-      group: "NGHIỆP VỤ",
-    },
   ];
 
   // Gom các item theo group để dùng Menu group
@@ -161,6 +156,15 @@ const AdminLayout = () => {
     { title: <Link to="/dashboard">Dashboard</Link> },
     ...(currentMenu ? [{ title: currentMenu.label }] : []),
   ];
+
+  const userData = useMemo(() => {
+    try {
+      const userStr = localStorage.getItem("user");
+      return userStr ? JSON.parse(userStr) : {};
+    } catch (e) {
+      return {};
+    }
+  }, []);
 
   return (
     <Layout style={{ minHeight: "100vh", background: "#f5f5f5" }}>
@@ -226,13 +230,22 @@ const AdminLayout = () => {
           {/* Thông tin admin */}
           <Dropdown menu={userMenu} placement="bottomRight">
             <Space style={{ cursor: "pointer" }}>
-              <div style={{ textAlign: "right" }}>
-                <Text strong>Admin</Text>
-                <br />
-                {/* Có thể thêm role / tên khách sạn ở đây */}
+              <div
+                style={{
+                  textAlign: "right",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  lineHeight: "1.4",
+                }}
+              >
+                <Text strong>{userData.full_name || "Admin"}</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {userData.role?.toUpperCase() || "ADMIN"}
+                </Text>
               </div>
               <Avatar size="large" style={{ backgroundColor: "#1890ff" }}>
-                A
+                {userData.full_name?.charAt(0) || "A"}
               </Avatar>
             </Space>
           </Dropdown>

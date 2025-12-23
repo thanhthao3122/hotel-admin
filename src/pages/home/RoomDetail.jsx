@@ -7,7 +7,7 @@ import roomApi from '../../api/roomApi';
 import bookingApi from '../../api/bookingApi';
 import { BASE_URL } from '../../components/home/constants';
 import './roomDetail.css';
-import socketClient from '../../services/socketClient';
+import socket from '../../utils/socket';
 import moment from 'moment';
 
 // Helper function to format currency in VND
@@ -44,7 +44,6 @@ const RoomDetail = () => {
         fetchRoomDetail();
 
         // Socket listener
-        const socket = socketClient.getSocket();
 
         const handleBookingCreated = (data) => {
             // Check if this booking involves the current room
@@ -263,12 +262,12 @@ const RoomDetail = () => {
                             <div className="amenities">
                                 <h3>Tiện nghi</h3>
                                 <div className="amenity-list">
-                                    <div className="amenity-item">✓ WiFi miễn phí</div>
-                                    <div className="amenity-item">✓ Điều hòa</div>
-                                    <div className="amenity-item">✓ TV màn hình phẳng</div>
-                                    <div className="amenity-item">✓ Tủ lạnh</div>
-                                    <div className="amenity-item">✓ Phòng tắm riêng</div>
-                                    <div className="amenity-item">✓ Dịch vụ phòng 24/7</div>
+                                    <div className="amenity-item">WiFi miễn phí</div>
+                                    <div className="amenity-item">Điều hòa</div>
+                                    <div className="amenity-item">TV màn hình phẳng</div>
+                                    <div className="amenity-item">Tủ lạnh</div>
+                                    <div className="amenity-item">Phòng tắm riêng</div>
+                                    <div className="amenity-item">Dịch vụ phòng 24/7</div>
                                 </div>
                             </div>
                         </div>
@@ -319,41 +318,22 @@ const RoomDetail = () => {
                                 </div>
 
                                 {validationError && (
-                                    <div className="validation-error" style={{
-                                        color: '#d32f2f',
-                                        backgroundColor: '#ffebee',
-                                        padding: '10px',
-                                        borderRadius: '8px',
-                                        marginBottom: '15px',
-                                        fontSize: '14px'
-                                    }}>
+                                    <div className="validation-error">
                                         {validationError}
                                     </div>
                                 )}
 
                                 {bookingData.checkin_date && bookingData.checkout_date && !validationError && (
-                                    <div className="price-summary" style={{
-                                        backgroundColor: '#f5f5f5',
-                                        padding: '15px',
-                                        borderRadius: '8px',
-                                        marginBottom: '15px'
-                                    }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                    <div className="price-summary">
+                                        <div className="price-summary-row">
                                             <span>Giá mỗi đêm:</span>
                                             <span>{formatCurrency(room.roomType?.base_price || 0)}đ</span>
                                         </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                        <div className="price-summary-row">
                                             <span>Số đêm:</span>
                                             <span>{Math.ceil((new Date(bookingData.checkout_date) - new Date(bookingData.checkin_date)) / (1000 * 60 * 60 * 24))}</span>
                                         </div>
-                                        <div style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            fontWeight: 'bold',
-                                            fontSize: '16px',
-                                            paddingTop: '8px',
-                                            borderTop: '1px solid #ddd'
-                                        }}>
+                                        <div className="price-summary-total">
                                             <span>Tổng cộng:</span>
                                             <span>{formatCurrency(calculateTotalPrice())}đ</span>
                                         </div>

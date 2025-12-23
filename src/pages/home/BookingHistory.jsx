@@ -7,6 +7,7 @@ import Footer from '../../components/home/Footer';
 import bookingApi from '../../api/bookingApi';
 import paymentApi from '../../api/paymentApi';
 import './BookingHistory.css';
+import socket from '../../utils/socket';
 
 const { Title, Text } = Typography;
 
@@ -347,31 +348,43 @@ const BookingHistory = () => {
     const [cancelling, setCancelling] = useState(null);
     const user = JSON.parse(localStorage.getItem('user'));
 
-    useEffect(() => {
-        if (!user) {
-            window.location.href = '/login';
-            return;
-        }
-
-        const fetchBookings = async () => {
-            try {
-                const response = await bookingApi.getByUser(user.user_id);
-                const allBookings = response.data || [];
-                setBookings(allBookings);
-
-                // Auto-select first booking if available
-                if (allBookings.length > 0) {
-                    setSelectedBooking(allBookings[0]);
-                }
-            } catch (error) {
-                console.error('Error fetching bookings:', error);
-                message.error('Không thể tải lịch sử đặt phòng');
-            } finally {
-                setLoading(false);
+    const fetchBookings = async () => {
+        if (!user) return;
+        try {
+            setLoading(true);
+            const response = await bookingApi.getByUser(user.user_id);
+            const allBookings = response.data || [];
+            setBookings(allBookings);
+            if (allBookings.length > 0 && !selectedBooking) {
+                setSelectedBooking(allBookings[0]);
             }
-        };
+        } catch (error) {
+            console.error('Error fetching bookings:', error);
+            message.error('Không thể tải lịch sử đặt phòng');
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchBookings();
+
+        socket.on('booking_updated', (data) => {
+            if (data.user_id === user?.user_id || !data.user_id) {
+                fetchBookings();
+                message.info('Thông tin đặt phòng vừa được cập nhật');
+            }
+        });
+
+        socket.on('payment_received', () => {
+            fetchBookings();
+            message.success('Thanh toán thành công!');
+        });
+
+        return () => {
+            socket.off('booking_updated');
+            socket.off('payment_received');
+        };
     }, []);
 
     const handlePayment = async (bookingId) => {

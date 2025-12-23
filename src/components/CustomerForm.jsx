@@ -71,11 +71,11 @@ const CustomerForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) =>
           label="Email"
           name="email"
           rules={[
-            { required: true, message: "Vui lòng nhập email" },
+            { required: false },
             { type: "email", message: "Email không hợp lệ" },
           ]}
         >
-          <Input placeholder="VD: ten@example.com" />
+          <Input placeholder="VD: ten@example.com (không bắt buộc)" />
         </Form.Item>
 
         <Form.Item

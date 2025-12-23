@@ -19,6 +19,7 @@ import {
 import paymentApi from "../api/paymentApi";
 import bookingApi from "../api/bookingApi";
 import userApi from "../api/userApi";
+import socket from "../utils/socket";
 
 import PaymentForm from "../components/PaymentForm";
 
@@ -93,6 +94,17 @@ const Payments = () => {
 
   useEffect(() => {
     fetchData();
+
+    // Real-time updates when payment is received
+    const handlePaymentUpdate = () => {
+      fetchData();
+    };
+
+    socket.on('payment_received', handlePaymentUpdate);
+
+    return () => {
+      socket.off('payment_received', handlePaymentUpdate);
+    };
   }, []);
 
   const customerMap = useMemo(() => Object.fromEntries(customers.map((c) => [c.user_id, c])), [customers]);

@@ -24,7 +24,7 @@ import bookingApi from '../api/bookingApi.js';
 import userApi from '../api/userApi.js';
 import roomApi from '../api/roomApi.js';
 import roomTypeApi from '../api/roomTypeApi.js';
-import socketClient from '../services/socketClient.js';
+import socket from '../utils/socket.js';
 
 
 import BookingForm from "../components/BookingForm.jsx";
@@ -91,11 +91,7 @@ const Bookings = () => {
   useEffect(() => {
     fetchData();
 
-    // Socket listeners
-    const socket = socketClient.getSocket();
-
     const handleBookingChange = (data) => {
-      // console.log('Socket event received:', data);
       message.info('Dữ liệu đặt phòng vừa được cập nhật');
       fetchData(); // Reload data
     };
@@ -103,11 +99,13 @@ const Bookings = () => {
     socket.on('booking_created', handleBookingChange);
     socket.on('booking_updated', handleBookingChange);
     socket.on('booking_deleted', handleBookingChange);
+    socket.on('payment_received', handleBookingChange);
 
     return () => {
       socket.off('booking_created', handleBookingChange);
       socket.off('booking_updated', handleBookingChange);
       socket.off('booking_deleted', handleBookingChange);
+      socket.off('payment_received', handleBookingChange);
     };
   }, []);
 
@@ -183,6 +181,12 @@ const Bookings = () => {
   };
 
   const columns = [
+    {
+      title: "Mã Booking",
+      dataIndex: "booking_id",
+      width: 100,
+      render: (id) => <Tag color="blue">#{id}</Tag>
+    },
     {
       title: "Khách hàng",
       render: (_, record) => {

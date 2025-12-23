@@ -21,6 +21,7 @@ import {
 import RoomForm from "../components/RoomForm.jsx";
 import roomApi from "../api/roomApi.js";
 import roomTypeApi from "../api/roomTypeApi.js";
+import socket from "../utils/socket.js";
 
 const { Option } = Select;
 
@@ -116,6 +117,37 @@ const Rooms = () => {
     fetchRooms(1, pagination.pageSize, {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ✅ Real-time: Lắng nghe sự kiện từ Server
+  useEffect(() => {
+    socket.on("room_created", () => {
+      fetchRooms();
+      message.info("Có phòng mới vừa được tạo!");
+    });
+
+    socket.on("room_updated", () => {
+      fetchRooms();
+    });
+
+    socket.on("room_status_updated", (data) => {
+      // Tìm số phòng để thông báo cho dễ hiểu
+      const room = rooms.find(r => r.room_id === data.room_id);
+      const roomNum = room ? `phòng ${room.room_number}` : "một phòng";
+      message.info(`Trạng thái ${roomNum} vừa thay đổi thành: ${data.status}`);
+      fetchRooms();
+    });
+
+    socket.on("room_deleted", () => {
+      fetchRooms();
+    });
+
+    return () => {
+      socket.off("room_created");
+      socket.off("room_updated");
+      socket.off("room_status_updated");
+      socket.off("room_deleted");
+    };
+  }, [rooms, pagination.pageSize]);
 
   // FE chỉ lọc thêm search + loại phòng; trạng thái đã lọc ở backend
   const filteredRooms = useMemo(() => {

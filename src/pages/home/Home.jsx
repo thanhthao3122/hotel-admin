@@ -5,7 +5,7 @@ import CategoryBar from '../../components/home/CategoryBar';
 import ListingCard from '../../components/home/ListingCard';
 import Footer from '../../components/home/Footer';
 import roomApi from '../../api/roomApi';
-import socketClient from '../../services/socketClient';
+import socket from '../../utils/socket';
 import './home.css';
 
 const Home = () => {
@@ -55,7 +55,6 @@ const Home = () => {
 
     // Socket listener for real-time updates
     useEffect(() => {
-        const socket = socketClient.getSocket();
 
         const handleBookingChange = () => {
             // Refresh the list when any booking occurs
@@ -63,9 +62,13 @@ const Home = () => {
         };
 
         socket.on('booking_created', handleBookingChange);
+        socket.on('room_updated', handleBookingChange);
+        socket.on('room_status_updated', handleBookingChange);
 
         return () => {
             socket.off('booking_created', handleBookingChange);
+            socket.off('room_updated', handleBookingChange);
+            socket.off('room_status_updated', handleBookingChange);
         };
     }, []);
 

@@ -24,6 +24,7 @@ import bookingApi from "../api/bookingApi";
 import userApi from "../api/userApi";
 import roomApi from "../api/roomApi";
 import serviceApi from "../api/serviceApi";
+import socket from "../utils/socket";
 
 
 import ServiceUsageForm from "../components/ServiceUsageForm.jsx";
@@ -98,6 +99,19 @@ const ServiceUsage = () => {
 
   useEffect(() => {
     fetchData();
+
+    // Real-time updates when services are added or invoices updated
+    const handleServiceUpdate = () => {
+      fetchData();
+    };
+
+    socket.on('service_added', handleServiceUpdate);
+    socket.on('invoice_updated', handleServiceUpdate);
+
+    return () => {
+      socket.off('service_added', handleServiceUpdate);
+      socket.off('invoice_updated', handleServiceUpdate);
+    };
   }, []);
 
   const bookingMap = useMemo(() => Object.fromEntries(bookings.map((b) => [b.booking_id, b])), [bookings]);

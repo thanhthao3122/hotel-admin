@@ -29,6 +29,7 @@ import SubNavbar from "../components/home/SubNavbar";
 import serviceUsageApi from "../api/serviceUsageApi";
 import serviceApi from "../api/serviceApi";
 import paymentApi from "../api/paymentApi";
+import socket from "../utils/socket";
 
 const UserServiceRequest = () => {
     const [services, setServices] = useState([]);
@@ -77,7 +78,32 @@ const UserServiceRequest = () => {
 
     useEffect(() => {
         fetchData();
-    }, []);
+
+        // Real-time: Refresh if service added or invoice updated
+        socket.on('invoice_updated', (data) => {
+            if (data.booking_id == selectedBookingId || !selectedBookingId) {
+                fetchData();
+            }
+        });
+
+        socket.on('service_added', (data) => {
+            if (data.booking_id == selectedBookingId || !selectedBookingId) {
+                fetchData();
+            }
+        });
+
+        socket.on('payment_received', (data) => {
+            if (data.booking_id == selectedBookingId || !selectedBookingId) {
+                fetchData();
+            }
+        });
+
+        return () => {
+            socket.off('invoice_updated');
+            socket.off('service_added');
+            socket.off('payment_received');
+        };
+    }, [selectedBookingId]);
 
     const handleRequestService = async (serviceId) => {
         const quantity = quantities[serviceId] || 1;
@@ -108,9 +134,8 @@ const UserServiceRequest = () => {
             // Reset quantity
             setQuantities({ ...quantities, [serviceId]: 1 });
 
-            // Refresh history
-            const historyRes = await serviceUsageApi.getMyHistory();
-            setServiceHistory(historyRes.data || []);
+            // Refresh EVERYTHING
+            await fetchData();
         } catch (error) {
             console.error(error);
             const errorMsg = error.response?.data?.message || "Không thể gọi dịch vụ";
@@ -249,6 +274,20 @@ const UserServiceRequest = () => {
                 </h1>
 
                 {/* Active Booking Info - Show if user has checked-in bookings */}
+                {activeBookings.length === 0 && (
+                    <Card style={{ marginBottom: 24, textAlign: 'center', borderColor: '#faad14', backgroundColor: '#fffbe6' }}>
+                        <Space direction="vertical" align="center">
+                            <h3 style={{ color: '#856404' }}>
+                                <CalendarOutlined /> Bạn chưa có phòng đang lưu trú
+                            </h3>
+                            <p>Vui lòng thực hiện <b>Check-in</b> tại quầy lễ tân để có thể sử dụng tính năng gọi dịch vụ tại phòng.</p>
+                            <Button type="primary" onClick={() => window.location.href = '/booking-history'}>
+                                Xem lịch sử đặt phòng
+                            </Button>
+                        </Space>
+                    </Card>
+                )}
+
                 {activeBookings.length > 0 && (
                     <Card
                         title={
