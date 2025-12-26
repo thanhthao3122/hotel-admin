@@ -435,16 +435,7 @@ const UserServiceRequest = () => {
                                 suffix="VNĐ"
                                 valueStyle={{ fontSize: 18, color: "#cf1322", fontWeight: 'bold' }}
                             />
-                            <Button
-                                type="primary"
-                                danger
-                                icon={<DollarOutlined />}
-                                onClick={handlePayment}
-                                loading={paymentLoading}
-                                disabled={remainingAmount <= 0}
-                            >
-                                {remainingAmount > 0 ? "Thanh toán ngay" : "Đã thanh toán đủ"}
-                            </Button>
+
                         </div>
                     }
                 >
