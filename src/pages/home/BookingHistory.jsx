@@ -109,6 +109,13 @@ const BookingCard = ({ booking, isSelected, onClick, onCancel, cancelling }) => 
                     <Text strong className="total-price">{grandTotal.toLocaleString('vi-VN')} VNĐ</Text>
                 </div>
 
+                <div className="booking-payment-method" style={{ marginTop: '8px' }}>
+                    <Text type="secondary">Hình thức: </Text>
+                    <Tag color={booking.payment_method === 'pay_later' ? 'cyan' : 'blue'}>
+                        {booking.payment_method === 'pay_later' ? 'Thanh toán sau' : 'Thanh toán online'}
+                    </Tag>
+                </div>
+
                 {canCancel && (
                     <Popconfirm
                         title="Hủy booking"
@@ -141,6 +148,14 @@ const BookingCard = ({ booking, isSelected, onClick, onCancel, cancelling }) => 
 
 // Sub-component: PaymentForm
 const PaymentForm = ({ booking, user, onPayment, paying }) => {
+    const [localPaymentMethod, setLocalPaymentMethod] = useState(booking?.payment_method || 'online');
+
+    useEffect(() => {
+        if (booking) {
+            setLocalPaymentMethod(booking.payment_method);
+        }
+    }, [booking]);
+
     if (!booking) {
         return (
             <Card className="payment-form-card empty">
@@ -216,6 +231,12 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                             <Text strong>Trạng thái:</Text>
                             <Tag color={statusConfig.color}>
                                 {statusConfig.icon} {statusConfig.text}
+                            </Tag>
+                        </div>
+                        <div className="detail-row">
+                            <Text strong>Hình thức:</Text>
+                            <Tag color={booking.payment_method === 'pay_later' ? 'cyan' : 'blue'}>
+                                {booking.payment_method === 'pay_later' ? 'Thanh toán sau' : 'Thanh toán online'}
                             </Tag>
                         </div>
                         <div className="detail-row">
@@ -295,6 +316,56 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                     </div>
                 </div>
 
+                {/* Phương thức thanh toán - CHO PHÉP CHỌN LẠI */}
+                {canPay && (
+                    <div className="form-section">
+                        <Title level={5} className="section-title">
+                            💳 Chọn phương thức thanh toán
+                        </Title>
+                        <div className="payment-method-selection" style={{ padding: '10px', background: '#f9f9f9', borderRadius: '8px' }}>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    padding: '10px',
+                                    border: localPaymentMethod === 'online' ? '2px solid #1890ff' : '2px solid transparent',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    marginBottom: '8px',
+                                    background: 'white'
+                                }}
+                                onClick={() => setLocalPaymentMethod('online')}
+                            >
+                                <input type="radio" checked={localPaymentMethod === 'online'} readOnly style={{ cursor: 'pointer' }} />
+                                <div>
+                                    <Text strong>Thanh toán trực tuyến (VNPay)</Text><br />
+                                    <Text type="secondary" style={{ fontSize: '12px' }}>Thanh toán ngay qua thẻ ATM, ứng dụng ngân hàng hoặc ví điện tử.</Text>
+                                </div>
+                            </div>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    padding: '10px',
+                                    border: localPaymentMethod === 'pay_later' ? '2px solid #1890ff' : '2px solid transparent',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    background: 'white'
+                                }}
+                                onClick={() => setLocalPaymentMethod('pay_later')}
+                            >
+                                <input type="radio" checked={localPaymentMethod === 'pay_later'} readOnly style={{ cursor: 'pointer' }} />
+                                <div>
+                                    <Text strong>Thanh toán sau (tại quầy)</Text><br />
+                                    <Text type="secondary" style={{ fontSize: '12px' }}>Thanh toán bằng tiền mặt khi bạn đến nhận phòng tại khách sạn.</Text>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Nút thanh toán */}
                 {canPay ? (
                     isProcessing ? (
@@ -315,11 +386,11 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                             size="large"
                             block
                             icon={<CreditCardOutlined />}
-                            onClick={() => onPayment(booking.booking_id)}
+                            onClick={() => onPayment(booking.booking_id, localPaymentMethod)}
                             loading={paying}
                             className="payment-button"
                         >
-                            Thanh toán online
+                            {localPaymentMethod === 'pay_later' ? 'Hoàn tất chọn Thanh toán sau' : 'Thanh toán online ngay'}
                         </Button>
                     )
                 ) : (
@@ -334,6 +405,14 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                     >
                         {['confirmed', 'checked_in', 'checked_out', 'paid'].includes(booking.status) ? 'Thanh toán thành công' : 'Không thể thanh toán'}
                     </Button>
+                )}
+
+                {canPay && booking.payment_method === 'pay_later' && (
+                    <div className="pay-later-note" style={{ marginTop: '16px', padding: '12px', background: '#e6f7ff', border: '1px solid #91d5ff', borderRadius: '4px' }}>
+                        <Text type="secondary">
+                            💡 Bạn đã chọn <b>Thanh toán sau</b>. Bạn có thể thanh toán tiền mặt khi đến nhận phòng, hoặc thanh toán online ngay bây giờ bằng nút phía trên.
+                        </Text>
+                    </div>
                 )}
             </Form>
         </Card>
@@ -387,14 +466,26 @@ const BookingHistory = () => {
         };
     }, []);
 
-    const handlePayment = async (bookingId) => {
+    const handlePayment = async (bookingId, chosenMethod) => {
         try {
             setPaying(true);
-            const response = await paymentApi.createPaymentUrl({ booking_id: bookingId });
-            window.location.href = response.data.paymentUrl;
+
+            // Nếu khách chọn đổi phương thức thanh toán khác với lúc đầu
+            if (chosenMethod !== selectedBooking.payment_method) {
+                await bookingApi.update(bookingId, { payment_method: chosenMethod });
+                // Socket hoặc fetch lại sẽ cập nhật list sau
+            }
+
+            if (chosenMethod === 'online') {
+                const response = await paymentApi.createPaymentUrl({ booking_id: bookingId });
+                window.location.href = response.data.paymentUrl;
+            } else {
+                message.success('Đã xác nhận thanh toán sau. Hẹn gặp bạn tại khách sạn!');
+                fetchBookings();
+            }
         } catch (error) {
-            console.error('Error creating payment:', error);
-            message.error(error.response?.data?.message || 'Không thể tạo link thanh toán');
+            console.error('Error handling payment choice:', error);
+            message.error(error.response?.data?.message || 'Có lỗi xảy ra khi xử lý thanh toán');
         } finally {
             setPaying(false);
         }

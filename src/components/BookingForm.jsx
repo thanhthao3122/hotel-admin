@@ -40,7 +40,8 @@ const BookingForm = ({
         form.setFieldsValue({
           ...initialValues,
           room_id: roomId,
-          check_in: dayjs(initialValues.checkin_date || initialValues.check_in), // Handle both naming conventions if needed
+          payment_method: initialValues.payment_method || 'pay_later',
+          check_in: dayjs(initialValues.checkin_date || initialValues.check_in),
           check_out: dayjs(initialValues.checkout_date || initialValues.check_out),
         });
       } else {
@@ -73,7 +74,8 @@ const BookingForm = ({
           room_id: values.room_id,
           price_per_night: pricePerNight // Ensure price is passed
         }],
-        source: 'admin'
+        source: 'admin',
+        payment_method: values.payment_method
       });
 
       form.resetFields();
@@ -181,6 +183,18 @@ const BookingForm = ({
               return current && current < dayjs().endOf('day');
             }}
           />
+        </Form.Item>
+
+        <Form.Item
+          label="Phương thức thanh toán"
+          name="payment_method"
+          rules={[{ required: true, message: 'Chọn phương thức thanh toán' }]}
+          initialValue="pay_later"
+        >
+          <Select>
+            <Option value="online">Thanh toán trực tuyến</Option>
+            <Option value="pay_later">Thanh toán sau (tại quầy)</Option>
+          </Select>
         </Form.Item>
       </Form>
     </Modal>

@@ -28,6 +28,7 @@ const RoomDetail = () => {
         checkout_date: searchParams.get('checkout_date') || '',
         guests: Number(searchParams.get('guests')) || 1
     });
+    const [paymentMethod, setPaymentMethod] = useState('online');
 
     useEffect(() => {
         const fetchRoomDetail = async () => {
@@ -148,7 +149,8 @@ const RoomDetail = () => {
                         price_per_night: room.roomType?.base_price || 0
                     }
                 ],
-                source: 'online'
+                source: 'online',
+                payment_method: paymentMethod
             };
 
             await bookingApi.create(finalBookingData);
@@ -315,6 +317,31 @@ const RoomDetail = () => {
                                             <option key={num} value={num}>{num} khách</option>
                                         ))}
                                     </select>
+                                </div>
+                                <div className="form-field">
+                                    <label>Phương thức thanh toán</label>
+                                    <div className="payment-method-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'normal' }}>
+                                            <input
+                                                type="radio"
+                                                name="payment_method"
+                                                value="online"
+                                                checked={paymentMethod === 'online'}
+                                                onChange={(e) => setPaymentMethod(e.target.value)}
+                                            />
+                                            <span>Thanh toán trực tuyến (VNPay)</span>
+                                        </label>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'normal' }}>
+                                            <input
+                                                type="radio"
+                                                name="payment_method"
+                                                value="pay_later"
+                                                checked={paymentMethod === 'pay_later'}
+                                                onChange={(e) => setPaymentMethod(e.target.value)}
+                                            />
+                                            <span>Thanh toán sau (tại quầy)</span>
+                                        </label>
+                                    </div>
                                 </div>
 
                                 {validationError && (

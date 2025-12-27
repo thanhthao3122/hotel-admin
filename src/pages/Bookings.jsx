@@ -213,6 +213,20 @@ const Bookings = () => {
       render: (date) => date || 'N/A'
     },
     {
+      title: 'Nguồn',
+      dataIndex: 'source',
+      render: (src) => <Tag color={src === 'admin' ? 'purple' : 'blue'}>{src?.toUpperCase()}</Tag>
+    },
+    {
+      title: 'Hình thức',
+      dataIndex: 'payment_method',
+      render: (method) => (
+        <Tag color={method === 'pay_later' ? 'cyan' : 'green'}>
+          {method === 'pay_later' ? 'TRẢ SAU' : 'ONLINE'}
+        </Tag>
+      )
+    },
+    {
       title: 'Tổng tiền',
       dataIndex: 'total_price',
       render: v => v ? Number(v).toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ',
