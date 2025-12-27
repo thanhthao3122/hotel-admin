@@ -2,7 +2,6 @@ import { Link, useLocation } from 'react-router-dom';
 
 import { BASE_URL } from './constants';
 
-// Helper function to format currency in VND
 const formatCurrency = (amount) => {
     return new Intl.NumberFormat('vi-VN').format(Math.floor(amount));
 };
@@ -21,8 +20,12 @@ const ListingCard = ({ room }) => {
         }
     }
 
+
     return (
-        <Link to={`/room/${room.room_id}${location.search}`} className="listing-card">
+        <Link
+            to={`/room/${room.room_id}${location.search}`}
+            className="listing-card"
+        >
             <div className="listing-image-container">
                 <img src={image} alt={room.room_number} className="listing-image" />
                 <button className="favorite-button">
@@ -33,7 +36,7 @@ const ListingCard = ({ room }) => {
             </div>
             <div className="listing-details">
                 <div className="listing-header">
-                    <h3 className="listing-title">{room.room_type_name || `Phòng ${room.room_number}`}</h3>
+                    <h3 className="listing-title">{room.roomType?.name} - Phòng {room.room_number}</h3>
                     <div className="listing-rating">
                         <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="presentation" focusable="false" style={{ display: 'block', height: '12px', width: '12px', fill: 'currentcolor' }}>
                             <path d="M15.094 1.579l-4.124 8.885-9.86 1.27a1 1 0 0 0-.54 1.736l7.293 6.815-1.991 9.692a1 1 0 0 0 1.488 1.081L16 24.248l8.64 4.808a1 1 0 0 0 1.488-1.08l-1.991-9.692 7.293-6.815a1 1 0 0 0-.54-1.736l-9.86-1.27-4.124-8.885a1 1 0 0 0-1.798 0z"></path>
@@ -48,7 +51,6 @@ const ListingCard = ({ room }) => {
                         <span className="price-period">/đêm</span>
                     </div>
 
-                    {/* Guest capacity info - inline with price */}
                     {room.roomType?.capacity && (
                         <div className="listing-capacity">
                             <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="presentation" focusable="false" style={{ display: 'inline-block', height: '14px', width: '14px', fill: 'currentcolor', marginRight: '4px' }}>

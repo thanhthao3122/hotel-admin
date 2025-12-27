@@ -111,7 +111,7 @@ const BookingCard = ({ booking, isSelected, onClick, onCancel, cancelling }) => 
 
                 <div className="booking-payment-method" style={{ marginTop: '8px' }}>
                     <Text type="secondary">Hình thức: </Text>
-                    <Tag color={booking.payment_method === 'pay_later' ? 'cyan' : 'blue'}>
+                    <Tag color={booking.payment_method === 'pay_later' ? 'cyan' : 'green'}>
                         {booking.payment_method === 'pay_later' ? 'Thanh toán sau' : 'Thanh toán online'}
                     </Tag>
                 </div>
@@ -148,12 +148,11 @@ const BookingCard = ({ booking, isSelected, onClick, onCancel, cancelling }) => 
 
 // Sub-component: PaymentForm
 const PaymentForm = ({ booking, user, onPayment, paying }) => {
-    const [localPaymentMethod, setLocalPaymentMethod] = useState(booking?.payment_method || 'online');
+    const [localPaymentMethod, setLocalPaymentMethod] = useState('online');
 
     useEffect(() => {
-        if (booking) {
-            setLocalPaymentMethod(booking.payment_method);
-        }
+        // Always default to online payment in the history page for active payment attempts
+        setLocalPaymentMethod('online');
     }, [booking]);
 
     if (!booking) {
@@ -171,7 +170,8 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
     const { nights, roomTotal, serviceTotal, grandTotal } = calculateBookingDetails(booking);
     const isPaid = booking.payments?.some(p => p.status === 'completed');
     const statusConfig = getStatusConfig(booking.status, isPaid);
-    const canPay = booking.status === 'pending';
+    // Allow payment if booking is pending or confirmed AND not yet paid
+    const canPay = (booking.status === 'pending' || booking.status === 'confirmed') && !isPaid;
 
     // Check if there is any pending payment - BUT user wants to ignore "Processing" state
     // const pendingPayment = booking.payments?.find(p => p.status === 'pending');
@@ -235,7 +235,7 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                         </div>
                         <div className="detail-row">
                             <Text strong>Hình thức:</Text>
-                            <Tag color={booking.payment_method === 'pay_later' ? 'cyan' : 'blue'}>
+                            <Tag color={booking.payment_method === 'pay_later' ? 'cyan' : 'green'}>
                                 {booking.payment_method === 'pay_later' ? 'Thanh toán sau' : 'Thanh toán online'}
                             </Tag>
                         </div>
@@ -316,53 +316,12 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                     </div>
                 </div>
 
-                {/* Phương thức thanh toán - CHO PHÉP CHỌN LẠI */}
+                {/* Phương thức thanh toán - Hidden as it is always online now */}
                 {canPay && (
-                    <div className="form-section">
+                    <div className="form-section" style={{ display: 'none' }}>
                         <Title level={5} className="section-title">
-                            💳 Chọn phương thức thanh toán
+                            💳 Phương thức thanh toán
                         </Title>
-                        <div className="payment-method-selection" style={{ padding: '10px', background: '#f9f9f9', borderRadius: '8px' }}>
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '12px',
-                                    padding: '10px',
-                                    border: localPaymentMethod === 'online' ? '2px solid #1890ff' : '2px solid transparent',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    marginBottom: '8px',
-                                    background: 'white'
-                                }}
-                                onClick={() => setLocalPaymentMethod('online')}
-                            >
-                                <input type="radio" checked={localPaymentMethod === 'online'} readOnly style={{ cursor: 'pointer' }} />
-                                <div>
-                                    <Text strong>Thanh toán trực tuyến (VNPay)</Text><br />
-                                    <Text type="secondary" style={{ fontSize: '12px' }}>Thanh toán ngay qua thẻ ATM, ứng dụng ngân hàng hoặc ví điện tử.</Text>
-                                </div>
-                            </div>
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '12px',
-                                    padding: '10px',
-                                    border: localPaymentMethod === 'pay_later' ? '2px solid #1890ff' : '2px solid transparent',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    background: 'white'
-                                }}
-                                onClick={() => setLocalPaymentMethod('pay_later')}
-                            >
-                                <input type="radio" checked={localPaymentMethod === 'pay_later'} readOnly style={{ cursor: 'pointer' }} />
-                                <div>
-                                    <Text strong>Thanh toán sau (tại quầy)</Text><br />
-                                    <Text type="secondary" style={{ fontSize: '12px' }}>Thanh toán bằng tiền mặt khi bạn đến nhận phòng tại khách sạn.</Text>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 )}
 
@@ -390,7 +349,7 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                             loading={paying}
                             className="payment-button"
                         >
-                            {localPaymentMethod === 'pay_later' ? 'Hoàn tất chọn Thanh toán sau' : 'Thanh toán online ngay'}
+                            {paying ? 'Đang xử lý...' : 'Tiến hành thanh toán'}
                         </Button>
                     )
                 ) : (
@@ -403,17 +362,11 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                         className="payment-button success"
                         style={{ backgroundColor: '#52c41a', borderColor: '#52c41a', color: 'white', opacity: 1 }}
                     >
-                        {['confirmed', 'checked_in', 'checked_out', 'paid'].includes(booking.status) ? 'Thanh toán thành công' : 'Không thể thanh toán'}
+                        {isPaid ? 'Thanh toán thành công' : 'Không thể thanh toán'}
                     </Button>
                 )}
 
-                {canPay && booking.payment_method === 'pay_later' && (
-                    <div className="pay-later-note" style={{ marginTop: '16px', padding: '12px', background: '#e6f7ff', border: '1px solid #91d5ff', borderRadius: '4px' }}>
-                        <Text type="secondary">
-                            💡 Bạn đã chọn <b>Thanh toán sau</b>. Bạn có thể thanh toán tiền mặt khi đến nhận phòng, hoặc thanh toán online ngay bây giờ bằng nút phía trên.
-                        </Text>
-                    </div>
-                )}
+                {/* Removed pay-later note */}
             </Form>
         </Card>
     );

@@ -1,5 +1,5 @@
 // src/layouts/AdminLayout.jsx
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import {
   Layout,
   Menu,
@@ -29,6 +29,31 @@ const { Title, Text } = Typography;
 const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+
+  const userData = useMemo(() => {
+    try {
+      const userStr = localStorage.getItem("user");
+      return userStr ? JSON.parse(userStr) : {};
+    } catch (e) {
+      return {};
+    }
+  }, []);
+
+  const isAuthorized = useMemo(() => {
+    return userData.role === 'admin' || userData.role === 'staff';
+  }, [userData]);
+
+  // Check role and redirect if not authorized
+  useEffect(() => {
+    if (!isAuthorized) {
+      navigate('/home');
+    }
+  }, [isAuthorized, navigate]);
+
+  // If not authorized, don't render anything to prevent flickering or data fetching in children
+  if (!isAuthorized) {
+    return null;
+  }
 
   // Lấy segment đầu tiên trong URL ("/rooms/123" -> "/rooms")
   const rootPath = "/" + location.pathname.split("/")[1];
@@ -156,15 +181,6 @@ const AdminLayout = () => {
     { title: <Link to="/dashboard">Dashboard</Link> },
     ...(currentMenu ? [{ title: currentMenu.label }] : []),
   ];
-
-  const userData = useMemo(() => {
-    try {
-      const userStr = localStorage.getItem("user");
-      return userStr ? JSON.parse(userStr) : {};
-    } catch (e) {
-      return {};
-    }
-  }, []);
 
   return (
     <Layout style={{ minHeight: "100vh", background: "#f5f5f5" }}>

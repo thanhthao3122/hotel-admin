@@ -193,7 +193,7 @@ const BookingForm = ({
         >
           <Select>
             <Option value="online">Thanh toán trực tuyến</Option>
-            <Option value="pay_later">Thanh toán sau (tại quầy)</Option>
+            <Option value="pay_later">Thanh toán tại quầy</Option>
           </Select>
         </Form.Item>
       </Form>

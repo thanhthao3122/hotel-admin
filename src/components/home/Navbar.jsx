@@ -48,6 +48,12 @@ const Navbar = () => {
                             <div className="user-dropdown">
                                 {user ? (
                                     <>
+                                        {(user.role === 'admin' || user.role === 'staff') && (
+                                            <>
+                                                <Link to="/dashboard" className="menu-item bold" style={{ color: '#1890ff' }}>Trang Quản Trị</Link>
+                                                <div className="menu-divider"></div>
+                                            </>
+                                        )}
                                         <div className="menu-item user-info">
                                             <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
                                                 {user.full_name || 'Người dùng'}
