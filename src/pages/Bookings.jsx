@@ -42,6 +42,7 @@ const Bookings = () => {
   const [filterStatus, setFilterStatus] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const [pagination, setPagination] = useState({
     current: 1,
@@ -90,10 +91,12 @@ const Bookings = () => {
 
   useEffect(() => {
     fetchData();
+  }, [pagination.current, pagination.pageSize, refreshKey]);
 
+  useEffect(() => {
     const handleBookingChange = (data) => {
       message.info('Dữ liệu đặt phòng vừa được cập nhật');
-      fetchData(); // Reload data
+      setRefreshKey(prev => prev + 1);
     };
 
     socket.on('booking_created', handleBookingChange);
@@ -152,8 +155,8 @@ const Bookings = () => {
       fetchData();
     } catch (error) {
       console.error(error);
-      message.error("Có lỗi khi lưu đặt phòng");
-
+      const errorMessage = error.response?.data?.message || "Có lỗi khi lưu đặt phòng";
+      message.error(errorMessage);
     }
   };
 

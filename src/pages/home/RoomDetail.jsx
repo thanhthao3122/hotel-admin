@@ -30,47 +30,19 @@ const RoomDetail = () => {
     });
     const [paymentMethod, setPaymentMethod] = useState('online');
 
+    const fetchRoom = async () => {
+        try {
+            const response = await roomApi.getById(id);
+            setRoom(response.data);
+        } catch (error) {
+            console.error('Error fetching room:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchRoomDetail = async () => {
-            try {
-                const response = await roomApi.getById(id);
-                setRoom(response.data);
-            } catch (error) {
-                console.error('Error fetching room:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchRoomDetail();
-
-        // Socket listener
-
-        const handleBookingCreated = (data) => {
-            // Check if this booking involves the current room
-            const isCurrentRoom = data.rooms.some(r => {
-                const rId = typeof r === 'object' ? r.room_id : r;
-                return Number(rId) === Number(id);
-            });
-
-            if (isCurrentRoom) {
-                // If user has selected dates, check for overlap
-                // For now, just alert generic message
-                message.warning(
-                    `⚠️ CHÚ Ý: Phòng này vừa mới được đặt từ ngày ${moment(data.checkin_date).format('DD/MM/YYYY')} đến ${moment(data.checkout_date).format('DD/MM/YYYY')}. Vui lòng kiểm tra lại lựa chọn của bạn.`,
-                    20
-                );
-
-                // Optional: Force reload or validation
-                // fetchRoomDetail();
-            }
-        };
-
-        socket.on('booking_created', handleBookingCreated);
-
-        return () => {
-            socket.off('booking_created', handleBookingCreated);
-        };
+        fetchRoom();
     }, [id]);
 
     const handleBookingChange = (e) => {
@@ -277,6 +249,7 @@ const RoomDetail = () => {
 
                     <div className="booking-section">
                         <div className="booking-card">
+                            <h3 className="reservation-title">Đặt ngay</h3>
                             <div className="price-section">
                                 <span className="price">{formatCurrency(room.roomType?.base_price || 0)}đ</span>
                                 <span className="price-unit">/ đêm</span>
@@ -321,25 +294,15 @@ const RoomDetail = () => {
                                 <div className="form-field">
                                     <label>Phương thức thanh toán</label>
                                     <div className="payment-method-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'normal' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'default', fontWeight: 'normal' }}>
                                             <input
                                                 type="radio"
                                                 name="payment_method"
                                                 value="online"
-                                                checked={paymentMethod === 'online'}
-                                                onChange={(e) => setPaymentMethod(e.target.value)}
+                                                checked={true}
+                                                readOnly
                                             />
                                             <span>Thanh toán trực tuyến (VNPay)</span>
-                                        </label>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'normal' }}>
-                                            <input
-                                                type="radio"
-                                                name="payment_method"
-                                                value="pay_later"
-                                                checked={paymentMethod === 'pay_later'}
-                                                onChange={(e) => setPaymentMethod(e.target.value)}
-                                            />
-                                            <span>Thanh toán sau (tại quầy)</span>
                                         </label>
                                     </div>
                                 </div>
@@ -375,7 +338,7 @@ const RoomDetail = () => {
                                     {isBooking ? 'Đang xử lý...' : 'Đặt phòng ngay'}
                                 </button>
 
-                                <p className="booking-note">Bạn sẽ không bị tính phí ngay</p>
+                                <p className="booking-note">Thanh toán an toàn qua cổng VNPAY ở bước tiếp theo</p>
                             </div>
                         </div>
                     </div>

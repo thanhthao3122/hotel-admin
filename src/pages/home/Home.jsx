@@ -6,6 +6,7 @@ import ListingCard from '../../components/home/ListingCard';
 import Footer from '../../components/home/Footer';
 import roomApi from '../../api/roomApi';
 import socket from '../../utils/socket';
+import BookingNotification from '../../components/home/BookingNotification';
 import './home.css';
 
 const Home = () => {
@@ -56,17 +57,19 @@ const Home = () => {
     // Socket listener for real-time updates
     useEffect(() => {
 
-        const handleBookingChange = () => {
+        const handleBookingChange = (data) => {
             // Refresh the list when any booking occurs
             setRefreshKey(prev => prev + 1);
         };
 
         socket.on('booking_created', handleBookingChange);
+        socket.on('booking_updated', handleBookingChange);
         socket.on('room_updated', handleBookingChange);
         socket.on('room_status_updated', handleBookingChange);
 
         return () => {
             socket.off('booking_created', handleBookingChange);
+            socket.off('booking_updated', handleBookingChange);
             socket.off('room_updated', handleBookingChange);
             socket.off('room_status_updated', handleBookingChange);
         };
@@ -77,6 +80,7 @@ const Home = () => {
             <div className="header-container">
                 <Navbar />
             </div>
+            <BookingNotification />
 
             <main className="main-content">
                 {loading ? (
@@ -95,7 +99,10 @@ const Home = () => {
                                 <h2 className="category-title">{typeName}</h2>
                                 <div className="listings-grid">
                                     {typeRooms.map((room) => (
-                                        <ListingCard key={room.room_id} room={room} />
+                                        <ListingCard
+                                            key={room.room_id}
+                                            room={room}
+                                        />
                                     ))}
                                 </div>
                             </div>
