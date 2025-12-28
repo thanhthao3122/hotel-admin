@@ -120,7 +120,7 @@ const RoomForm = ({
       onCancel={onCancel}
       okText={isEditing ? "Lưu" : "Thêm"}
       cancelText="Hủy"
-      width={560}                // ✅ RỘNG HƠN
+      width={560}                //RỘNG HƠN
 
     >
       <Form form={form} layout="vertical">
@@ -151,8 +151,8 @@ const RoomForm = ({
         <Form.Item
           label="Trạng thái"
           name="status"
-          rules={[{ required: true, message: "Vui lòng chọn trạng thái" }]}
-        >
+          rules={[{ required: true, message: "Vui lòng chọn trạng thái" }]}>
+        
           <Select>
             <Option value="available">Trống</Option>
             <Option value="booked">Đã đặt</Option>

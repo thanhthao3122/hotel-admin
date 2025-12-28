@@ -185,7 +185,7 @@ const Bookings = () => {
 
   const columns = [
     {
-      title: "Mã Booking",
+      title: "Mã",
       dataIndex: "booking_id",
       width: 100,
       render: (id) => <Tag color="blue">#{id}</Tag>
