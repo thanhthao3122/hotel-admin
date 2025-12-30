@@ -5,10 +5,10 @@ import './SearchBar.css';
 
 const SearchBar = () => {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams(); // Hook to read URL params
+    const [searchParams] = useSearchParams(); // Hook để đọc tham số URL
     const [showGuestPicker, setShowGuestPicker] = useState(false);
 
-    // Initialize state from URL
+    // Khởi tạo state từ URL
     const initialGuests = parseInt(searchParams.get('guests')) || 2;
     const initialCheckin = searchParams.get('checkin_date') || '';
     const initialCheckout = searchParams.get('checkout_date') || '';
@@ -17,7 +17,7 @@ const SearchBar = () => {
     const [checkinDate, setCheckinDate] = useState(initialCheckin);
     const [checkoutDate, setCheckoutDate] = useState(initialCheckout);
 
-    // Sync local state if URL changes
+    // Đồng bộ state cục bộ nếu URL thay đổi
     useEffect(() => {
         const urlGuests = parseInt(searchParams.get('guests'));
         const urlCheckin = searchParams.get('checkin_date');
@@ -29,7 +29,7 @@ const SearchBar = () => {
     }, [searchParams]);
 
     const handleSearch = () => {
-        // Validation
+        // Kiểm tra hợp lệ
         if (checkinDate && checkoutDate) {
             const start = new Date(checkinDate);
             const end = new Date(checkoutDate);
@@ -37,8 +37,8 @@ const SearchBar = () => {
             today.setHours(0, 0, 0, 0);
 
             if (start < today) {
-                // message.error requires 'antd' import, let's assume we can add it or use alert for now if import is missing
-                // Ideally we add import message from 'antd' at top
+                // message.error yêu cầu import 'antd', dùng alert tạm nếu thiếu
+                // Lý tưởng nhất là thêm import message từ 'antd' ở trên cùng
                 alert('Ngày nhận phòng không thể trong quá khứ');
                 return;
             }
@@ -49,13 +49,13 @@ const SearchBar = () => {
             }
         }
 
-        // Build search params
+        // Xây dựng tham số tìm kiếm
         const params = new URLSearchParams();
         if (guests) params.append('guests', guests);
         if (checkinDate) params.append('checkin_date', checkinDate);
         if (checkoutDate) params.append('checkout_date', checkoutDate);
 
-        // Navigate to home with search params
+        // Điều hướng về trang chủ với tham số tìm kiếm
         navigate({
             pathname: '/home',
             search: params.toString()
@@ -65,7 +65,7 @@ const SearchBar = () => {
     return (
         <div className="navbar-search">
             <div className="search-container">
-                {/* Date Inputs */}
+                {/* Nhập ngày */}
                 <div className="search-field date-field" style={{ display: 'flex', alignItems: 'center', marginRight: '10px' }}>
                     <label className="search-label" style={{ marginRight: '5px', marginBottom: 0, whiteSpace: 'nowrap' }}>
                         Ngày nhận
@@ -102,7 +102,7 @@ const SearchBar = () => {
                     />
                 </div>
 
-                {/* Guest Input - Direct Number Entry */}
+                {/* Nhập số người - Nhập số trực tiếp */}
                 <div className="search-field single-field" style={{ display: 'flex', alignItems: 'center' }}>
                     <label className="search-label" style={{ marginRight: '10px', marginBottom: 0, whiteSpace: 'nowrap' }}>
                         Số người
@@ -126,7 +126,7 @@ const SearchBar = () => {
                     />
                 </div>
 
-                {/* Search Button */}
+                {/* Nút tìm kiếm */}
                 <button className="search-icon-button" onClick={handleSearch}>
                     <svg
                         viewBox="0 0 32 32"

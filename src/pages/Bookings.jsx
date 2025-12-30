@@ -50,7 +50,7 @@ const Bookings = () => {
     total: 0,
   });
 
-  // Fetch all necessary data
+  // Tải tất cả dữ liệu cần thiết
   const fetchData = async (
     page = pagination.current,
     limit = pagination.pageSize
@@ -59,9 +59,9 @@ const Bookings = () => {
       setLoading(true);
       const [bookingRes, customerRes, roomRes, roomTypeRes] = await Promise.all([
         bookingApi.getAll(page, limit),
-        userApi.getAll(1, 100), // Fetch first 100 customers for dropdown
-        roomApi.getAll(1, 100), // Fetch first 100 rooms for dropdown
-        roomTypeApi.getAll(1, 100) // Fetch first 100 room types
+        userApi.getAll(1, 2000), // Tải 2000 khách hàng đầu tiên cho dropdown
+        roomApi.getAll(1, 2000), // Tải 2000 phòng đầu tiên cho dropdown
+        roomTypeApi.getAll(1, 2000) // Tải 2000 loại phòng
       ]);
 
       setBookings(bookingRes.data || []);
@@ -112,7 +112,7 @@ const Bookings = () => {
     };
   }, []);
 
-  // map ID → object
+  // Map ID -> đối tượng
 
   const customerMap = useMemo(() => Object.fromEntries(customers.map(c => [c.user_id, c])), [customers]);
   const roomMap = useMemo(() => Object.fromEntries(rooms.map(r => [r.room_id, r])), [rooms]);
@@ -122,7 +122,7 @@ const Bookings = () => {
   const filteredBookings = useMemo(() => {
     return bookings.filter((b) => {
       const keyword = searchText.toLowerCase();
-      const customer = customerMap[b.user_id]; // Note: booking uses user_id not customer_id
+      const customer = customerMap[b.user_id]; // Lưu ý: booking dùng user_id chứ không phải customer_id
 
       const matchSearch = customer
         ? (customer.full_name?.toLowerCase().includes(keyword) || customer.phone?.includes(keyword))
@@ -143,11 +143,11 @@ const Bookings = () => {
   const handleSubmit = async (data) => {
     try {
       if (editingBooking) {
-        // Update
+        // Cập nhật
         await bookingApi.update(editingBooking.booking_id, data);
         message.success("Cập nhật đặt phòng thành công");
       } else {
-        // Create
+        // Tạo mới
         await bookingApi.create(data);
         message.success("Tạo đặt phòng thành công");
       }
@@ -178,9 +178,10 @@ const Bookings = () => {
       fetchData();
     } catch (error) {
       console.error(error);
-      message.error('Không cập nhật được trạng thái');
+      const errorMessage = error.response?.data?.message || "Không cập nhật được trạng thái";
+      message.error(errorMessage);
+      fetchData(); // Reset UI state to actual backend state
     }
-
   };
 
   const columns = [
@@ -238,29 +239,29 @@ const Bookings = () => {
       title: 'Trạng thái',
       dataIndex: 'status',
       render: (st, record) => {
-        const color = {
-          pending: 'blue',
-          confirmed: 'cyan',
-          checked_in: 'green',
-          checked_out: 'orange',
-          cancelled: 'red',
-        }[st.toLowerCase()] || 'default';
+        const remaining = record.financials?.remainingAmount || 0;
+        const isUnpaid = remaining > 0;
 
         return (
-          <Select
-            defaultValue={st.toLowerCase()}
-            style={{ width: 140 }}
-            onChange={(val) => updateStatus(record, val)}
-            status={st.toLowerCase() === 'cancelled' ? 'error' : ''}
-          >
-
-            <Option value="confirmed">Đã xác nhận</Option>
-            <Option value="checked_in">Đã nhận phòng</Option>
-            <Option value="checked_out">Đã trả phòng</Option>
-
-          </Select>
+          <Space direction="vertical" size={0}>
+            <Select
+              value={st.toLowerCase()}
+              style={{ width: 140 }}
+              onChange={(val) => updateStatus(record, val)}
+              status={st.toLowerCase() === 'cancelled' ? 'error' : ''}
+            >
+              <Option value="confirmed">Đã xác nhận</Option>
+              <Option value="checked_in">Đã nhận phòng</Option>
+              <Option value="checked_out">Đã trả phòng</Option>
+              <Option value="cancelled">Hủy đơn</Option>
+            </Select>
+            {isUnpaid && st.toLowerCase() === 'checked_in' && (
+              <span style={{ color: '#ff4d4f', fontSize: '11px', fontWeight: 'bold' }}>
+                Còn nợ: {new Intl.NumberFormat("vi-VN").format(remaining)} VNĐ
+              </span>
+            )}
+          </Space>
         );
-
       },
     },
     {

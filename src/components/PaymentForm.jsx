@@ -10,8 +10,8 @@ const PaymentForm = ({
   open,
   onCancel,
   onSubmit,
-  bookings = [], // List of pending bookings to choose from
-  initialBooking = null, // If paying for a specific booking passed from parent
+  bookings = [], // Danh sách các booking đang chờ để chọn
+  initialBooking = null, // Nếu thanh toán cho một booking cụ thể được truyền từ component cha
 }) => {
   const [form] = Form.useForm();
   const [selectedBookingId, setSelectedBookingId] = useState(null);
@@ -40,19 +40,19 @@ const PaymentForm = ({
     const checkOut = dayjs(selectedBooking.checkout_date);
     const nights = Math.max(1, checkOut.diff(checkIn, 'day'));
 
-    // Validate rooms array structure
+    // Kiểm tra cấu trúc mảng phòng
     const rooms = selectedBooking.rooms || [];
 
-    // Calculate Room Total
-    // Backend: sum(price_per_night * nights)
+    // Tính tổng tiền phòng
+    // Backend: tổng(giá_mỗi_đêm * số_đêm)
     const roomTotal = rooms.reduce((sum, room) => {
-      // Handle room.BookingRoom?.price_per_night if nested, or room.price_per_night if direct
+      // Xử lý room.BookingRoom?.price_per_night nếu lồng nhau, hoặc room.price_per_night nếu trực tiếp
       const price = parseFloat(room.BookingRoom?.price_per_night || room.price_per_night || 0);
       return sum + (price * nights);
     }, 0);
 
-    // Calculate Service Total
-    // Check if services are included in booking object
+    // Tính tổng tiền dịch vụ
+    // Kiểm tra xem dịch vụ có được bao gồm trong đối tượng booking không
     const services = selectedBooking.services || [];
     const serviceTotal = services.reduce((sum, s) => {
       return sum + parseFloat(s.ServiceUsage?.total_price || 0);
@@ -82,7 +82,7 @@ const PaymentForm = ({
           form.resetFields();
         });
       }}
-      destroyOnClose
+      destroyOnHidden
       width={600}
     >
       <Form layout="vertical" form={form}>

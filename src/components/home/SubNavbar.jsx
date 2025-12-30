@@ -42,7 +42,7 @@ const SubNavbar = () => {
             <div className="sub-navbar-container">
                 <div className="sub-navbar-menu">
                     {menuItems.map((item) => {
-                        // Skip items that require auth if user is not logged in
+                        // Bỏ qua các mục yêu cầu xác thực nếu người dùng chưa đăng nhập
                         if (item.requireAuth && !user) {
                             return null;
                         }

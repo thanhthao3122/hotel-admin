@@ -24,7 +24,7 @@ const Login = () => {
         setLoading(true);
 
         try {
-            // Call login API
+            // Gọi API đăng nhập
             const response = await fetch('http://localhost:5000/api/auth/login', {
                 method: 'POST',
                 headers: {
@@ -42,16 +42,16 @@ const Login = () => {
                 throw new Error(data.message || 'Đăng nhập thất bại');
             }
 
-            // Save user info and token to localStorage
+            // Lưu thông tin người dùng và token vào localStorage
             localStorage.setItem('user', JSON.stringify(data.data.user));
             localStorage.setItem('token', data.data.token);
 
-            // Check role and redirect accordingly
+            // Kiểm tra vai trò và chuyển hướng tương ứng
             if (data.data.user.role && data.data.user.role !== 'user') {
-                // Admin or staff -> redirect to dashboard
+                // Quản trị viên hoặc nhân viên -> chuyển đến dashboard
                 navigate('/dashboard');
             } else {
-                // Regular user -> redirect to home
+                // Người dùng thông thường -> chuyển đến trang chủ
                 navigate('/home');
             }
         } catch (error) {
@@ -62,7 +62,7 @@ const Login = () => {
     };
 
     const handleGoogleSignIn = () => {
-        // TODO: Implement Google OAuth
+        // TODO: Triển khai Google OAuth
         console.log('Google sign in clicked');
     };
 

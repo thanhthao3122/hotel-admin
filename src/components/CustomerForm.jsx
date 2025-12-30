@@ -40,7 +40,7 @@ const CustomerForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) =>
       open={open}
       onOk={handleOk}
       onCancel={handleCancel}
-      destroyOnClose
+      destroyOnHidden
       okText={isEditing ? "Lưu" : "Thêm"}
       cancelText="Hủy"
     >

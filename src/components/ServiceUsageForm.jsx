@@ -17,8 +17,8 @@ const ServiceUsageForm = ({
   const [form] = Form.useForm();
   const [pricePerUnit, setPricePerUnit] = useState(0);
 
-  // Map id -> object để tiện lookup
-  // NOTE: booking.user_id, không phải customer_id
+  // Ánh xạ ID -> đối tượng để tra cứu
+  // LƯU Ý: booking.user_id, không phải customer_id
   const customerMap = useMemo(() => Object.fromEntries(customers.map(c => [c.user_id, c])), [customers]);
   const serviceMap = useMemo(() => Object.fromEntries(services.map(s => [s.service_id, s])), [services]);
 
@@ -32,6 +32,7 @@ const ServiceUsageForm = ({
           booking_id: initialValues.booking_id,
           service_id: initialValues.service_id,
           quantity: initialValues.quantity,
+          status: initialValues.status || 'pending',
         });
       } else {
         form.resetFields();
@@ -55,6 +56,7 @@ const ServiceUsageForm = ({
         booking_id: values.booking_id,
         service_id: values.service_id,
         quantity: values.quantity,
+        status: values.status,
         total_price,
       });
 
@@ -62,7 +64,7 @@ const ServiceUsageForm = ({
     });
   };
 
-  // render label booking: #id - tên KH - phòng
+  // Hiển thị nhãn booking: #id - tên KH - phòng
   const renderBookingLabel = booking => {
     const customer = customerMap[booking.user_id];
 
@@ -93,7 +95,7 @@ const ServiceUsageForm = ({
       }}
       okText={isEditing ? 'Lưu' : 'Thêm'}
       cancelText="Hủy"
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}
@@ -140,6 +142,17 @@ const ServiceUsageForm = ({
           initialValue={1}
         >
           <InputNumber min={1} style={{ width: '100%' }} />
+        </Form.Item>
+
+        <Form.Item
+          label="Trạng thái"
+          name="status"
+          initialValue="pending"
+        >
+          <Select>
+            <Option value="pending">Chưa giao</Option>
+            <Option value="delivered">Đã giao</Option>
+          </Select>
         </Form.Item>
 
         <Form.Item label="Đơn giá (VNĐ)">

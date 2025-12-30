@@ -6,8 +6,8 @@ import socket from '../../utils/socket';
 const BookingNotification = () => {
     useEffect(() => {
         const handleBookingCreated = (data) => {
-            // Only show if it's someone else (optional: check user_id if available)
-            // But usually, any booking is good social proof
+            // Chỉ hiển thị nếu là người khác (tùy chọn: kiểm tra user_id nếu có)
+            // Nhưng thường thì mọi booking đều là bằng chứng xã hội tốt
 
             notification.info({
                 message: 'Có khách vừa đặt phòng!',
@@ -19,7 +19,7 @@ const BookingNotification = () => {
         };
 
         const handleRoomUpdated = (data) => {
-            // room status changes
+            // trạng thái phòng thay đổi
             if (data.status === 'available') {
                 notification.success({
                     message: 'Phòng trống mới!',
@@ -39,7 +39,7 @@ const BookingNotification = () => {
         };
     }, []);
 
-    return null; // This component doesn't render anything itself
+    return null; // Component này không render gì cả
 };
 
 export default BookingNotification;

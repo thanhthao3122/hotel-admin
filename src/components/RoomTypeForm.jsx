@@ -51,7 +51,7 @@ const RoomTypeForm = ({
       open={open}
       onOk={handleOk}
       onCancel={handleCancel}
-      destroyOnClose
+      destroyOnHidden
       okText={isEditing ? "Lưu" : "Thêm"}
       cancelText="Hủy"
       width={620} // ✅ thêm

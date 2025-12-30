@@ -18,6 +18,8 @@ import BookingHistory from "./pages/home/BookingHistory.jsx";
 import UserServiceRequest from "./pages/UserServiceRequest.jsx";
 import Profile from "./pages/Profile.jsx";
 import UserRoles from "./pages/UserRoles.jsx";
+import FooterSettings from "./pages/FooterSettings.jsx";
+import Vouchers from "./pages/Vouchers.jsx";
 
 import PaymentResult from "./pages/home/PaymentResult.jsx";
 import UserProfile from "./pages/home/UserProfile.jsx";
@@ -49,6 +51,8 @@ function App() {
         <Route path="/services-usage" element={<ServiceUsage />} />
         <Route path="/payments" element={<Payments />} />
         <Route path="/invoices" element={<Invoices />} />
+        <Route path="/vouchers" element={<Vouchers />} />
+        <Route path="/footer-settings" element={<FooterSettings />} />
       </Route>
     </Routes>
   );

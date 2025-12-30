@@ -23,10 +23,10 @@ const Navbar = () => {
                     <span className="logo-text">BOOKING</span>
                 </Link>
 
-                {/* Search Bar */}
+                {/* Thanh tìm kiếm */}
                 <SearchBar />
 
-                {/* User Menu */}
+                {/* Menu người dùng */}
                 <div className="navbar-user">
 
                     <div className="user-menu-container">

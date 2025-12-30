@@ -19,16 +19,16 @@ const Home = () => {
         const fetchRooms = async () => {
             setLoading(true);
             try {
-                // Check if we have search filters
+                // Kiểm tra xem chúng ta có bộ lọc tìm kiếm không
                 const guests = searchParams.get('guests');
                 const checkin_date = searchParams.get('checkin_date');
                 const checkout_date = searchParams.get('checkout_date');
 
                 let response;
 
-                // If any filter is present, use getAvailable
+                // Nếu có bất kỳ bộ lọc nào, sử dụng getAvailable
                 if (guests || (checkin_date && checkout_date)) {
-                    // Use new search API if filtering
+                    // Sử dụng API tìm kiếm mới nếu đang lọc
                     const params = {};
                     if (guests) params.guests = guests;
                     if (checkin_date) params.checkin_date = checkin_date;
@@ -37,12 +37,12 @@ const Home = () => {
                     response = await roomApi.getAvailable(params);
                 }
                 else {
-                    // Default list
+                    // Danh sách mặc định
                     const filters = {};
                     response = await roomApi.getAll(1, 100, filters);
                 }
 
-                // Backend now handles filtering, so just use the data directly
+                // Backend bây giờ xử lý việc lọc, vì vậy chỉ cần sử dụng dữ liệu trực tiếp
                 setRooms(response.data || []);
             } catch (error) {
                 console.error('Error fetching rooms:', error);
@@ -54,11 +54,11 @@ const Home = () => {
         fetchRooms();
     }, [searchParams, refreshKey]);
 
-    // Socket listener for real-time updates
+    // Trình lắng nghe socket cho các cập nhật thời gian thực
     useEffect(() => {
 
         const handleBookingChange = (data) => {
-            // Refresh the list when any booking occurs
+            // Làm mới danh sách khi có bất kỳ đặt phòng nào xảy ra
             setRefreshKey(prev => prev + 1);
         };
 

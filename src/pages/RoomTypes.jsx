@@ -208,7 +208,7 @@ const RoomTypes = () => {
               Xóa
             </Button>
           </Popconfirm>
-        </Space>
+        </Space >
       ),
     },
   ];

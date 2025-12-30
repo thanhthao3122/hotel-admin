@@ -12,7 +12,7 @@ const PaymentResult = () => {
     const responseCode = searchParams.get('code');
 
     useEffect(() => {
-        // Simulate loading for better UX
+        // Giả lập loading để tăng trải nghiệm người dùng
         setTimeout(() => setLoading(false), 1000);
     }, []);
 

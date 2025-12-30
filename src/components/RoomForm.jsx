@@ -31,7 +31,7 @@ const RoomForm = ({
         }
       );
 
-      // Set preview if editing with existing image
+      // Hiển thị xem trước nếu đang sửa phòng có ảnh cũ
       if (initialValues?.image) {
         const imgPath = initialValues.image;
         const fullUrl = imgPath.startsWith("http")
@@ -51,13 +51,13 @@ const RoomForm = ({
 
   const handleOk = () => {
     form.validateFields().then((values) => {
-      // Create FormData for file upload
+      // Tạo FormData để upload file
       const formData = new FormData();
       formData.append('room_number', values.room_number);
       formData.append('room_type_id', values.room_type_id);
       formData.append('status', values.status);
 
-      // Add image file if selected
+      // Thêm file ảnh nếu có chọn
       if (fileList.length > 0) {
         formData.append('image', fileList[0].originFileObj);
       }
@@ -78,11 +78,11 @@ const RoomForm = ({
   };
 
   const handleFileChange = ({ fileList: newFileList }) => {
-    // Only keep the last file
+    // Chỉ giữ lại file cuối cùng được chọn
     const latestFile = newFileList.slice(-1);
     setFileList(latestFile);
 
-    // Create preview
+    // Tạo preview ảnh
     if (latestFile.length > 0) {
       const file = latestFile[0].originFileObj;
       const reader = new FileReader();
@@ -108,7 +108,7 @@ const RoomForm = ({
       return Upload.LIST_IGNORE;
     }
 
-    return false; // Prevent auto upload
+    return false; // Ngăn upload tự động
   };
 
 

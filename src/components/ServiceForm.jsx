@@ -43,7 +43,7 @@ const ServiceForm = ({
       onCancel={onCancel}
       onOk={handleOk}
       okText={isEditing ? "Cập nhật" : "Thêm mới"}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form form={form} layout="vertical">
         <Form.Item

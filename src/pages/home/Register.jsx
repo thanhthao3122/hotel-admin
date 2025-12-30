@@ -34,7 +34,7 @@ const Register = () => {
         setLoading(true);
 
         try {
-            // Call register API
+            // Gọi API đăng ký
             const response = await fetch('http://localhost:5000/api/auth/register', {
                 method: 'POST',
                 headers: {
@@ -46,7 +46,7 @@ const Register = () => {
                     phone: formData.phone,
                     id_card: formData.id_card,
                     password: formData.password,
-                    role: 'user' // New users are always 'user' role
+                    role: 'user' // Người dùng mới luôn có vai trò là 'user'
                 })
             });
 
@@ -56,11 +56,11 @@ const Register = () => {
                 throw new Error(data.message || 'Đăng ký thất bại');
             }
 
-            // Save user info and token to localStorage (Auto-login)
+            // Lưu thông tin người dùng và token vào localStorage (Tự động đăng nhập)
             localStorage.setItem('user', JSON.stringify(data.data.user));
             localStorage.setItem('token', data.data.token);
 
-            // Navigate to home page
+            // Chuyển hướng đến trang chủ
             navigate('/home');
         } catch (error) {
             setError(error.message || 'Đăng ký thất bại');
@@ -71,7 +71,7 @@ const Register = () => {
 
 
     const handleGoogleSignIn = () => {
-        // TODO: Implement Google OAuth
+        // TODO: Triển khai Google OAuth
         console.log('Google sign in clicked');
     };
 
