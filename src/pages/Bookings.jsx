@@ -1,5 +1,4 @@
-
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Button,
@@ -19,13 +18,11 @@ import {
   SearchOutlined,
 } from "@ant-design/icons";
 
-
-import bookingApi from '../api/bookingApi.js';
-import userApi from '../api/userApi.js';
-import roomApi from '../api/roomApi.js';
-import roomTypeApi from '../api/roomTypeApi.js';
-import socket from '../utils/socket.js';
-
+import bookingApi from "../api/bookingApi.js";
+import userApi from "../api/userApi.js";
+import roomApi from "../api/roomApi.js";
+import roomTypeApi from "../api/roomTypeApi.js";
+import socket from "../utils/socket.js";
 
 import BookingForm from "../components/BookingForm.jsx";
 
@@ -57,12 +54,14 @@ const Bookings = () => {
   ) => {
     try {
       setLoading(true);
-      const [bookingRes, customerRes, roomRes, roomTypeRes] = await Promise.all([
-        bookingApi.getAll(page, limit),
-        userApi.getAll(1, 2000), // Tải 2000 khách hàng đầu tiên cho dropdown
-        roomApi.getAll(1, 2000), // Tải 2000 phòng đầu tiên cho dropdown
-        roomTypeApi.getAll(1, 2000) // Tải 2000 loại phòng
-      ]);
+      const [bookingRes, customerRes, roomRes, roomTypeRes] = await Promise.all(
+        [
+          bookingApi.getAll(page, limit),
+          userApi.getAll(1, 100), // Fetch first 100 customers for dropdown
+          roomApi.getAll(1, 100), // Fetch first 100 rooms for dropdown
+          roomTypeApi.getAll(1, 100), // Fetch first 100 room types
+        ]
+      );
 
       setBookings(bookingRes.data || []);
       if (bookingRes.pagination) {
@@ -76,16 +75,13 @@ const Bookings = () => {
       setCustomers(customerRes.data || []);
       setRooms(roomRes.data || []);
       setRoomTypes(roomTypeRes.data || []);
-
     } catch (error) {
       console.error(error);
-      message.error('Không tải được dữ liệu đặt phòng');
+      message.error("Không tải được dữ liệu đặt phòng");
     } finally {
       setLoading(false);
     }
   };
-
-
 
   // ... imports
 
@@ -95,29 +91,37 @@ const Bookings = () => {
 
   useEffect(() => {
     const handleBookingChange = (data) => {
-      message.info('Dữ liệu đặt phòng vừa được cập nhật');
-      setRefreshKey(prev => prev + 1);
+      message.info("Dữ liệu đặt phòng vừa được cập nhật");
+      setRefreshKey((prev) => prev + 1);
     };
 
-    socket.on('booking_created', handleBookingChange);
-    socket.on('booking_updated', handleBookingChange);
-    socket.on('booking_deleted', handleBookingChange);
-    socket.on('payment_received', handleBookingChange);
+    socket.on("booking_created", handleBookingChange);
+    socket.on("booking_updated", handleBookingChange);
+    socket.on("booking_deleted", handleBookingChange);
+    socket.on("payment_received", handleBookingChange);
 
     return () => {
-      socket.off('booking_created', handleBookingChange);
-      socket.off('booking_updated', handleBookingChange);
-      socket.off('booking_deleted', handleBookingChange);
-      socket.off('payment_received', handleBookingChange);
+      socket.off("booking_created", handleBookingChange);
+      socket.off("booking_updated", handleBookingChange);
+      socket.off("booking_deleted", handleBookingChange);
+      socket.off("payment_received", handleBookingChange);
     };
   }, []);
 
   // Map ID -> đối tượng
 
-  const customerMap = useMemo(() => Object.fromEntries(customers.map(c => [c.user_id, c])), [customers]);
-  const roomMap = useMemo(() => Object.fromEntries(rooms.map(r => [r.room_id, r])), [rooms]);
-  const roomTypeMap = useMemo(() => Object.fromEntries(roomTypes.map(rt => [rt.room_type_id, rt])), [roomTypes]);
-
+  const customerMap = useMemo(
+    () => Object.fromEntries(customers.map((c) => [c.user_id, c])),
+    [customers]
+  );
+  const roomMap = useMemo(
+    () => Object.fromEntries(rooms.map((r) => [r.room_id, r])),
+    [rooms]
+  );
+  const roomTypeMap = useMemo(
+    () => Object.fromEntries(roomTypes.map((rt) => [rt.room_type_id, rt])),
+    [roomTypes]
+  );
 
   const filteredBookings = useMemo(() => {
     return bookings.filter((b) => {
@@ -125,7 +129,8 @@ const Bookings = () => {
       const customer = customerMap[b.user_id]; // Lưu ý: booking dùng user_id chứ không phải customer_id
 
       const matchSearch = customer
-        ? (customer.full_name?.toLowerCase().includes(keyword) || customer.phone?.includes(keyword))
+        ? customer.full_name?.toLowerCase().includes(keyword) ||
+        customer.phone?.includes(keyword)
         : false;
 
       const matchStatus = filterStatus ? b.status === filterStatus : true;
@@ -138,7 +143,6 @@ const Bookings = () => {
     setEditingBooking(null);
     setIsModalOpen(true);
   };
-
 
   const handleSubmit = async (data) => {
     try {
@@ -155,7 +159,8 @@ const Bookings = () => {
       fetchData();
     } catch (error) {
       console.error(error);
-      const errorMessage = error.response?.data?.message || "Có lỗi khi lưu đặt phòng";
+      const errorMessage =
+        error.response?.data?.message || "Có lỗi khi lưu đặt phòng";
       message.error(errorMessage);
     }
   };
@@ -163,11 +168,11 @@ const Bookings = () => {
   const handleDelete = async (id) => {
     try {
       await bookingApi.delete(id);
-      message.success('Đã xóa đặt phòng');
+      message.success("Đã xóa đặt phòng");
       fetchData();
     } catch (error) {
       console.error(error);
-      message.error('Không xóa được đặt phòng');
+      message.error("Không xóa được đặt phòng");
     }
   };
 
@@ -178,89 +183,102 @@ const Bookings = () => {
       fetchData();
     } catch (error) {
       console.error(error);
-      const errorMessage = error.response?.data?.message || "Không cập nhật được trạng thái";
-      message.error(errorMessage);
-      fetchData(); // Reset UI state to actual backend state
+      message.error("Không cập nhật được trạng thái");
     }
   };
+  const STATUS_LABEL = {
+    pending: "Đang chờ",
+    confirmed: "Đã xác nhận",
+    checked_in: "Đã nhận phòng",
+    checked_out: "Đã trả phòng",
+    cancelled: "Đã hủy",
+  };
 
+  const NEXT_STATUS = {
+    pending: ["confirmed", "cancelled"],
+    confirmed: ["checked_in", "cancelled"],
+    checked_in: ["checked_out"],
+    checked_out: [],
+    cancelled: [],
+  };
   const columns = [
     {
-      title: "Mã Booking",
+      title: "Mã",
       dataIndex: "booking_id",
       width: 100,
-      render: (id) => <Tag color="blue">#{id}</Tag>
+      render: (id) => <Tag color="blue">#{id}</Tag>,
     },
     {
       title: "Khách hàng",
       render: (_, record) => {
         const c = customerMap[record.user_id];
-        return c ? `${c.full_name} (${c.phone})` : 'N/A';
+        return c ? `${c.full_name} (${c.phone})` : "N/A";
       },
     },
     {
-
-      title: 'Số Phòng',
+      title: "Số Phòng",
       render: (_, record) => {
-        if (!record.rooms || record.rooms.length === 0) return 'N/A';
-        return record.rooms.map(room => room.room_number).join(', ');
+        if (!record.rooms || record.rooms.length === 0) return "N/A";
+        return record.rooms.map((room) => room.room_number).join(", ");
       },
     },
     {
-      title: 'Check-in',
-      dataIndex: 'checkin_date',
-      render: (date) => date || 'N/A'
+      title: "Check-in",
+      dataIndex: "checkin_date",
+      render: (date) => date || "N/A",
     },
     {
-      title: 'Check-out',
-      dataIndex: 'checkout_date',
-      render: (date) => date || 'N/A'
+      title: "Check-out",
+      dataIndex: "checkout_date",
+      render: (date) => date || "N/A",
     },
     {
-      title: 'Nguồn',
-      dataIndex: 'source',
-      render: (src) => <Tag color={src === 'admin' ? 'purple' : 'blue'}>{src?.toUpperCase()}</Tag>
-    },
-    {
-      title: 'Hình thức',
-      dataIndex: 'payment_method',
-      render: (method) => (
-        <Tag color={method === 'pay_later' ? 'cyan' : 'green'}>
-          {method === 'pay_later' ? 'TRẢ SAU' : 'ONLINE'}
+      title: "Nguồn",
+      dataIndex: "source",
+      render: (src) => (
+        <Tag color={src === "admin" ? "purple" : "blue"}>
+          {src?.toUpperCase()}
         </Tag>
-      )
+      ),
     },
     {
-      title: 'Tổng tiền',
-      dataIndex: 'total_price',
-      render: v => v ? Number(v).toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ',
+      title: "Hình thức",
+      dataIndex: "payment_method",
+      render: (method) => (
+        <Tag color={method === "pay_later" ? "cyan" : "green"}>
+          {method === "pay_later" ? "TRẢ SAU" : "ONLINE"}
+        </Tag>
+      ),
     },
     {
-      title: 'Trạng thái',
-      dataIndex: 'status',
+      title: "Tổng tiền",
+      dataIndex: "total_price",
+      render: (v) => (v ? Number(v).toLocaleString("vi-VN") + " VNĐ" : "0 VNĐ"),
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
       render: (st, record) => {
-        const remaining = record.financials?.remainingAmount || 0;
-        const isUnpaid = remaining > 0;
+        const cur = (st || "pending").toLowerCase();
+        const next = NEXT_STATUS[cur] || [];
+
+        const disabled = next.length === 0; // checked_out hoặc cancelled
+
+        const options = [cur, ...next.filter((x) => x !== cur)];
 
         return (
-          <Space direction="vertical" size={0}>
-            <Select
-              value={st.toLowerCase()}
-              style={{ width: 140 }}
-              onChange={(val) => updateStatus(record, val)}
-              status={st.toLowerCase() === 'cancelled' ? 'error' : ''}
-            >
-              <Option value="confirmed">Đã xác nhận</Option>
-              <Option value="checked_in">Đã nhận phòng</Option>
-              <Option value="checked_out">Đã trả phòng</Option>
-              <Option value="cancelled">Hủy đơn</Option>
-            </Select>
-            {isUnpaid && st.toLowerCase() === 'checked_in' && (
-              <span style={{ color: '#ff4d4f', fontSize: '11px', fontWeight: 'bold' }}>
-                Còn nợ: {new Intl.NumberFormat("vi-VN").format(remaining)} VNĐ
-              </span>
-            )}
-          </Space>
+          <Select
+            value={cur}
+            style={{ width: 160 }}
+            disabled={disabled}
+            onChange={(val) => updateStatus(record, val)}
+          >
+            {options.map((s) => (
+              <Select.Option key={s} value={s}>
+                {STATUS_LABEL[s]}
+              </Select.Option>
+            ))}
+          </Select>
         );
       },
     },
@@ -268,9 +286,14 @@ const Bookings = () => {
       title: "Hành động",
       render: (_, r) => (
         <Space>
-
-          <Button size="small" icon={<EditOutlined />}
-            onClick={() => { setEditingBooking(r); setIsModalOpen(true); }}>
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => {
+              setEditingBooking(r);
+              setIsModalOpen(true);
+            }}
+          >
             Sửa
           </Button>
 
@@ -339,14 +362,13 @@ const Bookings = () => {
           pageSize: pagination.pageSize,
           total: pagination.total,
           showSizeChanger: true,
-          pageSizeOptions: ['5', '10', '20'],
+          pageSizeOptions: ["5", "10", "20"],
         }}
         onChange={(pager) => {
           const { current, pageSize } = pager;
-          setPagination(prev => ({ ...prev, current, pageSize }));
+          setPagination((prev) => ({ ...prev, current, pageSize }));
           fetchData(current, pageSize);
         }}
-
       />
 
       <BookingForm
@@ -359,7 +381,6 @@ const Bookings = () => {
         roomTypes={roomTypes}
         isEditing={!!editingBooking}
       />
-
     </Card>
   );
 };

@@ -6,7 +6,7 @@ import * as XLSX from "xlsx";
 import roomApi from "../api/roomApi";
 import paymentApi from "../api/paymentApi";
 import socket from "../utils/socket";
-
+//vavava
 import {
   BarChart,
   Bar,
@@ -120,10 +120,10 @@ const Dashboard = () => {
     fetchPaymentStats(value);
   };
 
-  // ROOM STATISTICS
+  // ROOM 
   const roomStats = useMemo(() => {
-    const total = rooms.length;
-
+    const total = rooms.length; //tổng số phòng
+//thống kê theo trạng thái phòng
     const byStatus = {
       available: 0,
       booked: 0,
@@ -131,20 +131,20 @@ const Dashboard = () => {
       cleaning: 0,
       maintenance: 0,
     };
-
+// thống kê theo loại phòng
     const byType = {};
-
+// duyệt từng phòng trong room
     rooms.forEach((r) => {
-      if (byStatus[r.status] !== undefined) {
+      if (byStatus[r.status] !== undefined) { // đếm phòng theo trạng thái
         byStatus[r.status]++;
       }
-
+// đếm phòng theo loại phòng
       const typeName = r.roomType?.name || "Khác";
       byType[typeName] = (byType[typeName] || 0) + 1;
     });
+    const inUse = byStatus.booked + byStatus.occupied; // số phòng đang được sử dụng
 
-    const inUse = byStatus.booked + byStatus.occupied;
-    const occupancyRate = total ? Math.round((inUse / total) * 100) : 0;
+    const occupancyRate = total ? Math.round((inUse / total) * 100) : 0; // tỉ
 
     return { total, byStatus, byType, inUse, occupancyRate };
   }, [rooms]);
