@@ -48,8 +48,8 @@ const Payments = () => {
       setLoading(true);
       const [paymentRes, bookingRes, customerRes] = await Promise.all([
         paymentApi.getAll(page, limit),
-        bookingApi.getAll(1, 100), // Fetch recent bookings
-        userApi.getAll(1, 100) // Fetch customers
+        bookingApi.getAll(1, 2000), // Tăng giới hạn lên 2000 để đảm bảo hiển thị đủ trong dropdown
+        userApi.getAll(1, 2000) // Tăng giới hạn khách hàng
       ]);
 
       setPayments(paymentRes.data || []);
@@ -64,18 +64,14 @@ const Payments = () => {
       const allBookings = bookingRes.data || [];
       setBookings(allBookings);
 
-      // Filter logic: Find bookings that are NOT paid yet.
-      // A booking is paid if it has a 'confirmed' status AND has a completed payment? 
-      // Actually, simple logic: Booking status 'pending' or 'confirmed' but NOT 'cancelled'.
-      // And check if it already has a completed payment linked?
-      // For simplicity, let's just show 'pending' and 'confirmed' bookings here as eligible for payment.
+      // Logic lọc: Tìm các booking chưa được thanh toán.
       setPendingBookings(allBookings.filter(b => {
-        // Filter by status first
+        // Lọc theo trạng thái trước
         const isValidStatus = ['pending', 'confirmed', 'checked_in', 'checked_out'].includes(b.status);
         if (!isValidStatus) return false;
 
-        // Filter out if ALREADY PAID
-        // Since we now include payments in booking fetch:
+        // Lọc bỏ nếu ĐÃ THANH TOÁN
+        // Vì chúng ta bao gồm payments trong fetch booking:
         if (b.payments && b.payments.some(p => p.status === 'completed')) {
           return false;
         }
@@ -95,7 +91,7 @@ const Payments = () => {
   useEffect(() => {
     fetchData();
 
-    // Real-time updates when payment is received
+    // Cập nhật real-time khi nhận được thanh toán
     const handlePaymentUpdate = () => {
       fetchData();
     };

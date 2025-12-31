@@ -20,7 +20,7 @@ const BookingForm = ({
   useEffect(() => {
     if (open) {
       if (initialValues) {
-        // Handle case where booking has rooms array
+        // Xử lý trường hợp booking có mảng rooms
         const roomId = initialValues.room_id || (initialValues.rooms && initialValues.rooms.length > 0 ? initialValues.rooms[0].room_id : null);
 
         let roomTypeBasePrice = 0;
@@ -49,7 +49,7 @@ const BookingForm = ({
         setPricePerNight(0);
       }
     }
-  }, [open, initialValues, rooms, roomTypes, form]); // Add dependencies
+  }, [open, initialValues, rooms, roomTypes, form]); // Thêm dependencies
 
   const handleRoomSelect = (room_id) => {
     const room = rooms.find(r => r.room_id === room_id);
@@ -72,7 +72,7 @@ const BookingForm = ({
         checkout_date: values.check_out.format("YYYY-MM-DD"),
         rooms: [{
           room_id: values.room_id,
-          price_per_night: pricePerNight // Ensure price is passed
+          price_per_night: pricePerNight // Đảm bảo giá được truyền đi
         }],
         source: 'admin',
         payment_method: values.payment_method
@@ -90,7 +90,7 @@ const BookingForm = ({
       onCancel={onCancel}
       okText={isEditing ? 'Lưu' : 'Thêm'}
       cancelText="Hủy"
-      destroyOnClose
+      destroyOnHidden
     >
       <Form form={form} layout="vertical">
         <Form.Item
@@ -141,11 +141,11 @@ const BookingForm = ({
             style={{ width: '100%' }}
             format="DD/MM/YYYY"
             disabledDate={(current) => {
-              // Can not select days before today
+              // Không thể chọn ngày trước hôm nay
               return current && current < dayjs().startOf('day');
             }}
             onChange={(date) => {
-              // Reset check_out if it becomes invalid (must be strictly after check_in)
+              // Reset check_out nếu nó trở nên không hợp lệ (phải sau check_in)
               const checkOut = form.getFieldValue('check_out');
               if (checkOut && date && (checkOut.isBefore(date) || checkOut.isSame(date, 'day'))) {
                 form.setFieldValue('check_out', null);

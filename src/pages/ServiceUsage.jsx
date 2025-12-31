@@ -50,18 +50,16 @@ const ServiceUsage = () => {
     total: 0,
   });
 
-  // Client-side status tracking
-  const [deliveredItems, setDeliveredItems] = useState(() => {
-    const saved = localStorage.getItem("service_usage_delivered_status");
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  const handleToggleStatus = (usageId) => {
-    setDeliveredItems((prev) => {
-      const newState = { ...prev, [usageId]: !prev[usageId] };
-      localStorage.setItem("service_usage_delivered_status", JSON.stringify(newState));
-      return newState;
-    });
+  const handleToggleStatus = async (record) => {
+    try {
+      const newStatus = record.status === 'delivered' ? 'pending' : 'delivered';
+      await serviceUsageApi.update(record.usage_id, { status: newStatus });
+      message.success("Cập nhật trạng thái thành công");
+      fetchData();
+    } catch (error) {
+      console.error(error);
+      message.error("Không thể cập nhật trạng thái");
+    }
   };
 
   const fetchData = async () => {
@@ -69,10 +67,10 @@ const ServiceUsage = () => {
       setLoading(true);
       const [usageRes, bookingRes, customerRes, roomRes, serviceRes] = await Promise.all([
         serviceUsageApi.getAll(pagination.current, pagination.pageSize),
-        bookingApi.getAll(1, 100),
-        userApi.getAll(1, 100),
-        roomApi.getAll(1, 100),
-        serviceApi.getAll(1, 100)
+        bookingApi.getAll(1, 2000),
+        userApi.getAll(1, 2000),
+        roomApi.getAll(1, 2000),
+        serviceApi.getAll(1, 2000)
       ]);
 
       setUsages(usageRes.data || []);
@@ -100,7 +98,7 @@ const ServiceUsage = () => {
   useEffect(() => {
     fetchData();
 
-    // Real-time updates when services are added or invoices updated
+    // Cập nhật thời gian thực khi dịch vụ được thêm hoặc hóa đơn được cập nhật
     const handleServiceUpdate = () => {
       fetchData();
     };
@@ -132,7 +130,7 @@ const ServiceUsage = () => {
       const keyword = searchText.toLowerCase();
 
 
-      // Get room number from booking.bookingRooms
+      // Lấy số phòng từ booking.bookingRooms
       const roomNumbers = booking.bookingRooms?.map(br => br.room?.room_number).filter(Boolean) || [];
       const roomText = roomNumbers.join(' ');
 
@@ -260,12 +258,12 @@ const ServiceUsage = () => {
       title: "Trạng thái",
       key: "status",
       render: (_, record) => {
-        const isDelivered = !!deliveredItems[record.usage_id];
+        const isDelivered = record.status === 'delivered';
         return (
           <Tag
             color={isDelivered ? "green" : "orange"}
             style={{ cursor: "pointer", userSelect: "none" }}
-            onClick={() => handleToggleStatus(record.usage_id)}
+            onClick={() => handleToggleStatus(record)}
           >
             {isDelivered ? "Đã giao" : "Chưa giao"}
           </Tag>

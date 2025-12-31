@@ -3,14 +3,16 @@ import axiosClient from "./axiosClient";
 
 const roomApi = {
   // ✅ getAll cho phép truyền thêm filters (vd: { status: 'booked' })
-  getAll: (page = 1, limit = 10, filters = {}) => {
+  getAll: (page = 1, limit = 10, filters = {}, extraParams = {}) => {
     return axiosClient.get("/rooms", {
-      params: { page, limit, ...filters },
+      params: { page, limit, ...filters, ...extraParams },
     });
   },
 
-  getById: (id) => {
-    return axiosClient.get(`/rooms/${id}`);
+  getById: (id, extraParams = {}) => {
+    return axiosClient.get(`/rooms/${id}`, {
+      params: { ...extraParams }
+    });
   },
 
   // 🟢 create & update nhận FormData (có file ảnh)

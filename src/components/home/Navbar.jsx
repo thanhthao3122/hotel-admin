@@ -132,7 +132,8 @@ const Navbar = () => {
                     <div className="menu-divider"></div>
                     <div className="menu-item">Trung tâm trợ giúp</div>
                   </>
-                )}
+                )
+                }
               </div>
             )}
           </div>

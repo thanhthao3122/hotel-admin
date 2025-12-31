@@ -47,7 +47,7 @@ const Bookings = () => {
     total: 0,
   });
 
-  // Fetch all necessary data
+  // Tải tất cả dữ liệu cần thiết
   const fetchData = async (
     page = pagination.current,
     limit = pagination.pageSize
@@ -108,7 +108,7 @@ const Bookings = () => {
     };
   }, []);
 
-  // map ID → object
+  // Map ID -> đối tượng
 
   const customerMap = useMemo(
     () => Object.fromEntries(customers.map((c) => [c.user_id, c])),
@@ -126,11 +126,11 @@ const Bookings = () => {
   const filteredBookings = useMemo(() => {
     return bookings.filter((b) => {
       const keyword = searchText.toLowerCase();
-      const customer = customerMap[b.user_id]; // Note: booking uses user_id not customer_id
+      const customer = customerMap[b.user_id]; // Lưu ý: booking dùng user_id chứ không phải customer_id
 
       const matchSearch = customer
         ? customer.full_name?.toLowerCase().includes(keyword) ||
-          customer.phone?.includes(keyword)
+        customer.phone?.includes(keyword)
         : false;
 
       const matchStatus = filterStatus ? b.status === filterStatus : true;
@@ -147,11 +147,11 @@ const Bookings = () => {
   const handleSubmit = async (data) => {
     try {
       if (editingBooking) {
-        // Update
+        // Cập nhật
         await bookingApi.update(editingBooking.booking_id, data);
         message.success("Cập nhật đặt phòng thành công");
       } else {
-        // Create
+        // Tạo mới
         await bookingApi.create(data);
         message.success("Tạo đặt phòng thành công");
       }
@@ -261,7 +261,7 @@ const Bookings = () => {
       render: (st, record) => {
         const cur = (st || "pending").toLowerCase();
         const next = NEXT_STATUS[cur] || [];
-       
+
         const disabled = next.length === 0; // checked_out hoặc cancelled
 
         const options = [cur, ...next.filter((x) => x !== cur)];

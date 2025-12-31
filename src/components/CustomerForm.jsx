@@ -46,7 +46,7 @@ const CustomerForm = ({
       open={open}
       onOk={handleOk}
       onCancel={handleCancel}
-      destroyOnClose
+      destroyOnHidden
       okText={isEditing ? "Lưu" : "Thêm"}
       cancelText="Hủy"
     >

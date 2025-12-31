@@ -20,6 +20,8 @@ import {
   FileTextOutlined,
   LogoutOutlined,
   UserSwitchOutlined,
+  SettingOutlined,
+  PercentageOutlined,
 } from "@ant-design/icons";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 
@@ -74,6 +76,13 @@ const AdminLayout = () => {
       roles: ["admin"],
     },
     {
+      key: "/vouchers",
+      icon: <PercentageOutlined />,
+      label: "Quản lý Voucher",
+      group: "NGHIỆP VỤ",
+      roles: ["admin"],
+    },
+    {
       key: "/room-types",
       icon: <AppstoreOutlined />,
       label: "Loại phòng",
@@ -87,6 +96,7 @@ const AdminLayout = () => {
       group: "NGHIỆP VỤ",
       roles: ["admin"],
     },
+
     {
       key: "/bookings",
       icon: <BookOutlined />,
@@ -127,6 +137,13 @@ const AdminLayout = () => {
       icon: <UserOutlined />,
       label: "Khách hàng",
       group: "NGHIỆP VỤ",
+      roles: ["admin"],
+    },
+    {
+      key: "/footer-settings",
+      icon: <SettingOutlined />,
+      label: "Cài đặt Footer",
+      group: "TÀI CHÍNH",
       roles: ["admin"],
     },
   ];

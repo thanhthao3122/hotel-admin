@@ -11,7 +11,7 @@ import socket from '../../utils/socket';
 
 const { Title, Text } = Typography;
 
-// Helper function to calculate totals
+// Hàm hỗ trợ tính toán tổng số
 const calculateBookingDetails = (booking) => {
     if (!booking) return { nights: 0, roomTotal: 0, serviceTotal: 0, grandTotal: 0 };
 
@@ -19,21 +19,26 @@ const calculateBookingDetails = (booking) => {
     const checkout = new Date(booking.checkout_date);
     const nights = Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24));
 
-    // Calculate room total
-    const roomTotal = booking.bookingRooms?.reduce((sum, br) => {
-        const pricePerNight = parseFloat(br.price_per_night || 0);
-        return sum + (pricePerNight * nights);
-    }, 0) || 0;
+    // Sử dụng total_price từ booking (đã bao gồm giảm giá voucher)
+    // thay vì tính lại từ đầu
+    const roomTotal = parseFloat(booking.total_price || 0);
 
-    // Calculate service total
+    // Tính tổng tiền dịch vụ
     const serviceTotal = booking.services?.reduce((sum, service) => {
         const usageData = service.ServiceUsage || {};
         return sum + parseFloat(usageData.total_price || 0);
     }, 0) || 0;
 
+    const totalRefunded = booking.refunds?.reduce((sum, r) => sum + parseFloat(r.amount_refunded || 0), 0) || 0;
     const grandTotal = roomTotal + serviceTotal;
 
-    return { nights, roomTotal, serviceTotal, grandTotal };
+    // Let's also calculate total paid
+    const totalPaid = booking.payments?.filter(p => p.status === 'completed')
+        .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) || 0;
+
+    const actualCollected = totalPaid - totalRefunded;
+
+    return { nights, roomTotal, serviceTotal, grandTotal, totalPaid, totalRefunded, actualCollected };
 };
 
 const getStatusConfig = (status) => {
@@ -58,7 +63,7 @@ const formatDate = (dateString) => {
     return `${dayName}, ${day}/${month}/${year}`;
 };
 
-// Sub-component: BookingCard
+// Component con: Thẻ đặt phòng
 const BookingCard = ({ booking, isSelected, onClick, onCancel, cancelling }) => {
     const { nights, grandTotal } = calculateBookingDetails(booking);
     const isPaid = booking.payments?.some(p => p.status === 'completed');
@@ -146,12 +151,12 @@ const BookingCard = ({ booking, isSelected, onClick, onCancel, cancelling }) => 
     );
 };
 
-// Sub-component: PaymentForm
+// Component con: Form thanh toán
 const PaymentForm = ({ booking, user, onPayment, paying }) => {
     const [localPaymentMethod, setLocalPaymentMethod] = useState('online');
 
     useEffect(() => {
-        // Always default to online payment in the history page for active payment attempts
+        // Luôn mặc định là thanh toán trực tuyến trong trang lịch sử cho các lần thanh toán đang hoạt động
         setLocalPaymentMethod('online');
     }, [booking]);
 
@@ -167,13 +172,13 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
         );
     }
 
-    const { nights, roomTotal, serviceTotal, grandTotal } = calculateBookingDetails(booking);
+    const { nights, roomTotal, serviceTotal, grandTotal, totalPaid, totalRefunded } = calculateBookingDetails(booking);
     const isPaid = booking.payments?.some(p => p.status === 'completed');
     const statusConfig = getStatusConfig(booking.status, isPaid);
-    // Allow payment if booking is pending or confirmed AND not yet paid
+    // Cho phép thanh toán nếu đơn đặt phòng đang chờ hoặc đã xác nhận VÀ chưa thanh toán
     const canPay = (booking.status === 'pending' || booking.status === 'confirmed') && !isPaid;
 
-    // Check if there is any pending payment - BUT user wants to ignore "Processing" state
+    // Kiểm tra xem có khoản thanh toán nào đang chờ xử lý không - NHƯNG người dùng muốn bỏ qua trạng thái "Đang xử lý"
     // const pendingPayment = booking.payments?.find(p => p.status === 'pending');
     const isProcessing = false; // !!pendingPayment && booking.status === 'pending';
 
@@ -297,7 +302,7 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                             <Text>🍽️ Dịch vụ sử dụng:</Text>
                             <Text strong>{serviceTotal.toLocaleString('vi-VN')} VNĐ</Text>
                         </div>
-                        {/* List services explicitly if needed */}
+                        {/* Liệt kê các dịch vụ cụ thể nếu cần */}
                         {booking.services && booking.services.length > 0 && (
                             <div className="services-list" style={{ paddingLeft: '20px', fontSize: '0.9em', color: '#666' }}>
                                 {booking.services.map((service, idx) => (
@@ -313,10 +318,22 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                             <Text strong className="total-label">Tổng cộng:</Text>
                             <Text strong className="total-amount">{grandTotal.toLocaleString('vi-VN')} VNĐ</Text>
                         </div>
+                        {totalRefunded > 0 && (
+                            <>
+                                <div className="price-row" style={{ color: '#ff4d4f' }}>
+                                    <Text type="danger">Số tiền đã hoàn trả:</Text>
+                                    <Text strong>-{totalRefunded.toLocaleString('vi-VN')} VNĐ</Text>
+                                </div>
+                                <div className="price-row" style={{ borderTop: '1px dashed #d9d9d9', paddingTop: '8px', marginTop: '4px' }}>
+                                    <Text strong>Thực thu cuối cùng:</Text>
+                                    <Text strong style={{ color: '#52c41a' }}>{(totalPaid - totalRefunded).toLocaleString('vi-VN')} VNĐ</Text>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
-                {/* Phương thức thanh toán - Hidden as it is always online now */}
+                {/* Phương thức thanh toán - Ẩn vì bây giờ luôn là trực tuyến */}
                 {canPay && (
                     <div className="form-section" style={{ display: 'none' }}>
                         <Title level={5} className="section-title">
@@ -366,7 +383,7 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                     </Button>
                 )}
 
-                {/* Removed pay-later note */}
+                {/* Đã xóa ghi chú thanh toán sau */}
             </Form>
         </Card>
     );
@@ -450,12 +467,12 @@ const BookingHistory = () => {
             await bookingApi.updateStatus(bookingId, 'cancelled');
             message.success('Đã hủy booking thành công');
 
-            // Refresh booking list
+            // Làm mới danh sách đặt phòng
             const response = await bookingApi.getByUser(user.user_id);
             const validBookings = response.data.filter(b => b.status !== 'cancelled') || [];
             setBookings(validBookings);
 
-            // If the cancelled booking was selected, clear selection
+            // Nếu đơn đặt phòng đã hủy đang được chọn, hãy xóa lựa chọn
             if (selectedBooking?.booking_id === bookingId) {
                 setSelectedBooking(validBookings.length > 0 ? validBookings[0] : null);
             }

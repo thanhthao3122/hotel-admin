@@ -14,8 +14,11 @@ const paymentApi = {
     getByBooking: (bookingId) => axiosClient.get(`/payments/booking/${bookingId}`),
     getStats: (year) => axiosClient.get('/payments/stats', { params: { year } }),
     getById: (id) => axiosClient.get(`/payments/${id}`),
-    delete: (id) => axiosClient.delete(`/payments/${id}`)
+    delete: (id) => axiosClient.delete(`/payments/${id}`),
 
+    // Refund functions
+    createRefund: (data) => axiosClient.post('/payments/refund', data),
+    getRefunds: (bookingId) => axiosClient.get(`/payments/booking/${bookingId}/refunds`)
 };
 
 export default paymentApi;
