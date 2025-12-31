@@ -49,7 +49,7 @@ const Login = () => {
             // Check role and redirect accordingly
             if (data.data.user.role && data.data.user.role !== 'user') {
                 // Admin or staff -> redirect to dashboard
-                navigate('/dashboard');
+                navigate('/bookings');
             } else {
                 // Regular user -> redirect to home
                 navigate('/home');

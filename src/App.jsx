@@ -1,10 +1,10 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import AdminLayout from "./layouts/AdminLayout.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Rooms from "./pages/Rooms.jsx";
 import RoomTypes from "./pages/RoomTypes.jsx";
 import Services from "./pages/Services.jsx";
-import Customers from './pages/Customers.jsx';
+import Customers from "./pages/Customers.jsx";
 import Bookings from "./pages/Bookings.jsx";
 import ServiceUsage from "./pages/ServiceUsage.jsx";
 import Payments from "./pages/Payments.jsx";
@@ -18,14 +18,24 @@ import BookingHistory from "./pages/home/BookingHistory.jsx";
 import UserServiceRequest from "./pages/UserServiceRequest.jsx";
 import Profile from "./pages/Profile.jsx";
 import UserRoles from "./pages/UserRoles.jsx";
-
 import PaymentResult from "./pages/home/PaymentResult.jsx";
 import UserProfile from "./pages/home/UserProfile.jsx";
 
+const ProtectedRoute = ({ allow }) => {
+  if (!allow) return <Navigate to="/403" replace />;
+  return <Outlet />;
+};
+
 function App() {
+  // ✅ lấy user từ localStorage (đổi key nếu bạn lưu khác)
+  const user = JSON.parse(localStorage.getItem("user"));
+  const isAdmin = user?.role === "admin";
+  const isStaff = user?.role === "staff";
+
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/home" />} />
+      {/* Public */}
+      <Route path="/" element={<Navigate to="/home" replace />} />
       <Route path="/home" element={<Home />} />
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
@@ -35,21 +45,31 @@ function App() {
       <Route path="/my-services" element={<UserServiceRequest />} />
       <Route path="/payment/result" element={<PaymentResult />} />
 
-      {/* Admin Routes */}
-      <Route element={<AdminLayout />}>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/reception" element={<Reception />} />
-        <Route path="/rooms" element={<Rooms />} />
-        <Route path="/room-types" element={<RoomTypes />} />
-        <Route path="/services" element={<Services />} />
-        <Route path="/customers" element={<Customers />} />
-        <Route path="/user-roles" element={<UserRoles />} />
-        <Route path="/bookings" element={<Bookings />} />
-        <Route path="/services-usage" element={<ServiceUsage />} />
-        <Route path="/payments" element={<Payments />} />
-        <Route path="/invoices" element={<Invoices />} />
+      <Route element={<ProtectedRoute allow={isAdmin} />}>
+        <Route element={<AdminLayout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/rooms" element={<Rooms />} />
+          <Route path="/room-types" element={<RoomTypes />} />
+          <Route path="/services" element={<Services />} />
+          <Route path="/customers" element={<Customers />} />
+          <Route path="/user-roles" element={<UserRoles />} />
+        </Route>
       </Route>
+
+      <Route element={<ProtectedRoute allow={isAdmin || isStaff} />}>
+        <Route element={<AdminLayout />}>
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/reception" element={<Reception />} />
+          <Route path="/bookings" element={<Bookings />} />
+          <Route path="/services-usage" element={<ServiceUsage />} />
+          <Route path="/payments" element={<Payments />} />
+          <Route path="/invoices" element={<Invoices />} />
+        </Route>
+      </Route>
+
+      {/* 403 + fallback */}
+      <Route path="/403" element={<div>403 - Bạn không có quyền truy cập</div>} />
+      <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
   );
 }

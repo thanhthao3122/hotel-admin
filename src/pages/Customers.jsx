@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Button,
-  Card,
-  Input,
-  Space,
-  Table,
-  Popconfirm,
-  message,
-} from "antd";
+import { Button, Card, Input, Space, Table, Popconfirm, message } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
@@ -149,7 +141,14 @@ const Customers = () => {
     {
       title: "Vai trò",
       dataIndex: "role",
-      width: 100,
+      render: (role) => {
+        if (role === "staff") return " Nhân viên";
+        if (role === "admin") return "Quản trị viên";
+        else 
+          return "Khách hàng";
+
+        return role; 
+      },
     },
     {
       title: "Hành động",
@@ -191,7 +190,11 @@ const Customers = () => {
     <Card
       title="Quản lý khách hàng"
       extra={
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={openCreateModal}
+        >
           Thêm khách hàng
         </Button>
       }

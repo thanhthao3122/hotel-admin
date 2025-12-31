@@ -40,13 +40,13 @@ const AdminLayout = () => {
   }, []);
 
   const isAuthorized = useMemo(() => {
-    return userData.role === 'admin' || userData.role === 'staff';
+    return userData.role === "admin" || userData.role === "staff";
   }, [userData]);
 
   // Check role and redirect if not authorized
   useEffect(() => {
     if (!isAuthorized) {
-      navigate('/home');
+      navigate("/home");
     }
   }, [isAuthorized, navigate]);
 
@@ -71,54 +71,63 @@ const AdminLayout = () => {
       icon: <DashboardOutlined />,
       label: "Tổng quan",
       group: "HỆ THỐNG",
+      roles: ["admin"],
     },
     {
       key: "/room-types",
       icon: <AppstoreOutlined />,
       label: "Loại phòng",
       group: "NGHIỆP VỤ",
+      roles: ["admin"],
     },
     {
       key: "/rooms",
       icon: <HomeOutlined />,
       label: "Quản lý phòng",
       group: "NGHIỆP VỤ",
+      roles: ["admin"],
     },
     {
       key: "/bookings",
       icon: <BookOutlined />,
       label: "Đặt phòng",
       group: "NGHIỆP VỤ",
+      roles: ["admin", "staff"],
     },
     {
       key: "/services",
       icon: <AppstoreOutlined />,
       label: "Dịch vụ",
       group: "NGHIỆP VỤ",
+      roles: ["admin"],
     },
     {
       key: "/services-usage",
       icon: <ShoppingCartOutlined />,
       label: "Sử dụng dịch vụ",
       group: "NGHIỆP VỤ",
+      roles: ["admin", "staff"],
     },
     {
       key: "/payments",
       icon: <DollarOutlined />,
       label: "Thanh toán",
       group: "TÀI CHÍNH",
+      roles: ["admin", "staff"],
     },
     {
       key: "/invoices",
       icon: <FileTextOutlined />,
       label: "Hóa đơn",
       group: "TÀI CHÍNH",
+      roles: ["admin", "staff"],
     },
     {
       key: "/customers",
       icon: <UserOutlined />,
       label: "Khách hàng",
       group: "NGHIỆP VỤ",
+      roles: ["admin"],
     },
   ];
 
@@ -128,8 +137,16 @@ const AdminLayout = () => {
     acc[item.group].push(item);
     return acc;
   }, {});
-
-  const menuItems = Object.entries(grouped).map(([groupName, items]) => ({
+  const user = JSON.parse(localStorage.getItem("user"));
+  const role = user?.role;
+  const filteredMenu = menuConfig.filter((item) => item.roles.includes(role));
+  const groupedMenu = filteredMenu.reduce((acc, item) => {
+    const group = item.group || "KHÁC";
+    if (!acc[group]) acc[group] = [];
+    acc[group].push(item);
+    return acc;
+  }, {});
+  const menuItems = Object.entries(groupedMenu).map(([groupName, items]) => ({
     type: "group",
     label: groupName,
     children: items.map((it) => ({

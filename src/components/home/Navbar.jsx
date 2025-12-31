@@ -90,8 +90,8 @@ const Navbar = () => {
                 {user ? (
                   <>
                     <div className="menu-item user-info">
-                      {user?.role === "admin" ? (
-                        <Link to="/dashboard">
+                      {user?.role !== "user" ? (
+                        <Link to="/bookings">
                           <div
                             style={{ fontWeight: "bold", marginBottom: "4px" }}
                           >
