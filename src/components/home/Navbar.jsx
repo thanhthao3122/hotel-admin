@@ -66,7 +66,7 @@ const Navbar = () => {
             border: selectedCount > 0 ? 'none' : '1px solid #ddd'
           }}>
             <span className="cart-icon">🛒</span>
-            <span>{selectedCount > 0 ? `Đặt ngay (${selectedCount})` : 'Giỏ hàng (0)'}</span>
+            <span>{selectedCount > 0 ? `Đặt ngay (${selectedCount})` : 'Danh sách (0)'}</span>
           </Link>
           <div className="user-menu-container">
             <button

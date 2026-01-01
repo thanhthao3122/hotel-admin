@@ -27,7 +27,8 @@ const Booking = () => {
             const rooms = JSON.parse(saved).map(r => ({
                 ...r,
                 checkin_date: r.checkin_date || dayjs().format('YYYY-MM-DD'),
-                checkout_date: r.checkout_date || dayjs().add(1, 'day').format('YYYY-MM-DD')
+                checkout_date: r.checkout_date || dayjs().add(1, 'day').format('YYYY-MM-DD'),
+                guests: r.guests || 1
             }));
             setSelectedRooms(rooms);
         }
@@ -127,7 +128,7 @@ const Booking = () => {
             };
 
             const res = await bookingApi.create(payload);
-            message.success('Đặt phòng thành công!');
+            message.success('Đơn đặt phòng này chỉ giữ 10 phút vui lòng thanh toán để hoàn tất quá trình xác nhận đặt phòng');
             sessionStorage.removeItem('selectedRooms');
             window.dispatchEvent(new Event('storage'));
 

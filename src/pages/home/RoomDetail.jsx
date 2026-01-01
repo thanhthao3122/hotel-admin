@@ -75,17 +75,30 @@ const RoomDetail = () => {
     };
 
     const handleBooking = () => {
-        // Thêm phòng hiện tại vào giỏ hàng (sessionStorage)
+        // Thêm phòng hiện tại vào giỏ hàng (sessionStorage) kèm theo thông tin ngày và khách
         const saved = sessionStorage.getItem('selectedRooms');
         let selectedRooms = saved ? JSON.parse(saved) : [];
 
+        // Tạo bản sao của room kèm theo thông tin đặt phòng
+        const roomWithBookingData = {
+            ...room,
+            checkin_date: bookingData.checkin_date,
+            checkout_date: bookingData.checkout_date,
+            guests: bookingData.guests
+        };
+
         // Kiểm tra xem phòng đã có trong giỏ hàng chưa
-        if (!selectedRooms.some(r => r.room_id === room.room_id)) {
-            selectedRooms.push(room);
-            sessionStorage.setItem('selectedRooms', JSON.stringify(selectedRooms));
-            // Phát sự kiện để Navbar cập nhật số lượng
-            window.dispatchEvent(new Event('storage'));
+        const existingIndex = selectedRooms.findIndex(r => r.room_id === room.room_id);
+        if (existingIndex !== -1) {
+            // Cập nhật thông tin mới nhất
+            selectedRooms[existingIndex] = roomWithBookingData;
+        } else {
+            selectedRooms.push(roomWithBookingData);
         }
+
+        sessionStorage.setItem('selectedRooms', JSON.stringify(selectedRooms));
+        // Phát sự kiện để Navbar cập nhật số lượng
+        window.dispatchEvent(new Event('storage'));
 
         // Chuyển hướng sang trang thông tin đặt phòng
         message.success('Đã thêm phòng vào danh sách đặt. Vui lòng hoàn tất thông tin.');

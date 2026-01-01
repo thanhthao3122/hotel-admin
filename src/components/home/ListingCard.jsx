@@ -62,28 +62,6 @@ const ListingCard = ({ room }) => {
                         )}
                     </div>
 
-                    <button
-                        className="select-room-quick-btn"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (window.onRoomSelect) window.onRoomSelect(room);
-                        }}
-                        style={{
-                            width: '100%',
-                            padding: '6px',
-                            backgroundColor: '#f0f2f5',
-                            color: '#003580',
-                            border: '1px dashed #003580',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                        }}
-                    >
-                        + Thêm vào danh sách đặt
-                    </button>
                 </div>
             </div>
         </Link>

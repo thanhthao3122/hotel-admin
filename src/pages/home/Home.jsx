@@ -15,31 +15,6 @@ const Home = () => {
     const [loading, setLoading] = useState(true);
     const [searchParams] = useSearchParams();
     const [refreshKey, setRefreshKey] = useState(0);
-    const [selectedRooms, setSelectedRooms] = useState(() => {
-        const saved = sessionStorage.getItem('selectedRooms');
-        return saved ? JSON.parse(saved) : [];
-    });
-
-    useEffect(() => {
-        window.onRoomSelect = (room) => {
-            setSelectedRooms(prev => {
-                const isSelected = prev.some(r => r.room_id === room.room_id);
-                let newList;
-                if (isSelected) {
-                    newList = prev.filter(r => r.room_id !== room.room_id);
-                    message.info(`Đã bỏ chọn phòng ${room.room_number}`);
-                } else {
-                    newList = [...prev, room];
-                    message.success(`Đã thêm phòng ${room.room_number} vào danh sách đặt`);
-                }
-                sessionStorage.setItem('selectedRooms', JSON.stringify(newList));
-                // Phát sự kiện để Navbar cập nhật
-                window.dispatchEvent(new Event('storage'));
-                return newList;
-            });
-        };
-        return () => { delete window.onRoomSelect; };
-    }, []);
 
     useEffect(() => {
         const fetchRooms = async () => {

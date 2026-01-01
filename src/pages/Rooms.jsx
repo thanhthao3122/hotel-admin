@@ -310,6 +310,12 @@ const Rooms = () => {
       key: "room_number",
       sorter: (a, b) => String(a.room_number).localeCompare(String(b.room_number)),
     },
+    {
+      title: "Giường",
+      dataIndex: "beds_description",
+      key: "beds_description",
+      render: (text) => text || "Chưa xác định",
+    },
 
     {
       title: "Hình ảnh",
@@ -705,6 +711,11 @@ const Rooms = () => {
                       <div style={{ textAlign: 'center', marginBottom: 8 }}>
                         <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f1f1f' }}>{room.room_number}</div>
                         <div style={{ color: '#8c8c8c', fontSize: '12px' }}>{roomTypeMap[room.room_type_id]}</div>
+                        {room.beds_description && (
+                          <div style={{ color: '#595959', fontSize: '12px', marginTop: 4, fontStyle: 'italic' }}>
+                            <span role="img" aria-label="bed">🛏️</span> {room.beds_description}
+                          </div>
+                        )}
                       </div>
 
                       <div style={{ textAlign: 'center', marginBottom: 8 }}>
