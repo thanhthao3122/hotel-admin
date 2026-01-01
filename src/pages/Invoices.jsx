@@ -1,6 +1,6 @@
 // src/pages/Invoices.jsx
 import { Card, Table, Tag, message, Button, Tooltip, Popconfirm, Input, Select, Row, Col, Statistic } from "antd";
-import { CheckOutlined, CloseOutlined, PrinterOutlined, SearchOutlined, FileExcelOutlined, DollarOutlined } from "@ant-design/icons";
+import { CheckOutlined, CloseOutlined, PrinterOutlined, SearchOutlined, FileExcelOutlined, DollarOutlined, UndoOutlined } from "@ant-design/icons";
 import { useState, useEffect, useMemo } from "react";
 import RefundModal from "../components/RefundModal";
 import * as XLSX from "xlsx";
@@ -129,22 +129,20 @@ const Invoices = () => {
           </div>
           
           <div class="invoice-info">
-            <p><strong>Khách hàng:</strong> ${
-              customer ? customer.full_name : "N/A"
-            }</p>
+            <p><strong>Khách hàng:</strong> ${customer ? customer.full_name : "N/A"
+      }</p>
             <p><strong>Email:</strong> ${customer ? customer.email : "N/A"}</p>
             <p><strong>Số điện thoại:</strong> ${phoneNumber}</p>
             <p><strong>Phòng:</strong> ${roomName}</p>
-            <p><strong>Ngày nhận phòng:</strong> ${
-              booking
-                ? new Date(booking.checkin_date).toLocaleDateString("vi-VN")
-                : "N/A"
-            }</p>
-            <p><strong>Ngày trả phòng:</strong> ${
-              booking
-                ? new Date(booking.checkout_date).toLocaleDateString("vi-VN")
-                : "N/A"
-            }</p>
+            <p><strong>Ngày nhận phòng:</strong> ${booking
+        ? new Date(booking.checkin_date).toLocaleDateString("vi-VN")
+        : "N/A"
+      }</p>
+            <p><strong>Ngày trả phòng:</strong> ${booking
+        ? new Date(booking.checkout_date).toLocaleDateString("vi-VN")
+        : "N/A"
+      }</p>
+            ${booking?.voucher ? `<p><strong>Mã giảm giá:</strong> <span style="color: #52c41a; font-weight: bold;">${booking.voucher.code}</span> (${booking.voucher.discount_type === 'percentage' ? `-${booking.voucher.discount_value}%` : `-${Number(booking.voucher.discount_value).toLocaleString('vi-VN')} VNĐ`})</p>` : ''}
           </div>
 
           <table class="invoice-table">
@@ -155,57 +153,76 @@ const Invoices = () => {
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>Tiền phòng</td>
-                <td>${Number(invoice.room_charge || 0).toLocaleString(
-                  "vi-VN"
-                )} VNĐ</td>
-              </tr>
-              ${
-                booking?.serviceUsages?.length > 0
-                  ? booking.serviceUsages
-                      .map(
-                        (usage) => `
+              ${booking?.rooms?.map(room => {
+        const br = room.BookingRoom || {};
+        const start = br.checkin_date ? new Date(br.checkin_date) : new Date(booking.checkin_date);
+        const end = br.checkout_date ? new Date(br.checkout_date) : new Date(booking.checkout_date);
+        const nights = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+        return `
+                  <tr>
+                    <td>Phòng ${room.room_number} (${start.toLocaleDateString('vi-VN')} - ${end.toLocaleDateString('vi-VN')}, ${nights} đêm)</td>
+                    <td>${Number((parseFloat(br.price_per_night) || (room.roomType?.base_price || 0)) * nights).toLocaleString('vi-VN')} VNĐ</td>
+                  </tr>
+                `;
+      }).join('') || `
                 <tr>
-                  <td>${usage.service?.name || "Dịch vụ"} ( SL: ${
-                          usage.quantity
-                        })</td>
+                  <td>${booking?.voucher ? 'Tiền phòng (Gốc)' : 'Tiền phòng'}</td>
+                  <td>${Number(booking?.voucher ? (invoice.financials?.originalRoomTotal || invoice.room_charge) : (invoice.financials?.roomTotal || invoice.room_charge || 0)).toLocaleString(
+        "vi-VN", { maximumFractionDigits: 0 }
+      )} VNĐ</td>
+                </tr>
+              `}
+              ${booking?.serviceUsages?.length > 0
+        ? booking.serviceUsages
+          .map(
+            (usage) => `
+                <tr>
+                  <td>${usage.service?.name || "Dịch vụ"} ( SL: ${usage.quantity
+              })</td>
                   <td>${Number(usage.total_price).toLocaleString(
-                    "vi-VN"
-                  )} VNĐ</td>
+                "vi-VN", { maximumFractionDigits: 0 }
+              )} VNĐ</td>
                 </tr>
               `
-                      )
-                      .join("")
-                  : invoice.service_charge > 0
-                  ? `
+          )
+          .join("")
+        : invoice.service_charge > 0
+          ? `
               <tr>
                 <td>Tiền dịch vụ</td>
                 <td>${Number(invoice.service_charge).toLocaleString(
-                  "vi-VN"
-                )} VNĐ</td>
+            "vi-VN", { maximumFractionDigits: 0 }
+          )} VNĐ</td>
               </tr>
               `
-                  : `
+          : `
               <tr>
                 <td>Dịch vụ</td>
                 <td>0 VNĐ</td>
               </tr>
               `
-              }
+      }
+              ${(booking?.voucher && invoice.financials?.discountAmount > 0) ? `
+                <tr style="color: #52c41a; font-weight: bold;">
+                  <td>Giảm giá (Voucher)</td>
+                  <td>-${Number(invoice.financials.discountAmount).toLocaleString("vi-VN")} VNĐ</td>
+                </tr>
+              ` : ''}
             </tbody>
           </table>
 
           <div class="invoice-total">
             <p><strong>Tổng cộng:</strong> ${Number(
-              invoice.financials?.total || invoice.total_amount
-            ).toLocaleString("vi-VN")} VNĐ</p>
+        invoice.financials?.total || invoice.total_amount
+      ).toLocaleString("vi-VN", { maximumFractionDigits: 0 })} VNĐ</p>
             <p style="color: #52c41a;"><strong>Đã thanh toán:</strong> ${Number(
-              invoice.financials?.totalPaid || 0
-            ).toLocaleString("vi-VN")} VNĐ</p>
-            <p style="color: #ff4d4f;"><strong>Còn lại:</strong> ${Number(
-              invoice.financials?.remainingAmount || 0
-            ).toLocaleString("vi-VN")} VNĐ</p>
+        invoice.financials?.totalPaid || 0
+      ).toLocaleString("vi-VN", { maximumFractionDigits: 0 })} VNĐ</p>
+            <p style="color: ${(invoice.financials?.remainingAmount > 0) ? '#ff4d4f' : '#333'};">
+              <strong>Còn lại:</strong> ${Number(
+        invoice.financials?.remainingAmount || 0
+      ).toLocaleString("vi-VN", { maximumFractionDigits: 0 })} VNĐ
+            </p>
           </div>
 
           <div class="no-print" style="margin-top: 20px; text-align: center;">
@@ -247,33 +264,67 @@ const Invoices = () => {
           ? new Date(booking.checkout_date).toLocaleDateString("vi-VN")
           : "N/A",
       ],
-      ["", ""],
-      ["CHI TIẾT THANH TOÁN", "THÀNH TIỀN"],
-      [
-        "Tiền phòng",
-        `${Number(invoice.room_charge || 0).toLocaleString("vi-VN")} VNĐ`,
-      ],
     ];
+
+    // Add voucher info if exists
+    if (booking?.voucher) {
+      data.push([
+        "Mã giảm giá",
+        `${booking.voucher.code} (${booking.voucher.discount_type === 'percentage' ? `-${booking.voucher.discount_value}%` : `-${Number(booking.voucher.discount_value).toLocaleString('vi-VN')} VNĐ`})`,
+      ]);
+    }
+
+    data.push(
+      ["", ""],
+      ["CHI TIẾT THANH TOÁN", "THÀNH TIỀN"]
+    );
+
+    // List each room individually in the CHI TIẾT THANH TOÁN section
+    if (booking?.rooms?.length > 0) {
+      booking.rooms.forEach(room => {
+        const br = room.BookingRoom || {};
+        const start = br.checkin_date ? new Date(br.checkin_date) : new Date(booking.checkin_date);
+        const end = br.checkout_date ? new Date(br.checkout_date) : new Date(booking.checkout_date);
+        const nights = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+        data.push([
+          `Phòng ${room.room_number} (${start.toLocaleDateString('vi-VN')} - ${end.toLocaleDateString('vi-VN')}, ${nights} đêm)`,
+          `${Number((parseFloat(br.price_per_night) || (room.roomType?.base_price || 0)) * nights).toLocaleString('vi-VN')} VNĐ`
+        ]);
+      });
+    } else {
+      data.push([
+        booking?.voucher ? "Tiền phòng (Gốc)" : "Tiền phòng",
+        `${Number(booking?.voucher ? (invoice.financials?.originalRoomTotal || invoice.room_charge) : (invoice.financials?.roomTotal || invoice.room_charge || 0)).toLocaleString("vi-VN", { maximumFractionDigits: 0 })} VNĐ`,
+      ]);
+    }
+
+    // Thêm giảm giá voucher
+    if (booking?.voucher && invoice.financials?.discountAmount > 0) {
+      data.push([
+        "Giảm giá (Voucher)",
+        `-${Number(invoice.financials.discountAmount).toLocaleString("vi-VN", { maximumFractionDigits: 0 })} VNĐ`,
+      ]);
+    }
 
     // Thêm dịch vụ
     if (booking?.serviceUsages?.length > 0) {
       booking.serviceUsages.forEach((usage) => {
         data.push([
           `${usage.service?.name || "Dịch vụ"} (SL: ${usage.quantity})`,
-          `${Number(usage.total_price).toLocaleString("vi-VN")} VNĐ`,
+          `${Number(usage.total_price).toLocaleString("vi-VN", { maximumFractionDigits: 0 })} VNĐ`,
         ]);
       });
     } else if (invoice.service_charge > 0) {
       data.push([
         "Tiền dịch vụ",
-        `${Number(invoice.service_charge).toLocaleString("vi-VN")} VNĐ`,
+        `${Number(invoice.service_charge).toLocaleString("vi-VN", { maximumFractionDigits: 0 })} VNĐ`,
       ]);
     }
 
     data.push(["", ""]);
     data.push([
       "TỔNG CỘNG",
-      `${Number(invoice.total_amount || 0).toLocaleString("vi-VN")} VNĐ`,
+      `${Number(invoice.total_amount || 0).toLocaleString("vi-VN", { maximumFractionDigits: 0 })} VNĐ`,
     ]);
 
     // Tạo worksheet và workbook
@@ -306,8 +357,8 @@ const Invoices = () => {
           inv.payment?.status === "completed"
             ? "Đã thanh toán"
             : inv.payment?.status === "pending"
-            ? "Chờ xử lý"
-            : "Thất bại",
+              ? "Chờ xử lý"
+              : "Thất bại",
       };
     });
 
@@ -372,7 +423,7 @@ const Invoices = () => {
   }, [invoices, search, filterStatus, bookingMap, customerMap]);
 
   const columns = [
-    { title: "Mã HĐ", dataIndex: "invoice_id", width: 100 },
+    { title: "Mã HĐ", dataIndex: "invoice_id" },
     { title: "Booking", dataIndex: "booking_id" },
     {
       title: "Khách hàng",
@@ -398,7 +449,7 @@ const Invoices = () => {
           <span>
             {new Intl.NumberFormat("vi-VN", {
               maximumFractionDigits: 0,
-            }).format(amount)}{" "}
+            }).format(Number(amount) || 0)}{" "}
             VNĐ
           </span>
         );
@@ -412,7 +463,7 @@ const Invoices = () => {
           <span style={{ color: amount > 0 ? "#1890ff" : "#999" }}>
             {new Intl.NumberFormat("vi-VN", {
               maximumFractionDigits: 0,
-            }).format(amount)}{" "}
+            }).format(Number(amount) || 0)}{" "}
             VNĐ
           </span>
         );
@@ -426,7 +477,7 @@ const Invoices = () => {
           <Tag color="blue">
             {new Intl.NumberFormat("vi-VN", {
               maximumFractionDigits: 0,
-            }).format(amount)}{" "}
+            }).format(Number(amount) || 0)}{" "}
             VNĐ
           </Tag>
         );
@@ -443,7 +494,7 @@ const Invoices = () => {
         const paid = r.financials?.totalPaid || 0;
         return (
           <span style={{ color: "#52c41a" }}>
-            {new Intl.NumberFormat("vi-VN").format(paid)} VNĐ
+            {new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(Number(paid) || 0)} VNĐ
           </span>
         );
       },
@@ -453,7 +504,7 @@ const Invoices = () => {
       render: (_, r) => {
         const remaining = r.financials?.remainingAmount || 0;
         if (remaining < 0) {
-          return <span style={{ color: '#52c41a', fontSize: '12px' }}>Trả dư: {new Intl.NumberFormat("vi-VN").format(Math.abs(remaining))} VNĐ</span>;
+          return <span style={{ color: '#52c41a', fontSize: '12px' }}>Trả dư: {new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(Math.abs(remaining))} VNĐ</span>;
         }
         return (
           <span
@@ -462,7 +513,7 @@ const Invoices = () => {
               fontWeight: remaining > 0 ? "bold" : "normal",
             }}
           >
-            {new Intl.NumberFormat("vi-VN").format(remaining)} VNĐ
+            {new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(Number(remaining) || 0)} VNĐ
           </span>
         );
       },
@@ -471,23 +522,29 @@ const Invoices = () => {
       title: "Trạng thái",
       key: "status",
       render: (_, r) => {
-        // Ưu tiên dùng status từ Database, nếu không có thì tính toán fallback
-        const status = r.status;
         const financials = r.financials;
+        const remaining = financials?.remainingAmount || 0;
+        const total = financials?.total || 0;
+        const paid = financials?.totalPaid || 0;
 
-        if (status === 'paid' || (financials?.remainingAmount <= 0 && financials?.total > 0)) {
+        if (total > 0 && remaining <= 0) {
           return <Tag color="success">ĐÃ THANH TOÁN</Tag>;
         }
 
-        if (status === 'partially_paid' || (financials?.totalPaid > 0 && financials?.remainingAmount > 0)) {
+        if (paid > 0 && remaining > 0) {
           return <Tag color="warning">THANH TOÁN MỘT PHẦN</Tag>;
         }
 
-        if (status === 'unpaid' || (financials?.totalPaid === 0 && financials?.total > 0)) {
+        if (paid === 0 && total > 0) {
           return <Tag color="error">CHƯA THANH TOÁN</Tag>;
         }
 
-        return <Tag>{r.payment?.status?.toUpperCase() || 'N/A'}</Tag>;
+        // Fallback cho các trường hợp đặc biệt hoặc dữ liệu cũ
+        const dbStatus = r.status;
+        if (dbStatus === 'paid') return <Tag color="success">ĐÃ THANH TOÁN</Tag>;
+        if (dbStatus === 'partially_paid') return <Tag color="warning">THANH TOÁN MỘT PHẦN</Tag>;
+
+        return <Tag>{r.payment?.status?.toUpperCase() || 'CHƯA CÓ GD'}</Tag>;
       }
     },
     {
@@ -569,7 +626,7 @@ const Invoices = () => {
               </Popconfirm>
             )}
 
-            {r.financials?.totalPaid > 0 && (
+            {/* {r.financials?.totalPaid > 0 && (
               <Tooltip title="Hoàn tiền / Trả lại">
                 <Button
                   size="small"
@@ -581,7 +638,7 @@ const Invoices = () => {
                   }}
                 />
               </Tooltip>
-            )}
+            )} */}
           </div>
         );
       },
@@ -607,7 +664,7 @@ const Invoices = () => {
           <Col span={8}>
             <Card
               size="small"
-              bordered={false}
+              variant="borderless"
               style={{ background: "#f0f5ff" }}
             >
               <Statistic
@@ -616,28 +673,31 @@ const Invoices = () => {
                   (sum, inv) => sum + (parseFloat(inv.financials?.total) || 0),
                   0
                 )}
+                formatter={(value) => new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(value)}
                 suffix="VNĐ"
-                valueStyle={{ color: "#1890ff", fontSize: "18px" }}
+                styles={{ content: { color: "#1890ff", fontSize: "18px" } }}
               />
             </Card>
           </Col>
           <Col span={8}>
-            <Card size="small" bordered={false} style={{ background: '#f6ffed' }}>
+            <Card size="small" variant="borderless" style={{ background: '#f6ffed' }}>
               <Statistic
                 title="Tổng đã thu"
                 value={filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.financials?.totalPaid) || 0), 0)}
+                formatter={(value) => new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(value)}
                 suffix="VNĐ"
-                valueStyle={{ color: "#52c41a", fontSize: "18px" }}
+                styles={{ content: { color: "#52c41a", fontSize: "18px" } }}
               />
             </Card>
           </Col>
           <Col span={8}>
-            <Card size="small" bordered={false} style={{ background: '#fff1f0' }}>
+            <Card size="small" variant="borderless" style={{ background: '#fff1f0' }}>
               <Statistic
                 title="Tổng nợ (Chưa thu)"
                 value={filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.financials?.remainingAmount) || 0), 0)}
+                formatter={(value) => new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(value)}
                 suffix="VNĐ"
-                valueStyle={{ color: "#cf1322", fontSize: "18px" }}
+                styles={{ content: { color: "#cf1322", fontSize: "18px" } }}
               />
             </Card>
           </Col>
@@ -670,6 +730,7 @@ const Invoices = () => {
         columns={columns}
         dataSource={filteredInvoices}
         loading={loading}
+        size="small"
         pagination={{
           current: pagination.current,
           pageSize: pagination.pageSize,

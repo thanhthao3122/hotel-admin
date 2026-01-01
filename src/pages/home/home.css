@@ -65,16 +65,7 @@
     color: var(--primary);
 }
 
-.navbar-search {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
-    border: 1px solid var(--border-color);
-    border-radius: 40px;
-    transition: box-shadow 0.2s;
-}
 
-.navbar-search:hover {
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
-}
 
 .search-button {
     display: flex;
@@ -308,6 +299,7 @@
     justify-content: space-between;
     align-items: flex-start;
 }
+
 
 .listing-title {
     font-size: 15px;

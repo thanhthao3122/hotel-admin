@@ -1,10 +1,23 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import SearchBar from "./SearchBar";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [selectedCount, setSelectedCount] = useState(0);
   const user = JSON.parse(localStorage.getItem("user"));
+
+  useEffect(() => {
+    const updateCount = () => {
+      const saved = sessionStorage.getItem('selectedRooms');
+      const rooms = saved ? JSON.parse(saved) : [];
+      setSelectedCount(rooms.length);
+    };
+
+    updateCount();
+    window.addEventListener('storage', updateCount);
+    return () => window.removeEventListener('storage', updateCount);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -39,7 +52,22 @@ const Navbar = () => {
         <SearchBar />
 
         {/* User Menu */}
-        <div className="navbar-user">
+        <div className="navbar-user" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Link to="/booking" className="booking-cart-link" style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 16px',
+            backgroundColor: selectedCount > 0 ? '#ff5a5f' : '#f7f7f7',
+            color: selectedCount > 0 ? 'white' : '#222',
+            borderRadius: '20px',
+            fontWeight: 'bold',
+            textDecoration: 'none',
+            border: selectedCount > 0 ? 'none' : '1px solid #ddd'
+          }}>
+            <span className="cart-icon">🛒</span>
+            <span>{selectedCount > 0 ? `Đặt ngay (${selectedCount})` : 'Giỏ hàng (0)'}</span>
+          </Link>
           <div className="user-menu-container">
             <button
               className="user-menu-button"

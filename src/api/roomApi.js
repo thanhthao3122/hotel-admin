@@ -2,10 +2,10 @@
 import axiosClient from "./axiosClient";
 
 const roomApi = {
-  // ✅ getAll cho phép truyền thêm filters (vd: { status: 'booked' })
-  getAll: (page = 1, limit = 10, filters = {}, extraParams = {}) => {
+  // ✅ getAll cho phép truyền thêm filters (vd: { status: 'booked' }) và ngày lọc
+  getAll: (page = 1, limit = 10, filters = {}, date = null) => {
     return axiosClient.get("/rooms", {
-      params: { page, limit, ...filters, ...extraParams },
+      params: { page, limit, ...filters, date },
     });
   },
 

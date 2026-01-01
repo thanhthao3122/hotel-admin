@@ -23,6 +23,7 @@ import Vouchers from "./pages/Vouchers.jsx";
 
 import PaymentResult from "./pages/home/PaymentResult.jsx";
 import UserProfile from "./pages/home/UserProfile.jsx";
+import Booking from "./pages/home/Booking.jsx";
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/user-profile" element={<UserProfile />} />
       <Route path="/room/:id" element={<RoomDetail />} />
+      <Route path="/booking" element={<Booking />} />
       <Route path="/booking-history" element={<BookingHistory />} />
       <Route path="/my-services" element={<UserServiceRequest />} />
       <Route path="/payment/result" element={<PaymentResult />} />

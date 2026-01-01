@@ -31,11 +31,6 @@ const RoomDetail = () => {
     });
     const [paymentMethod, setPaymentMethod] = useState('online');
 
-    // Voucher states
-    const [voucherCode, setVoucherCode] = useState('');
-    const [appliedVoucher, setAppliedVoucher] = useState(null);
-    const [isValidatingVoucher, setIsValidatingVoucher] = useState(false);
-
     const fetchRoom = async () => {
         try {
             const response = await roomApi.getById(id);
@@ -79,93 +74,24 @@ const RoomDetail = () => {
         }
     };
 
-    const handleBooking = async () => {
-        // Kiểm tra xem người dùng đã đăng nhập chưa
-        const user = JSON.parse(localStorage.getItem('user'));
-        const token = localStorage.getItem('token');
+    const handleBooking = () => {
+        // Thêm phòng hiện tại vào giỏ hàng (sessionStorage)
+        const saved = sessionStorage.getItem('selectedRooms');
+        let selectedRooms = saved ? JSON.parse(saved) : [];
 
-        if (!user || !token) {
-            message.warning('Vui lòng đăng nhập để đặt phòng', 20);
-            navigate('/login');
-            return;
+        // Kiểm tra xem phòng đã có trong giỏ hàng chưa
+        if (!selectedRooms.some(r => r.room_id === room.room_id)) {
+            selectedRooms.push(room);
+            sessionStorage.setItem('selectedRooms', JSON.stringify(selectedRooms));
+            // Phát sự kiện để Navbar cập nhật số lượng
+            window.dispatchEvent(new Event('storage'));
         }
 
-        // Xác thực ngày tháng
-        if (!bookingData.checkin_date || !bookingData.checkout_date) {
-            setValidationError('Vui lòng chọn ngày nhận phòng và trả phòng');
-            return;
-        }
-
-        const checkin = new Date(bookingData.checkin_date);
-        const checkout = new Date(bookingData.checkout_date);
-
-        if (checkout <= checkin) {
-            setValidationError('Ngày trả phòng phải sau ngày nhận phòng ít nhất 1 ngày');
-            return;
-        }
-
-        // Xác thực số lượng khách
-        const maxCapacity = room.roomType?.capacity || 2;
-        if (bookingData.guests > maxCapacity) {
-            setValidationError(`Số khách không được vượt quá ${maxCapacity} người`);
-            return;
-        }
-
-        setValidationError('');
-
-        // Tiến hành đặt phòng trực tiếp
-        try {
-            setIsBooking(true);
-
-            const finalBookingData = {
-                user_id: user.user_id,
-                checkin_date: bookingData.checkin_date,
-                checkout_date: bookingData.checkout_date,
-                rooms: [
-                    {
-                        room_id: Number(id),
-                        price_per_night: room.roomType?.base_price || 0
-                    }
-                ],
-                source: 'online',
-                payment_method: paymentMethod,
-                voucher_code: appliedVoucher?.code || null
-            };
-
-            await bookingApi.create(finalBookingData);
-
-            message.success('Đặt phòng thành công! Bạn sẽ được chuyển đến trang lịch sử đặt phòng.', 20);
-            navigate('/booking-history');
-        } catch (error) {
-            console.error(error);
-            const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi đặt phòng';
-            message.error(errorMessage, 20);
-        } finally {
-            setIsBooking(false);
-        }
+        // Chuyển hướng sang trang thông tin đặt phòng
+        message.success('Đã thêm phòng vào danh sách đặt. Vui lòng hoàn tất thông tin.');
+        navigate('/booking');
     };
 
-    const handleApplyVoucher = async () => {
-        if (!voucherCode) return;
-        try {
-            setIsValidatingVoucher(true);
-            const response = await voucherApi.getByCode(voucherCode);
-            setAppliedVoucher(response.data);
-            message.success('Đã áp dụng mã giảm giá!');
-        } catch (error) {
-            console.error(error);
-            message.error(error.response?.data?.message || 'Mã giảm giá không hợp lệ');
-            setAppliedVoucher(null);
-        } finally {
-            setIsValidatingVoucher(false);
-        }
-    };
-
-    const removeVoucher = () => {
-        setAppliedVoucher(null);
-        setVoucherCode('');
-        message.info('Đã gỡ mã giảm giá');
-    };
 
     const calculateTotalPrice = () => {
         if (!bookingData.checkin_date || !bookingData.checkout_date || !room) return 0;
@@ -175,15 +101,6 @@ const RoomDetail = () => {
 
         let pricePerNight = room.roomType?.base_price || 0;
         let total = nights * pricePerNight;
-
-        if (appliedVoucher) {
-            if (appliedVoucher.discount_type === 'percentage') {
-                const discountAmount = total * (parseFloat(appliedVoucher.discount_value) / 100);
-                total = total - discountAmount;
-            } else if (appliedVoucher.discount_type === 'fixed') {
-                total = total - parseFloat(appliedVoucher.discount_value);
-            }
-        }
 
         return Math.max(0, total);
     };
@@ -331,61 +248,6 @@ const RoomDetail = () => {
                                         ))}
                                     </select>
                                 </div>
-                                <div className="form-field">
-                                    <label>Mã giảm giá (Voucher)</label>
-                                    <div className="voucher-input-group" style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                                        <input
-                                            type="text"
-                                            placeholder="Nhập mã voucher..."
-                                            value={voucherCode}
-                                            onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-                                            disabled={appliedVoucher || isValidatingVoucher}
-                                            style={{
-                                                flex: 1,
-                                                padding: '8px 12px',
-                                                border: '1px solid #ddd',
-                                                borderRadius: '6px',
-                                                textTransform: 'uppercase'
-                                            }}
-                                        />
-                                        {appliedVoucher ? (
-                                            <button
-                                                onClick={removeVoucher}
-                                                style={{
-                                                    padding: '8px 16px',
-                                                    backgroundColor: '#ff4d4f',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: '6px',
-                                                    cursor: 'pointer'
-                                                }}
-                                            >
-                                                Gỡ
-                                            </button>
-                                        ) : (
-                                            <button
-                                                onClick={handleApplyVoucher}
-                                                disabled={!voucherCode || isValidatingVoucher}
-                                                style={{
-                                                    padding: '8px 16px',
-                                                    backgroundColor: '#1890ff',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: '6px',
-                                                    cursor: voucherCode ? 'pointer' : 'not-allowed',
-                                                    opacity: voucherCode ? 1 : 0.6
-                                                }}
-                                            >
-                                                {isValidatingVoucher ? '...' : 'Áp dụng'}
-                                            </button>
-                                        )}
-                                    </div>
-                                    {appliedVoucher && (
-                                        <div style={{ marginTop: '8px', color: '#52c41a', fontSize: '0.85rem' }}>
-                                            ✓ Đã áp dụng mã <strong>{appliedVoucher.code}</strong>: Giảm {appliedVoucher.discount_type === 'percentage' ? appliedVoucher.discount_value + '%' : formatCurrency(appliedVoucher.discount_value) + 'đ'}
-                                        </div>
-                                    )}
-                                </div>
 
                                 <div className="form-field">
                                     <label>Phương thức thanh toán</label>
@@ -419,17 +281,6 @@ const RoomDetail = () => {
                                             <span>Số đêm:</span>
                                             <span>{Math.ceil((new Date(bookingData.checkout_date) - new Date(bookingData.checkin_date)) / (1000 * 60 * 60 * 24))}</span>
                                         </div>
-                                        {appliedVoucher && (
-                                            <div className="price-summary-row" style={{ color: '#52c41a' }}>
-                                                <span>Giảm giá ({appliedVoucher.code}):</span>
-                                                <span>
-                                                    -{appliedVoucher.discount_type === 'percentage'
-                                                        ? `${appliedVoucher.discount_value}%`
-                                                        : formatCurrency(appliedVoucher.discount_value) + 'đ'
-                                                    }
-                                                </span>
-                                            </div>
-                                        )}
                                         <div className="price-summary-total">
                                             <span>Tổng cộng:</span>
                                             <span>{formatCurrency(calculateTotalPrice())}đ</span>
@@ -440,7 +291,11 @@ const RoomDetail = () => {
                                 <button
                                     className="book-button"
                                     onClick={handleBooking}
-                                    disabled={!bookingData.checkin_date || !bookingData.checkout_date || !!validationError || isBooking}
+                                    disabled={isBooking}
+                                    style={{
+                                        backgroundColor: '#003580',
+                                        cursor: 'pointer'
+                                    }}
                                 >
                                     {isBooking ? 'Đang xử lý...' : 'Đặt phòng ngay'}
                                 </button>
