@@ -48,8 +48,8 @@ const Login = () => {
 
             // Kiểm tra vai trò và chuyển hướng tương ứng
             if (data.data.user.role && data.data.user.role !== 'user') {
-                // Quản trị viên hoặc nhân viên -> chuyển đến dashboard
-                navigate('/dashboard');
+                // Admin or staff -> redirect to dashboard
+                navigate('/bookings');
             } else {
                 // Người dùng thông thường -> chuyển đến trang chủ
                 navigate('/home');

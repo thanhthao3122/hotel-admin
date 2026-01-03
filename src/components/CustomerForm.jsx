@@ -1,8 +1,14 @@
 // src/components/CustomerForm.jsx
-import { Form, Input, Modal } from "antd";
+import { Form, Input, Modal, Select } from "antd";
 import { useEffect } from "react";
 
-const CustomerForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) => {
+const CustomerForm = ({
+  open,
+  onCancel,
+  onSubmit,
+  initialValues,
+  isEditing,
+}) => {
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -13,7 +19,7 @@ const CustomerForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) =>
           phone: "",
           email: "",
           id_card: "",
-
+          role: "",
         }
       );
     }
@@ -91,8 +97,17 @@ const CustomerForm = ({ open, onCancel, onSubmit, initialValues, isEditing }) =>
         >
           <Input placeholder="VD: 012345678901" />
         </Form.Item>
-
-
+        <Form.Item
+          label="Role"
+          name="role"
+          rules={[{ required: false, message: "Vui lòng nhập CCCD" }]}
+        >
+          <Select>
+            <Option value="user">Khách Hàng</Option>
+            <Option value="admin">Quản Trị Viên</Option>
+            <Option value="staff">Nhân Viên</Option>
+          </Select>
+        </Form.Item>
       </Form>
     </Modal>
   );
