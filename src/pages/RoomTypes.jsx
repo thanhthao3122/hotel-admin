@@ -164,19 +164,6 @@ const RoomTypes = () => {
       ellipsis: true,
     },
     {
-      title: "Trạng thái",
-      dataIndex: "is_active",
-      key: "is_active",
-      align: "center",
-      render: (value) =>
-        value ? <Tag color="green">Hiện</Tag> : <Tag color="red">Ẩn</Tag>,
-      filters: [
-        { text: "Hiện", value: true },
-        { text: "Ẩn", value: false },
-      ],
-      onFilter: (value, record) => record.is_active === value,
-    },
-    {
       title: "Hành động",
       key: "actions",
       align: "center",

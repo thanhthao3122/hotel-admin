@@ -19,7 +19,6 @@ const RoomTypeForm = ({
           capacity: 2,
           base_price: 500000,
           description: "",
-          is_active: 1,
         }
       );
     }
@@ -29,10 +28,8 @@ const RoomTypeForm = ({
     form
       .validateFields()
       .then((values) => {
-        // Switch trả true/false, convert về 1/0 cho giống DB
         const payload = {
           ...values,
-          is_active: values.is_active ? 1 : 0,
         };
         onSubmit(payload);
         form.resetFields();
@@ -62,7 +59,6 @@ const RoomTypeForm = ({
         initialValues={{
           capacity: 2,
           base_price: 500000,
-          is_active: 1,
         }}
       >
         <Form.Item
@@ -101,13 +97,6 @@ const RoomTypeForm = ({
           <Input.TextArea rows={3} placeholder="Mô tả thêm (không bắt buộc)" />
         </Form.Item>
 
-        <Form.Item
-          label="Trạng thái hiển thị"
-          name="is_active"
-          valuePropName="checked"
-        >
-          <Switch checkedChildren="Hiện" unCheckedChildren="Ẩn" />
-        </Form.Item>
       </Form>
     </Modal>
   );

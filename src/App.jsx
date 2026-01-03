@@ -24,12 +24,16 @@ import Vouchers from "./pages/Vouchers.jsx";
 import PaymentResult from "./pages/home/PaymentResult.jsx";
 import UserProfile from "./pages/home/UserProfile.jsx";
 import Booking from "./pages/home/Booking.jsx";
+import About from "./pages/home/About.jsx";
+import CancellationPolicy from "./pages/home/CancellationPolicy.jsx";
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/home" />} />
       <Route path="/home" element={<Home />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/cancellation-policy" element={<CancellationPolicy />} />
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
       <Route path="/user-profile" element={<UserProfile />} />

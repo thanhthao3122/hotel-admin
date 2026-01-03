@@ -50,18 +50,6 @@ const ServiceUsage = () => {
     total: 0,
   });
 
-  const handleToggleStatus = async (record) => {
-    try {
-      const newStatus = record.status === 'delivered' ? 'pending' : 'delivered';
-      await serviceUsageApi.update(record.usage_id, { status: newStatus });
-      message.success("Cập nhật trạng thái thành công");
-      fetchData();
-    } catch (error) {
-      console.error(error);
-      message.error("Không thể cập nhật trạng thái");
-    }
-  };
-
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -253,22 +241,6 @@ const ServiceUsage = () => {
       title: "Gọi lúc",
       dataIndex: "usage_time",
       render: (v) => v ? new Date(v).toLocaleString("vi-VN") : "",
-    },
-    {
-      title: "Trạng thái",
-      key: "status",
-      render: (_, record) => {
-        const isDelivered = record.status === 'delivered';
-        return (
-          <Tag
-            color={isDelivered ? "green" : "orange"}
-            style={{ cursor: "pointer", userSelect: "none" }}
-            onClick={() => handleToggleStatus(record)}
-          >
-            {isDelivered ? "Đã giao" : "Chưa giao"}
-          </Tag>
-        );
-      },
     },
     {
       title: "Hành động",

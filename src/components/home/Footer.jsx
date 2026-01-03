@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 
 const Footer = () => {
     const [footerData, setFooterData] = useState({
@@ -64,23 +65,12 @@ const Footer = () => {
                         <div className="footer-column">
                             <h4>Về chúng tôi</h4>
                             <ul>
-                                <li><a href="#">Giới thiệu</a></li>
-                                <li><a href="#">Tin tức</a></li>
-                                <li><a href="#">Tuyển dụng</a></li>
-                                <li><a href="#">Đối tác</a></li>
-                            </ul>
-                        </div>
-
-                        <div className="footer-column">
-                            <h4>Hỗ trợ</h4>
-                            <ul>
-                                <li><a href="#">Trung tâm trợ giúp</a></li>
-                                <li><a href="#">Chính sách hủy phòng</a></li>
+                                <li><Link to="/about">Giới thiệu</Link></li>
+                                <li><Link to="/cancellation-policy">Chính sách hủy phòng</Link></li>
                                 <li><a href="#">Điều khoản sử dụng</a></li>
                                 <li><a href="#">Chính sách bảo mật</a></li>
                             </ul>
                         </div>
-
                         <div className="footer-column">
                             <h4>Liên hệ</h4>
                             <ul>

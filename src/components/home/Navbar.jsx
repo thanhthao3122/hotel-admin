@@ -158,6 +158,7 @@ const Navbar = () => {
                       Đăng nhập
                     </Link>
                     <div className="menu-divider"></div>
+                    <Link to="/about" className="menu-item">Về chúng tôi</Link>
                     <div className="menu-item">Trung tâm trợ giúp</div>
                   </>
                 )

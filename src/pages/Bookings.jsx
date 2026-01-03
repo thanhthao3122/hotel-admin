@@ -304,8 +304,14 @@ const Bookings = () => {
             okText="Xóa"
             cancelText="Hủy"
             placement="topRight"
+            disabled={r.payments?.some(p => p.status === 'completed')}
           >
-            <Button size="small" danger icon={<DeleteOutlined />}>
+            <Button
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              disabled={r.payments?.some(p => p.status === 'completed')}
+            >
               Xóa
             </Button>
           </Popconfirm>

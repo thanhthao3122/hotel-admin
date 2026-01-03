@@ -8,6 +8,9 @@ import bookingApi from '../../api/bookingApi';
 import voucherApi from '../../api/voucherApi';
 import './home.css';
 
+import { PlusOutlined, DeleteOutlined, UserOutlined, HomeOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { BASE_URL } from '../../components/home/constants';
+
 const { Title, Text } = Typography;
 const { Option } = Select;
 
@@ -15,7 +18,7 @@ const Booking = () => {
     const navigate = useNavigate();
     const [selectedRooms, setSelectedRooms] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState('pay_later');
+    const [paymentMethod, setPaymentMethod] = useState('online');
     const [voucherCode, setVoucherCode] = useState('');
     const [appliedVoucher, setAppliedVoucher] = useState(null);
     const [isValidatingVoucher, setIsValidatingVoucher] = useState(false);
@@ -179,28 +182,57 @@ const Booking = () => {
                                 renderItem={item => (
                                     <List.Item
                                         key={item.room_id}
-                                        extra={
-                                            <Button danger type="link" onClick={() => handleRemoveRoom(item.room_id)}>Xóa</Button>
-                                        }
+                                        className="premium-room-card"
                                     >
-                                        <List.Item.Meta
-                                            title={<Text strong style={{ fontSize: '16px' }}>Phòng {item.room_number} - {item.roomType?.name}</Text>}
-                                            description={
-                                                <Space direction="vertical" style={{ width: '100%', marginTop: '8px' }}>
-                                                    <Text type="secondary">{parseInt(item.roomType?.base_price || item.price_per_night).toLocaleString('vi-VN')} VNĐ / đêm</Text>
-                                                    <div style={{ marginTop: '4px' }}>
-                                                        <Text strong size="small">Thời gian ở cho phòng này:</Text>
-                                                        <DatePicker.RangePicker
-                                                            style={{ width: '100%', marginTop: '4px' }}
-                                                            format="DD/MM/YYYY"
-                                                            value={[dayjs(item.checkin_date), dayjs(item.checkout_date)]}
-                                                            onChange={(val) => handleRoomDateChange(item.room_id, val)}
-                                                            disabledDate={(current) => current && current < dayjs().startOf('day')}
-                                                        />
-                                                    </div>
-                                                </Space>
-                                            }
+                                        <Button
+                                            danger
+                                            type="text"
+                                            className="remove-room-btn"
+                                            icon={<DeleteOutlined />}
+                                            onClick={() => handleRemoveRoom(item.room_id)}
                                         />
+
+                                        <div className="room-card-content">
+                                            {/* Phần hình ảnh */}
+                                            <div className="room-card-image">
+                                                <img
+                                                    src={item.image ? (item.image.startsWith('http') ? item.image : `${BASE_URL}${item.image}`) : 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=300&q=80'}
+                                                    alt={item.room_number}
+                                                />
+                                                <div className="room-type-tag">{item.roomType?.name}</div>
+                                            </div>
+
+                                            {/* Thông tin phòng */}
+                                            <div className="room-card-details">
+                                                <Title level={4} style={{ margin: '0 0 8px 0' }}>Phòng {item.room_number}</Title>
+
+                                                <div className="room-card-specs">
+                                                    <Space size="large">
+                                                        <span className="spec-label"><UserOutlined /> {item.roomType?.capacity || 2} khách</span>
+                                                        <span className="spec-label"><HomeOutlined /> {item.bed_style || '1 Giường đôi'}</span>
+                                                    </Space>
+                                                </div>
+
+                                                <div className="room-card-price">
+                                                    <Text strong className="price-amount">
+                                                        {parseInt(item.roomType?.base_price || item.price_per_night).toLocaleString('vi-VN')} VNĐ
+                                                    </Text>
+                                                    <Text type="secondary"> / đêm</Text>
+                                                </div>
+
+                                                <div className="room-card-dates">
+                                                    <Text strong style={{ fontSize: '13px', display: 'block', marginBottom: '8px', color: '#555' }}>THỜI GIAN LƯU TRÚ</Text>
+                                                    <DatePicker.RangePicker
+                                                        className="premium-range-picker"
+                                                        format="DD/MM/YYYY"
+                                                        value={[dayjs(item.checkin_date), dayjs(item.checkout_date)]}
+                                                        onChange={(val) => handleRoomDateChange(item.room_id, val)}
+                                                        disabledDate={(current) => current && current < dayjs().startOf('day')}
+                                                        allowClear={false}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
                                     </List.Item>
                                 )}
                             />
@@ -236,14 +268,9 @@ const Booking = () => {
 
                                 <div>
                                     <Text type="secondary">Phương thức thanh toán:</Text>
-                                    <Select
-                                        style={{ width: '100%', marginTop: '8px' }}
-                                        value={paymentMethod}
-                                        onChange={setPaymentMethod}
-                                    >
-                                        <Option value="pay_later">Thanh toán tại quầy</Option>
-                                        <Option value="online">Thanh toán trực tuyến (VNPay)</Option>
-                                    </Select>
+                                    <div style={{ marginTop: '8px', padding: '8px', background: '#f5f5f5', borderRadius: '4px', border: '1px solid #d9d9d9' }}>
+                                        <Text strong>💳 Thanh toán trực tuyến (VNPay)</Text>
+                                    </div>
                                 </div>
 
                                 <Divider style={{ margin: '12px 0' }} />

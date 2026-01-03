@@ -189,7 +189,16 @@ const RoomDetail = () => {
                                     </div>
                                 </div>
                                 <div className="detail-item">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M3 7v10M21 7v10M3 12h18M3 9h18" />
+                                    </svg>
+                                    <div>
+                                        <strong>Giường</strong>
+                                        <p>{room.bed_style || '1 Giường đôi'}</p>
+                                    </div>
+                                </div>
+                                <div className="detail-item">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                                         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                                     </svg>

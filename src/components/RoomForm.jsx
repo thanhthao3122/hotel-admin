@@ -26,8 +26,8 @@ const RoomForm = ({
       let bedKing = 0;
       let customBed = '';
 
-      if (initialValues?.beds_description) {
-        const desc = initialValues.beds_description.toLowerCase();
+      if (initialValues?.bed_style) {
+        const desc = initialValues.bed_style.toLowerCase();
 
         // Simple parsing logic (can be improved)
         const singleMatch = desc.match(/(\d+)\s*giường đơn/);
@@ -41,7 +41,7 @@ const RoomForm = ({
 
         // If it doesn't match standard patterns, put in custom
         if (!singleMatch && !doubleMatch && !kingMatch) {
-          customBed = initialValues.beds_description;
+          customBed = initialValues.bed_style;
         }
       }
 
@@ -50,7 +50,7 @@ const RoomForm = ({
           room_number: '',
           room_type_id: roomTypes?.[0]?.room_type_id || undefined,
           status: 'available',
-          beds_description: '',
+          bed_style: '',
           bed_single: bedSingle,
           bed_double: bedDouble,
           bed_king: bedKing,
@@ -89,7 +89,7 @@ const RoomForm = ({
       formData.append('room_number', values.room_number);
       formData.append('room_type_id', values.room_type_id);
       formData.append('status', values.status);
-      formData.append('beds_description', finalBeds);
+      formData.append('bed_style', finalBeds);
 
       if (fileList.length > 0) {
         formData.append('image', fileList[0].originFileObj);

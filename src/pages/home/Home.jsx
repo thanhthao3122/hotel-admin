@@ -44,7 +44,10 @@ const Home = () => {
                 }
 
                 // Backend bây giờ xử lý việc lọc, vì vậy chỉ cần sử dụng dữ liệu trực tiếp
-                setRooms(response.data || []);
+                // Lọc bỏ các phòng đang bảo trì
+                const allRooms = response.data || [];
+                const filteredRooms = allRooms.filter(room => room.status !== 'maintenance');
+                setRooms(filteredRooms);
             } catch (error) {
                 console.error('Error fetching rooms:', error);
             } finally {

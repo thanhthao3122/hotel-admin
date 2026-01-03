@@ -1,0 +1,173 @@
+/* Cancellation Policy Page Styles */
+.policy-page {
+    background-color: #f8fafc;
+    min-height: 100vh;
+}
+
+.policy-header {
+    background-color: #003580;
+    padding: 48px 0;
+    color: white;
+}
+
+.policy-header .ant-breadcrumb {
+    margin-bottom: 24px;
+}
+
+.policy-header .ant-breadcrumb span,
+.policy-header .ant-breadcrumb .ant-breadcrumb-link a {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.policy-header .ant-breadcrumb span:last-child {
+    color: white !important;
+}
+
+.policy-header .page-title {
+    color: white !important;
+    margin-bottom: 16px !important;
+    font-size: 2.5rem !important;
+}
+
+.policy-header .header-desc {
+    color: rgba(255, 255, 255, 0.85) !important;
+    max-width: 700px;
+    font-size: 1.1rem !important;
+}
+
+.policy-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+.main-content {
+    background: white;
+    margin-top: -32px;
+    border-radius: 12px;
+    padding: 48px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    margin-bottom: 64px;
+}
+
+/* Alert Section */
+.policy-alert {
+    background-color: #eef2ff;
+    border-left: 4px solid #4f46e5;
+    padding: 20px;
+    border-radius: 4px;
+    margin-bottom: 40px;
+}
+
+.alert-icon {
+    font-size: 20px;
+    color: #4f46e5;
+    margin-top: 4px;
+}
+
+/* Policy Grid Cards */
+.policy-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.policy-card {
+    padding: 32px 24px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.policy-card:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.policy-card.highlight {
+    background-color: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.policy-card.danger {
+    background-color: #fef2f2;
+    border-color: #fecaca;
+}
+
+.card-icon {
+    font-size: 32px;
+    margin-bottom: 20px;
+}
+
+.card-icon.success {
+    color: #22c55e;
+}
+
+.card-icon.warning {
+    color: #f59e0b;
+}
+
+.card-icon.error {
+    color: #ef4444;
+}
+
+/* Details Section */
+.details-list {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.detail-item h4 {
+    color: #1a202c !important;
+    font-weight: 700 !important;
+}
+
+/* FAQ Section */
+.custom-collapse {
+    background: white !important;
+    border: none !important;
+}
+
+.custom-collapse .ant-collapse-item {
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    margin-bottom: 16px !important;
+    overflow: hidden;
+}
+
+.custom-collapse .ant-collapse-header {
+    font-weight: 600 !important;
+    padding: 16px 24px !important;
+    background: #f8fafc !important;
+}
+
+/* Contact CTA */
+.contact-cta {
+    background: #f1f5f9;
+    padding: 40px;
+    border-radius: 12px;
+    text-align: center;
+    margin-top: 48px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .policy-header {
+        padding: 32px 0 64px;
+    }
+
+    .main-content {
+        padding: 24px;
+        margin-top: -48px;
+    }
+
+    .policy-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .policy-header .page-title {
+        font-size: 1.75rem !important;
+    }
+}

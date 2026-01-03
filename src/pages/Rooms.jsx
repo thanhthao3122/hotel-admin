@@ -95,7 +95,8 @@ const Rooms = () => {
   const fetchRooms = async (
     page = pagination.current,
     limit = pagination.pageSize,
-    filters = {}
+    filters = {},
+    date = filterDate
   ) => {
     try {
       setLoading(true);
@@ -113,7 +114,7 @@ const Rooms = () => {
         page,
         limit,
         currentFilters,
-        filterDate ? filterDate.format('YYYY-MM-DD') : null
+        date ? date.format('YYYY-MM-DD') : null
       );
 
       const list = res.data || [];
@@ -311,9 +312,9 @@ const Rooms = () => {
       sorter: (a, b) => String(a.room_number).localeCompare(String(b.room_number)),
     },
     {
-      title: "Giường",
-      dataIndex: "beds_description",
-      key: "beds_description",
+      title: "Kiểu giường",
+      dataIndex: "bed_style",
+      key: "bed_style",
       render: (text) => text || "Chưa xác định",
     },
 
@@ -552,7 +553,7 @@ const Rooms = () => {
                 status: filterStatus,
                 room_type_id: filterRoomType,
                 search: searchText
-              });
+              }, date);
             }}
             format="DD/MM/YYYY"
             allowClear={false}
@@ -711,9 +712,9 @@ const Rooms = () => {
                       <div style={{ textAlign: 'center', marginBottom: 8 }}>
                         <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f1f1f' }}>{room.room_number}</div>
                         <div style={{ color: '#8c8c8c', fontSize: '12px' }}>{roomTypeMap[room.room_type_id]}</div>
-                        {room.beds_description && (
+                        {room.bed_style && (
                           <div style={{ color: '#595959', fontSize: '12px', marginTop: 4, fontStyle: 'italic' }}>
-                            <span role="img" aria-label="bed">🛏️</span> {room.beds_description}
+                            <span role="img" aria-label="bed">🛏️</span> {room.bed_style}
                           </div>
                         )}
                       </div>
