@@ -107,7 +107,7 @@ const ServiceUsage = () => {
 
   const filteredUsages = useMemo(() => {
     return usages.filter((u) => {
-      const booking = u.booking || bookingMap[u.booking_id];
+      const booking = u.bookingRoom?.booking || bookingMap[u.bookingRoom?.booking_id];
       if (!booking) return false;
 
       const customer = customerMap[booking.user_id];
@@ -189,7 +189,7 @@ const ServiceUsage = () => {
     {
       title: "Khách hàng",
       render: (_, record) => {
-        const booking = bookingMap[record.booking_id];
+        const booking = record.bookingRoom?.booking || bookingMap[record.bookingRoom?.booking_id];
         if (!booking) return "N/A";
         const customer = customerMap[booking.user_id];
         if (!customer) return "N/A";
@@ -204,6 +204,12 @@ const ServiceUsage = () => {
     {
       title: "Phòng",
       render: (_, record) => {
+        // If specific room is recorded (new data with booking_room_id)
+        if (record.bookingRoom?.room?.room_number) {
+          return `Phòng ${record.bookingRoom.room.room_number}`;
+        }
+
+        // Fallback: show all rooms (for old data or if no room selected)
         const booking = record.booking || bookingMap[record.booking_id];
         if (!booking || !booking.bookingRooms || booking.bookingRooms.length === 0) return "N/A";
 

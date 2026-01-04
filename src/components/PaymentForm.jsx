@@ -40,15 +40,25 @@ const PaymentForm = ({
     const checkOut = dayjs(selectedBooking.checkout_date);
     const nights = Math.max(1, checkOut.diff(checkIn, 'day'));
 
+    // Prioritize financials from backend if available
+    const financials = selectedBooking.financials;
+
     // Use booking.total_price which already includes voucher discount
     // (calculated during booking creation)
-    const roomTotal = parseFloat(selectedBooking.total_price || 0);
+    const roomTotal = financials ? parseFloat(financials.roomTotal) : parseFloat(selectedBooking.total_price || 0);
 
     // Calculate service total
-    const services = selectedBooking.services || [];
-    const serviceTotal = services.reduce((sum, s) => {
-      return sum + parseFloat(s.ServiceUsage?.total_price || 0);
-    }, 0);
+    let serviceTotal = 0;
+    if (financials && financials.serviceTotal !== undefined) {
+      serviceTotal = parseFloat(financials.serviceTotal);
+    } else {
+      // Manual fallback aggregation
+      const bookingRooms = selectedBooking.bookingRooms || [];
+      serviceTotal = bookingRooms.reduce((sum, br) => {
+        const usages = br.serviceUsages || [];
+        return sum + usages.reduce((sSum, u) => sSum + (parseFloat(u.total_price) || 0), 0);
+      }, 0);
+    }
 
     return {
       customerName: selectedBooking.user?.full_name || 'Khách vãng lai',

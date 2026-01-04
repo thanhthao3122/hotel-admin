@@ -16,6 +16,7 @@ const ServiceUsageForm = ({
 }) => {
   const [form] = Form.useForm();
   const [pricePerUnit, setPricePerUnit] = useState(0);
+  const [selectedBooking, setSelectedBooking] = useState(null);
 
   // Ánh xạ ID -> đối tượng để tra cứu
   // LƯU Ý: booking.user_id, không phải customer_id
@@ -28,21 +29,44 @@ const ServiceUsageForm = ({
         const service = serviceMap[initialValues.service_id];
         setPricePerUnit(service?.price || 0);
 
+        const booking = bookings.find(b => b.booking_id === initialValues.booking_id);
+        setSelectedBooking(booking || null);
+
         form.setFieldsValue({
           booking_id: initialValues.booking_id,
+          booking_room_id: booking?.bookingRooms?.[0]?.id || undefined, // Use booking_room_id (id of BookingRoom)
           service_id: initialValues.service_id,
           quantity: initialValues.quantity,
         });
       } else {
         form.resetFields();
         setPricePerUnit(0);
+        setSelectedBooking(null);
       }
     }
-  }, [open, initialValues, serviceMap, form]);
+  }, [open, initialValues, serviceMap, bookings, form]);
 
   const handleServiceChange = service_id => {
     const service = serviceMap[service_id];
     setPricePerUnit(service?.price || 0);
+  };
+
+  const handleBookingChange = booking_id => {
+    const booking = bookings.find(b => b.booking_id === booking_id);
+    console.log('Selected booking:', booking);
+    console.log('Booking rooms:', booking?.bookingRooms);
+    setSelectedBooking(booking || null);
+
+    // Nếu booking chỉ có 1 phòng, tự động chọn phòng đó
+    if (booking?.bookingRooms?.length === 1) {
+      form.setFieldsValue({
+        booking_room_id: booking.bookingRooms[0].id // Use ID
+      });
+    } else {
+      form.setFieldsValue({
+        booking_room_id: undefined
+      });
+    }
   };
 
   const handleOk = () => {
@@ -51,10 +75,9 @@ const ServiceUsageForm = ({
       const price = service?.price || 0;
       const total_price = price * values.quantity;
 
+      // Submit all values including booking_room_id
       onSubmit({
-        booking_id: values.booking_id,
-        service_id: values.service_id,
-        quantity: values.quantity,
+        ...values,
         total_price,
       });
 
@@ -110,10 +133,31 @@ const ServiceUsageForm = ({
           name="booking_id"
           rules={[{ required: true, message: 'Vui lòng chọn đơn đặt phòng' }]}
         >
-          <Select placeholder="Chọn booking">
+          <Select
+            placeholder="Chọn booking"
+            onChange={handleBookingChange}
+          >
             {bookings.map(b => (
               <Option key={b.booking_id} value={b.booking_id}>
                 {renderBookingLabel(b)}
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
+
+        <Form.Item
+          label="Phòng"
+          name="booking_room_id"
+          tooltip="Chọn phòng sử dụng dịch vụ (Tùy chọn)"
+        >
+          <Select
+            placeholder="Chọn phòng"
+            disabled={!selectedBooking || selectedBooking.bookingRooms?.length === 0}
+            allowClear
+          >
+            {selectedBooking?.bookingRooms?.map(br => (
+              <Option key={br.id} value={br.id}>
+                Phòng {br.room?.room_number}
               </Option>
             ))}
           </Select>

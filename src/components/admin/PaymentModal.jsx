@@ -16,17 +16,28 @@ const PaymentModal = ({ visible, onCancel, booking, onSuccess }) => {
     const calculatePaymentDetails = () => {
         if (!booking) return;
 
-        // Calculate room cost
+        // Use financials from backend if available
+        const financials = booking.financials;
+
+        // Calculate nights
         const checkin = new Date(booking.checkin_date);
         const checkout = new Date(booking.checkout_date);
         const nights = Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24));
 
-        const roomTotal = booking.bookingRooms?.reduce((sum, br) => {
+        const roomTotal = financials ? parseFloat(financials.roomTotal) : (booking.bookingRooms?.reduce((sum, br) => {
             return sum + (parseFloat(br.price_per_night) * nights);
-        }, 0) || 0;
+        }, 0) || 0);
 
-        // For now, service total is 0 (will be calculated by backend)
-        const serviceTotal = 0;
+        // Sum service totals
+        let serviceTotal = 0;
+        if (financials && financials.serviceTotal !== undefined) {
+            serviceTotal = parseFloat(financials.serviceTotal);
+        } else {
+            serviceTotal = booking.bookingRooms?.reduce((sum, br) => {
+                const usages = br.serviceUsages || [];
+                return sum + usages.reduce((suSum, u) => suSum + parseFloat(u.total_price || 0), 0);
+            }, 0) || 0;
+        }
 
         setPaymentDetails({
             nights,
