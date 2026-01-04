@@ -40,19 +40,11 @@ const PaymentForm = ({
     const checkOut = dayjs(selectedBooking.checkout_date);
     const nights = Math.max(1, checkOut.diff(checkIn, 'day'));
 
-    // Kiểm tra cấu trúc mảng phòng
-    const rooms = selectedBooking.rooms || [];
+    // Use booking.total_price which already includes voucher discount
+    // (calculated during booking creation)
+    const roomTotal = parseFloat(selectedBooking.total_price || 0);
 
-    // Tính tổng tiền phòng
-    // Backend: tổng(giá_mỗi_đêm * số_đêm)
-    const roomTotal = rooms.reduce((sum, room) => {
-      // Xử lý room.BookingRoom?.price_per_night nếu lồng nhau, hoặc room.price_per_night nếu trực tiếp
-      const price = parseFloat(room.BookingRoom?.price_per_night || room.price_per_night || 0);
-      return sum + (price * nights);
-    }, 0);
-
-    // Tính tổng tiền dịch vụ
-    // Kiểm tra xem dịch vụ có được bao gồm trong đối tượng booking không
+    // Calculate service total
     const services = selectedBooking.services || [];
     const serviceTotal = services.reduce((sum, s) => {
       return sum + parseFloat(s.ServiceUsage?.total_price || 0);

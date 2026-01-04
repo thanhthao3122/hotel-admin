@@ -1,8 +1,8 @@
 import axiosClient from './axiosClient';
 
 const voucherApi = {
-    getAll: () => {
-        return axiosClient.get('/vouchers');
+    getAll: (params) => {
+        return axiosClient.get('/vouchers', { params });
     },
     validate: (code) => {
         return axiosClient.get(`/vouchers/validate/${code}`);

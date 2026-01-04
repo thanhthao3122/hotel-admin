@@ -62,8 +62,7 @@ const Vouchers = () => {
             discount_value: values.discount_value,
             start_date,
             end_date,
-            max_uses: values.max_uses,
-            is_active: true
+            max_uses: values.max_uses
         };
 
         try {
@@ -153,7 +152,6 @@ const Vouchers = () => {
                 const start = dayjs(record.start_date);
                 const end = dayjs(record.end_date);
 
-                if (!record.is_active) return <Tag color="error">Đã khóa</Tag>;
                 if (record.current_uses >= record.max_uses) return <Tag color="warning">Hết lượt</Tag>;
                 if (now.isBefore(start)) return <Tag color="blue">Sắp tới</Tag>;
                 if (now.isAfter(end)) return <Tag color="default">Hết hạn</Tag>;

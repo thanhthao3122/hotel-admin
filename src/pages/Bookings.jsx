@@ -182,8 +182,9 @@ const Bookings = () => {
       message.success("Cập nhật trạng thái thành công");
       fetchData();
     } catch (error) {
+
       console.error(error);
-      message.error("Không cập nhật được trạng thái");
+      message.error(error.response?.data?.message || "Cập nhật trạng thái thất bại");
     }
   };
   const STATUS_LABEL = {
@@ -303,8 +304,14 @@ const Bookings = () => {
             okText="Xóa"
             cancelText="Hủy"
             placement="topRight"
+            disabled={r.payments?.some(p => p.status === 'completed')}
           >
-            <Button size="small" danger icon={<DeleteOutlined />}>
+            <Button
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              disabled={r.payments?.some(p => p.status === 'completed')}
+            >
               Xóa
             </Button>
           </Popconfirm>

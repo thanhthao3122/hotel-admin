@@ -142,7 +142,7 @@
 }
 
 /* Responsive */
-@media (max-width: 950px) {
+@media (max-width: 768px) {
     .navbar-search {
         display: none;
     }

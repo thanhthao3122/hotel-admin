@@ -30,17 +30,42 @@ const RoomForm = ({
 
   useEffect(() => {
     if (open) {
+      // Logic to parse bed description if editing
+      let bedSingle = 0;
+      let bedDouble = 0;
+      let bedKing = 0;
+      let customBed = '';
+
+      if (initialValues?.bed_style) {
+        const desc = initialValues.bed_style.toLowerCase();
+
+        // Simple parsing logic (can be improved)
+        const singleMatch = desc.match(/(\d+)\s*giường đơn/);
+        if (singleMatch) bedSingle = parseInt(singleMatch[1]);
+
+        const doubleMatch = desc.match(/(\d+)\s*giường đôi/);
+        if (doubleMatch) bedDouble = parseInt(doubleMatch[1]);
+
+        const kingMatch = desc.match(/(\d+)\s*giường king/);
+        if (kingMatch) bedKing = parseInt(kingMatch[1]);
+
+        // If it doesn't match standard patterns, put in custom
+        if (!singleMatch && !doubleMatch && !kingMatch) {
+          customBed = initialValues.bed_style;
+        }
+      }
+
       form.setFieldsValue(
         initialValues || {
           room_number: "",
           room_type_id: roomTypes?.[0]?.room_type_id || undefined,
           status: "available",
-          beds_description: "",
+          bed_style: "",
           is_active: "",
         }
       );
 
-      // Hiển thị xem trước nếu đang sửa phòng có ảnh cũ
+      // Handle image preview
       if (initialValues?.image) {
         const imgPath = initialValues.image;
         const fullUrl = imgPath.startsWith("http")
@@ -54,19 +79,26 @@ const RoomForm = ({
     }
   }, [open, initialValues, form, roomTypes]);
 
-  const normFile = (e) => (Array.isArray(e) ? e : e?.fileList);
-
   const handleOk = () => {
     form.validateFields().then((values) => {
+      // Construct bed_style from counters if not custom
+      let finalBeds = values.custom_bed || '';
+      if (!finalBeds) {
+        const parts = [];
+        if (values.bed_single > 0) parts.push(`${values.bed_single} Giường đơn`);
+        if (values.bed_double > 0) parts.push(`${values.bed_double} Giường đôi`);
+        if (values.bed_king > 0) parts.push(`${values.bed_king} Giường King`);
+        finalBeds = parts.join(', ');
+      }
+
       // Tạo FormData để upload file
       const formData = new FormData();
       formData.append("room_number", values.room_number);
       formData.append("room_type_id", values.room_type_id);
       formData.append("status", values.status);
-      formData.append("beds_description", values.beds_description);
+      formData.append("bed_style", values.bed_style);
       formData.append("is_active", values.is_active ? 1 : 0);
 
-      // Thêm file ảnh nếu có chọn
       if (fileList.length > 0) {
         formData.append("image", fileList[0].originFileObj);
       }
@@ -86,17 +118,12 @@ const RoomForm = ({
   };
 
   const handleFileChange = ({ fileList: newFileList }) => {
-    // Chỉ giữ lại file cuối cùng được chọn
     const latestFile = newFileList.slice(-1);
     setFileList(latestFile);
-
-    // Tạo preview ảnh
     if (latestFile.length > 0) {
-      const file = latestFile[0].originFileObj;
+      const file = latestFile[latestFile.length - 1].originFileObj;
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
+      reader.onloadend = () => setImagePreview(reader.result);
       reader.readAsDataURL(file);
     } else {
       setImagePreview(null);
@@ -109,14 +136,12 @@ const RoomForm = ({
       antMessage.error("Chỉ được upload file ảnh!");
       return Upload.LIST_IGNORE;
     }
-
     const isLt5M = file.size / 1024 / 1024 < 5;
     if (!isLt5M) {
       antMessage.error("Ảnh phải nhỏ hơn 5MB!");
       return Upload.LIST_IGNORE;
     }
-
-    return false; // Ngăn upload tự động
+    return false;
   };
 
   return (
@@ -124,7 +149,7 @@ const RoomForm = ({
       title={isEditing ? "Chỉnh sửa phòng" : "Thêm phòng mới"}
       open={open}
       onOk={handleOk}
-      onCancel={onCancel}
+      onCancel={handleCancel}
       okText={isEditing ? "Lưu" : "Thêm"}
       cancelText="Hủy"
       width={560} //RỘNG HƠN
@@ -174,9 +199,9 @@ const RoomForm = ({
             onChange={handleFileChange}
             beforeUpload={beforeUpload}
             maxCount={1}
-            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/avif"
+            accept="image/*"
           >
-            <Button icon={<UploadOutlined />}>Chọn ảnh từ máy tính</Button>
+            <Button icon={<UploadOutlined />}>Chọn ảnh</Button>
           </Upload>
           <div style={{ marginTop: 8, fontSize: 12, color: "#888" }}>
             Hỗ trợ: JPG, PNG, GIF, WebP, AVIF (Max 5MB)
@@ -200,7 +225,7 @@ const RoomForm = ({
         </Form.Item>
         <Form.Item
           label="Kiểu giường"
-          name="beds_description"
+          name="bed_style"
           rules={[{ required: true, message: "Vui lòng nhập kiểu giường" }]}
         >
           <Input placeholder="VD: 1 Giường đơn / 2 Giường đôi / 1 Giường King" />

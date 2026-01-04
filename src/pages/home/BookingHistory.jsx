@@ -13,32 +13,41 @@ const { Title, Text } = Typography;
 
 // Hàm hỗ trợ tính toán tổng số
 const calculateBookingDetails = (booking) => {
-    if (!booking) return { nights: 0, roomTotal: 0, serviceTotal: 0, grandTotal: 0 };
+    if (!booking) return { nights: 0, roomTotal: 0, serviceTotal: 0, grandTotal: 0, discountAmount: 0 };
 
     const checkin = new Date(booking.checkin_date);
     const checkout = new Date(booking.checkout_date);
-    const nights = Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24));
+    const nights = Math.max(1, Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24)));
 
-    // Sử dụng total_price từ booking (đã bao gồm giảm giá voucher)
-    // thay vì tính lại từ đầu
+    // roomTotal is the final PRICE after discount
     const roomTotal = parseFloat(booking.total_price || 0);
+
+    // Calculate original total before discount to show the discount amount
+    const originalRoomTotal = booking.bookingRooms?.reduce((sum, br) => {
+        const brCheckin = new Date(br.checkin_date || booking.checkin_date);
+        const brCheckout = new Date(br.checkout_date || booking.checkout_date);
+        const brNights = Math.max(1, Math.ceil((brCheckout - brCheckin) / (1000 * 60 * 60 * 24)));
+        const basePrice = parseFloat(br.room?.roomType?.base_price || br.price_per_night || 0);
+        return sum + (basePrice * brNights);
+    }, 0) || 0;
+
+    const discountAmount = originalRoomTotal > roomTotal ? (originalRoomTotal - roomTotal) : 0;
 
     // Tính tổng tiền dịch vụ
     const serviceTotal = booking.services?.reduce((sum, service) => {
         const usageData = service.ServiceUsage || {};
         return sum + parseFloat(usageData.total_price || 0);
-    }, 0) || 0;
+    }, 0) || (booking.serviceUsages?.reduce((sum, su) => sum + parseFloat(su.total_price || 0), 0) || 0);
 
     const totalRefunded = booking.refunds?.reduce((sum, r) => sum + parseFloat(r.amount_refunded || 0), 0) || 0;
     const grandTotal = roomTotal + serviceTotal;
 
-    // Let's also calculate total paid
     const totalPaid = booking.payments?.filter(p => p.status === 'completed')
         .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) || 0;
 
     const actualCollected = totalPaid - totalRefunded;
 
-    return { nights, roomTotal, serviceTotal, grandTotal, totalPaid, totalRefunded, actualCollected };
+    return { nights, roomTotal, originalRoomTotal, discountAmount, serviceTotal, grandTotal, totalPaid, totalRefunded, actualCollected };
 };
 
 const getStatusConfig = (status) => {
@@ -172,7 +181,7 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
         );
     }
 
-    const { nights, roomTotal, serviceTotal, grandTotal, totalPaid, totalRefunded } = calculateBookingDetails(booking);
+    const { nights, roomTotal, originalRoomTotal, discountAmount, serviceTotal, grandTotal, totalPaid, totalRefunded } = calculateBookingDetails(booking);
     const isPaid = booking.payments?.some(p => p.status === 'completed');
     const statusConfig = getStatusConfig(booking.status, isPaid);
     // Cho phép thanh toán nếu đơn đặt phòng đang chờ hoặc đã xác nhận VÀ chưa thanh toán
@@ -294,11 +303,41 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                     </Title>
 
                     <div className="price-breakdown">
-                        <div className="price-row">
-                            <Text>🏨 Tiền phòng ({nights} đêm):</Text>
-                            <Text strong>{roomTotal.toLocaleString('vi-VN')} VNĐ</Text>
-                        </div>
-                        <div className="price-row">
+                        {/* Room Breakdown */}
+                        {booking.bookingRooms?.map((br, index) => {
+                            const brCheckin = new Date(br.checkin_date || booking.checkin_date);
+                            const brCheckout = new Date(br.checkout_date || booking.checkout_date);
+                            const brNights = Math.max(1, Math.ceil((brCheckout - brCheckin) / (1000 * 60 * 60 * 24)));
+                            return (
+                                <div key={index} className="price-row room-detail" style={{ borderLeft: '3px solid #003580', paddingLeft: '10px', marginBottom: '8px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <Text strong>🏨 {br.room?.roomType?.name} - Phòng {br.room?.room_number}</Text>
+                                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                                            {formatDate(br.checkin_date || booking.checkin_date)} - {formatDate(br.checkout_date || booking.checkout_date)} ({brNights} đêm)
+                                        </Text>
+                                    </div>
+                                    <Text>{(parseFloat(br.room?.roomType?.base_price || br.price_per_night || 0) * brNights).toLocaleString('vi-VN')} VNĐ</Text>
+                                </div>
+                            );
+                        })}
+
+                        {/* Voucher Discount */}
+                        {discountAmount > 0 && (
+                            <div className="price-row voucher-row" style={{ color: '#52c41a', backgroundColor: '#f6ffed', padding: '8px', borderRadius: '4px', marginBottom: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span>🎟️</span>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <Text strong style={{ color: '#52c41a' }}>Mã giảm giá: {booking.voucher?.code || 'VOUCHER'}</Text>
+                                        {booking.voucher?.discount_type === 'percentage' && (
+                                            <Text type="secondary" style={{ fontSize: '12px', color: '#52c41a' }}>Giảm {booking.voucher.discount_value}%</Text>
+                                        )}
+                                    </div>
+                                </div>
+                                <Text strong style={{ color: '#52c41a' }}>-{discountAmount.toLocaleString('vi-VN')} VNĐ</Text>
+                            </div>
+                        )}
+
+                        <div className="price-row" style={{ marginTop: '12px' }}>
                             <Text>🍽️ Dịch vụ sử dụng:</Text>
                             <Text strong>{serviceTotal.toLocaleString('vi-VN')} VNĐ</Text>
                         </div>
@@ -313,10 +352,24 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                                 ))}
                             </div>
                         )}
+                        {/* Fallback for serviceUsages from controller include */}
+                        {!booking.services && booking.serviceUsages && booking.serviceUsages.length > 0 && (
+                            <div className="services-list" style={{ paddingLeft: '20px', fontSize: '0.9em', color: '#666' }}>
+                                {booking.serviceUsages.map((usage, idx) => (
+                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span>- {usage.service?.name} (x{usage.quantity})</span>
+                                        <span>{parseFloat(usage.total_price).toLocaleString('vi-VN')} VNĐ</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         <div className="price-divider"></div>
                         <div className="price-row total">
-                            <Text strong className="total-label">Tổng cộng:</Text>
-                            <Text strong className="total-amount">{grandTotal.toLocaleString('vi-VN')} VNĐ</Text>
+                            <Title level={4} style={{ margin: 0 }}>Tổng cộng:</Title>
+                            <Text strong className="total-amount" style={{ fontSize: '24px', color: '#ff4d4f' }}>
+                                {grandTotal.toLocaleString('vi-VN')} VNĐ
+                            </Text>
                         </div>
                         {totalRefunded > 0 && (
                             <>

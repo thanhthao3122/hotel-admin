@@ -32,7 +32,6 @@ const ServiceUsageForm = ({
           booking_id: initialValues.booking_id,
           service_id: initialValues.service_id,
           quantity: initialValues.quantity,
-          status: initialValues.status || 'pending',
         });
       } else {
         form.resetFields();
@@ -56,7 +55,6 @@ const ServiceUsageForm = ({
         booking_id: values.booking_id,
         service_id: values.service_id,
         quantity: values.quantity,
-        status: values.status,
         total_price,
       });
 
@@ -144,17 +142,6 @@ const ServiceUsageForm = ({
           <InputNumber min={1} style={{ width: '100%' }} />
         </Form.Item>
 
-        <Form.Item
-          label="Trạng thái"
-          name="status"
-          initialValue="pending"
-        >
-          <Select>
-            <Option value="pending">Chưa giao</Option>
-            <Option value="delivered">Đã giao</Option>
-          </Select>
-        </Form.Item>
-
         <Form.Item label="Đơn giá (VNĐ)">
           <InputNumber
             style={{ width: '100%' }}
@@ -177,7 +164,7 @@ const ServiceUsageForm = ({
           )}
         </Form.Item>
       </Form>
-    </Modal>
+    </Modal >
   );
 };
 

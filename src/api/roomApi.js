@@ -10,7 +10,7 @@ const roomApi = {
   },
   getAll: (page = 1, limit = 10, filters = {}, extraParams = {}) => {
     return axiosClient.get("/rooms", {
-      params: { page, limit, ...filters, ...extraParams },
+      params: { page, limit, ...filters, date },
     });
   },
 

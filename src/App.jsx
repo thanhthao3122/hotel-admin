@@ -23,6 +23,9 @@ import Vouchers from "./pages/Vouchers.jsx";
 
 import PaymentResult from "./pages/home/PaymentResult.jsx";
 import UserProfile from "./pages/home/UserProfile.jsx";
+import Booking from "./pages/home/Booking.jsx";
+import About from "./pages/home/About.jsx";
+import CancellationPolicy from "./pages/home/CancellationPolicy.jsx";
 
 const ProtectedRoute = ({ allow }) => {
   if (!allow) return <Navigate to="/403" replace />;
@@ -40,10 +43,13 @@ function App() {
       {/* Public */}
       <Route path="/" element={<Navigate to="/home" replace />} />
       <Route path="/home" element={<Home />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/cancellation-policy" element={<CancellationPolicy />} />
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
       <Route path="/user-profile" element={<UserProfile />} />
       <Route path="/room/:id" element={<RoomDetail />} />
+      <Route path="/booking" element={<Booking />} />
       <Route path="/booking-history" element={<BookingHistory />} />
       <Route path="/my-services" element={<UserServiceRequest />} />
       <Route path="/payment/result" element={<PaymentResult />} />
