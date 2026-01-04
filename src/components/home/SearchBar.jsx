@@ -110,7 +110,7 @@ const SearchBar = () => {
                     <input
                         type="number"
                         min="1"
-                        max="10"
+                        max="6"
                         className="search-input"
                         value={guests}
                         onChange={(e) => setGuests(parseInt(e.target.value) || 1)}

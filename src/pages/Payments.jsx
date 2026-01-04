@@ -70,8 +70,12 @@ const Payments = () => {
         const isValidStatus = ['pending', 'confirmed', 'checked_in', 'checked_out'].includes(b.status);
         if (!isValidStatus) return false;
 
-        // Lọc bỏ nếu ĐÃ THANH TOÁN
-        // Vì chúng ta bao gồm payments trong fetch booking:
+        // Ưu tiên sử dụng financials.remainingAmount nếu có (từ backend đã tính toán)
+        if (b.financials && b.financials.remainingAmount !== undefined) {
+          return parseFloat(b.financials.remainingAmount) > 0;
+        }
+
+        // Fallback: Lọc bỏ nếu ĐÃ THANH TOÁN (Logic cũ nếu financials không tồn tại)
         if (b.payments && b.payments.some(p => p.status === 'completed')) {
           return false;
         }

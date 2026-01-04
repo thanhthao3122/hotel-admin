@@ -131,7 +131,7 @@ const Booking = () => {
             };
 
             const res = await bookingApi.create(payload);
-            message.success('Đơn đặt phòng này chỉ giữ 10 phút vui lòng thanh toán để hoàn tất quá trình xác nhận đặt phòng');
+            message.success('Đơn đặt phòng này chỉ giữ 15 phút vui lòng thanh toán để hoàn tất quá trình xác nhận đặt phòng');
             sessionStorage.removeItem('selectedRooms');
             window.dispatchEvent(new Event('storage'));
 

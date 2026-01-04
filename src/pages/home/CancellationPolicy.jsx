@@ -104,7 +104,7 @@ const CancellationPolicy = () => {
                     <Collapse accordion className="custom-collapse">
                         <Panel header="Làm thế nào để tôi thực hiện hủy phòng?" key="1">
                             <Paragraph>
-                                Bạn có thể hủy phòng trực tiếp qua mục "Lịch sử đặt phòng" trong tài khoản cá nhân hoặc liên hệ hotline 1900 123 456 để được hỗ trợ nhanh nhất.
+                                Hãy liên hệ hotline 0388065851 để được hỗ trợ nhanh nhất.
                             </Paragraph>
                         </Panel>
                         <Panel header="Tôi có thể thay đổi ngày thay vì hủy không?" key="2">
@@ -124,8 +124,8 @@ const CancellationPolicy = () => {
                     <Title level={3}>Bạn vẫn còn thắc mắc?</Title>
                     <Paragraph>Đội ngũ của chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7</Paragraph>
                     <Space size="large">
-                        <Text strong>Hotline: 1900 123 456</Text>
-                        <Text strong>Email: support@booking.com</Text>
+                        <Text strong>Hotline: 0388065851</Text>
+                        <Text strong>Email: nguyen@gmail.com</Text>
                     </Space>
                 </div>
             </main>

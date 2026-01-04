@@ -35,6 +35,7 @@ const UserServiceRequest = () => {
     const [services, setServices] = useState([]);
     const [activeBookings, setActiveBookings] = useState([]);
     const [selectedBookingId, setSelectedBookingId] = useState(null);
+    const [selectedRoomId, setSelectedRoomId] = useState(null);
     const [serviceHistory, setServiceHistory] = useState([]);
     const [loading, setLoading] = useState(false);
     const [requesting, setRequesting] = useState(false);
@@ -105,6 +106,19 @@ const UserServiceRequest = () => {
         };
     }, [selectedBookingId]);
 
+    // Auto-select room when booking changes
+    useEffect(() => {
+        if (selectedBookingId && activeBookings.length > 0) {
+            const booking = activeBookings.find(b => b.booking_id === selectedBookingId);
+            if (booking && booking.bookingRooms?.length === 1) {
+                // Use BookingRoom ID (the primary key 'id' of booking_rooms table)
+                setSelectedRoomId(booking.bookingRooms[0].id);
+            } else {
+                setSelectedRoomId(null);
+            }
+        }
+    }, [selectedBookingId, activeBookings]);
+
     const handleRequestService = async (serviceId) => {
         const quantity = quantities[serviceId] || 1;
 
@@ -124,10 +138,12 @@ const UserServiceRequest = () => {
 
         try {
             setRequesting(true);
+            // Send booking_room_id to backend
             await serviceUsageApi.requestService({
                 booking_id: selectedBookingId,
                 service_id: serviceId,
-                quantity
+                quantity,
+                booking_room_id: selectedRoomId
             });
             message.success("Gọi dịch vụ thành công!");
 
@@ -215,8 +231,15 @@ const UserServiceRequest = () => {
         },
         {
             title: "Phòng",
-            dataIndex: ["booking", "bookingRooms"],
-            render: (bookingRooms) => {
+            key: "room",
+            render: (_, record) => {
+                // If specific room is recorded
+                if (record.bookingRoom?.room?.room_number) {
+                    return `Phòng ${record.bookingRoom.room.room_number}`;
+                }
+
+                // Fallback (for old data or if no room selected)
+                const bookingRooms = record.booking?.bookingRooms;
                 if (!bookingRooms || !Array.isArray(bookingRooms) || bookingRooms.length === 0) return "N/A";
                 return bookingRooms
                     .map((br) => `Phòng ${br?.room?.room_number || "N/A"}`)
@@ -298,87 +321,98 @@ const UserServiceRequest = () => {
                         }
                         style={{ marginBottom: 24 }}
                     >
-                        {/* Room Selector - Show if user has multiple bookings */}
+                        {/* Booking Selector (if multiple active bookings) */}
                         {activeBookings.length > 1 && (
-                            <div style={{ marginBottom: 16 }}>
-                                <label style={{ display: 'block', marginBottom: 8, fontWeight: 'bold' }}>
-                                    Chọn phòng lưu trú:
+                            <div style={{ marginBottom: 20 }}>
+                                <label style={{ display: 'block', marginBottom: 8, fontWeight: 'bold', color: '#555' }}>
+                                    Bạn có nhiều đơn đặt phòng đang hoạt động, vui lòng chọn:
                                 </label>
                                 <Select
-                                    style={{ width: '100%' }}
+                                    style={{ width: '100%', maxWidth: 600 }}
                                     value={selectedBookingId}
                                     onChange={setSelectedBookingId}
-                                    placeholder="Chọn phòng..."
+                                    placeholder="Chọn đơn đặt phòng..."
                                 >
-                                    {Array.isArray(activeBookings) && activeBookings.map((booking) => (
+                                    {activeBookings.map((booking) => (
                                         <Select.Option key={booking.booking_id} value={booking.booking_id}>
-                                            Booking #{booking.booking_id} -
-                                            {booking.bookingRooms?.map((br) => ` Phòng ${br.room?.room_number}`).join(', ')}
-                                            {' '}({booking.checkin_date} → {booking.checkout_date})
+                                            Mã đặt phòng: #{booking.booking_id} ({booking.checkin_date} → {booking.checkout_date})
                                         </Select.Option>
                                     ))}
                                 </Select>
                             </div>
                         )}
 
-                        {/* Show selected booking details */}
+                        {/* Show selected booking details and Room Selection */}
                         {selectedBookingId && (() => {
                             const selectedBooking = activeBookings.find(b => b.booking_id === selectedBookingId);
-                            return selectedBooking ? (
-                                <Descriptions column={{ xs: 1, sm: 2, md: 3 }}>
-                                    <Descriptions.Item label="Mã đặt phòng">
-                                        <Tag color="blue">#{selectedBooking.booking_id}</Tag>
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Check-in">
-                                        <CalendarOutlined /> {selectedBooking.checkin_date}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Check-out">
-                                        <CalendarOutlined /> {selectedBooking.checkout_date}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Trạng thái">
-                                        <Tag color="green">Đang lưu trú</Tag>
-                                    </Descriptions.Item>
-                                    {selectedBooking.bookingRooms && selectedBooking.bookingRooms.length > 0 && (
-                                        <Descriptions.Item label="Phòng">
-                                            {selectedBooking.bookingRooms.map((br) => (
-                                                <Tag key={br.room_id} color="cyan">
-                                                    Phòng {br.room?.room_number}
-                                                </Tag>
-                                            ))}
+                            if (!selectedBooking) return null;
+
+                            return (
+                                <div>
+                                    <Descriptions column={{ xs: 1, sm: 2, md: 3 }} bordered size="small" style={{ marginBottom: 24 }}>
+                                        <Descriptions.Item label="Mã đặt phòng">
+                                            <Tag color="blue">#{selectedBooking.booking_id}</Tag>
                                         </Descriptions.Item>
-                                    )}
-                                </Descriptions>
-                            ) : null;
+                                        <Descriptions.Item label="Check-in">
+                                            <span style={{ color: '#666' }}>{selectedBooking.checkin_date}</span>
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Check-out">
+                                            <span style={{ color: '#666' }}>{selectedBooking.checkout_date}</span>
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Trạng thái">
+                                            <Tag color="green">Đang lưu trú</Tag>
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Phòng" span={2}>
+                                            <Space wrap>
+                                                {selectedBooking.bookingRooms?.map((br) => (
+                                                    <Button
+                                                        key={br.id}
+                                                        type={selectedRoomId === br.id ? "primary" : "default"}
+                                                        onClick={() => setSelectedRoomId(br.id)}
+                                                        style={{ borderRadius: 4 }}
+                                                    >
+                                                        Phòng {br.room?.room_number}
+                                                    </Button>
+                                                ))}
+                                            </Space>
+                                            {!selectedRoomId && selectedBooking.bookingRooms?.length > 1 && (
+                                                <div style={{ marginTop: 8, color: '#ff4d4f', fontSize: 12 }}>
+                                                    * Vui lòng chọn một phòng trước khi gọi dịch vụ
+                                                </div>
+                                            )}
+                                        </Descriptions.Item>
+                                    </Descriptions>
+                                </div>
+                            );
                         })()}
                     </Card>
                 )}
 
                 {/* Services List - Always show */}
-                <Card
-                    title="Danh sách dịch vụ"
-                    style={{ marginBottom: 24 }}
-                >
+                <div style={{ marginBottom: 24 }}>
+                    <h2 style={{ fontSize: 20, marginBottom: 16 }}>Danh sách dịch vụ</h2>
                     {services.length === 0 ? (
-                        <Empty description="Không có dịch vụ nào" />
+                        <Card>
+                            <Empty description="Không có dịch vụ nào" />
+                        </Card>
                     ) : (
                         <Row gutter={[16, 16]}>
                             {Array.isArray(services) && services.map((service) => (
                                 <Col xs={24} sm={12} md={8} lg={6} key={service.service_id}>
                                     <Card
                                         hoverable
-                                        style={{ height: "100%" }}
-                                        bodyStyle={{ padding: 16 }}
+                                        style={{ height: "100%", borderRadius: 8, overflow: 'hidden' }}
+                                        bodyStyle={{ padding: 20 }}
                                     >
-                                        <h3 style={{ marginBottom: 8, fontSize: 16 }}>
+                                        <h3 style={{ marginBottom: 4, fontSize: 18, color: '#262626' }}>
                                             {service.name}
                                         </h3>
-                                        <p style={{ color: "#888", fontSize: 14, marginBottom: 12 }}>
-                                            <DollarOutlined />{" "}
+                                        <div style={{ color: "#8c8c8c", fontSize: 14, marginBottom: 16 }}>
                                             {parseFloat(service.price).toLocaleString("vi-VN")} VNĐ
                                             {service.unit && ` / ${service.unit}`}
-                                        </p>
+                                        </div>
 
-                                        <Space.Compact style={{ width: "100%", marginBottom: 8 }}>
+                                        <Space.Compact style={{ width: "100%", marginBottom: 12 }}>
                                             <InputNumber
                                                 min={1}
                                                 value={quantities[service.service_id] || 1}
@@ -389,23 +423,31 @@ const UserServiceRequest = () => {
                                             />
                                             <Button
                                                 type="primary"
-                                                onClick={() => handleRequestService(service.service_id)}
+                                                onClick={() => {
+                                                    if (!selectedRoomId) {
+                                                        message.warning("Vui lòng chọn phòng cụ thể ở phía trên!");
+                                                        return;
+                                                    }
+                                                    handleRequestService(service.service_id);
+                                                }}
                                                 loading={requesting}
-                                                style={{ width: "40%" }}
+                                                style={{ width: "40%", fontWeight: 'bold' }}
                                             >
                                                 Gọi
                                             </Button>
                                         </Space.Compact>
 
-                                        <div style={{ fontSize: 12, color: "#999", textAlign: "right" }}>
-                                            Tổng: {((quantities[service.service_id] || 1) * parseFloat(service.price)).toLocaleString("vi-VN")} VNĐ
+                                        <div style={{ fontSize: 13, color: "#595959", textAlign: "right", borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+                                            Tổng: <span style={{ fontWeight: 'bold', color: '#1890ff' }}>
+                                                {((quantities[service.service_id] || 1) * parseFloat(service.price)).toLocaleString("vi-VN")} VNĐ
+                                            </span>
                                         </div>
                                     </Card>
                                 </Col>
                             ))}
                         </Row>
                     )}
-                </Card>
+                </div>
 
                 {/* Service History */}
                 <Card
@@ -415,37 +457,62 @@ const UserServiceRequest = () => {
                             <span>Lịch sử dịch vụ đã gọi</span>
                         </Space>
                     }
-                    extra={
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                            <Statistic
-                                title="Tổng chi phí (Phòng + Dịch vụ)"
-                                value={financials?.total || 0}
-                                suffix="VNĐ"
-                                valueStyle={{ fontSize: 16 }}
-                            />
-                            <Statistic
-                                title="Đã thanh toán"
-                                value={financials?.totalPaid || 0}
-                                suffix="VNĐ"
-                                valueStyle={{ fontSize: 16, color: '#3f8600' }}
-                            />
-                            <Statistic
-                                title="Cần thanh toán thêm"
-                                value={financials?.remainingAmount || 0}
-                                suffix="VNĐ"
-                                valueStyle={{ fontSize: 18, color: "#cf1322", fontWeight: 'bold' }}
-                            />
-
-                        </div>
-                    }
+                    bodyStyle={{ padding: 0 }}
                 >
                     <Table
                         rowKey="usage_id"
                         columns={historyColumns}
                         dataSource={serviceHistory}
-                        pagination={{ pageSize: 10 }}
+                        pagination={{ pageSize: 10, position: ['bottomCenter'] }}
                         locale={{ emptyText: "Chưa có dịch vụ nào" }}
+                        style={{ padding: '0 16px' }}
                     />
+
+                    {/* Footer Financials */}
+                    {selectedBookingId && financials && (
+                        <div style={{ padding: '24px', borderTop: '1px solid #f0f0f0', backgroundColor: '#fafafa' }}>
+                            <Row gutter={48} justify="end" align="middle">
+                                <Col>
+                                    <Statistic
+                                        title={<span style={{ color: '#8c8c8c' }}>Tổng chi phí (Phòng + Dịch vụ)</span>}
+                                        value={financials.total || 0}
+                                        suffix="VNĐ"
+                                        valueStyle={{ fontSize: 20 }}
+                                    />
+                                </Col>
+                                <Col>
+                                    <Statistic
+                                        title={<span style={{ color: '#8c8c8c' }}>Đã thanh toán</span>}
+                                        value={financials.totalPaid || 0}
+                                        suffix="VNĐ"
+                                        valueStyle={{ fontSize: 20, color: '#52c41a' }}
+                                    />
+                                </Col>
+                                <Col>
+                                    <Statistic
+                                        title={<span style={{ color: '#8c8c8c', fontWeight: 'bold' }}>Cần thanh toán thêm</span>}
+                                        value={financials.remainingAmount || 0}
+                                        suffix="VNĐ"
+                                        valueStyle={{ fontSize: 24, color: "#ff4d4f", fontWeight: 'bold' }}
+                                    />
+                                </Col>
+                                {financials.remainingAmount > 0 && (
+                                    <Col>
+                                        <Button
+                                            type="primary"
+                                            size="large"
+                                            icon={<DollarOutlined />}
+                                            onClick={handlePayment}
+                                            loading={paymentLoading}
+                                            style={{ height: 50, padding: '0 32px', fontSize: 18, borderRadius: 8, fontWeight: 'bold' }}
+                                        >
+                                            Thanh toán ngay
+                                        </Button>
+                                    </Col>
+                                )}
+                            </Row>
+                        </div>
+                    )}
                 </Card>
             </div>
         </div>

@@ -33,11 +33,17 @@ const calculateBookingDetails = (booking) => {
 
     const discountAmount = originalRoomTotal > roomTotal ? (originalRoomTotal - roomTotal) : 0;
 
-    // Tính tổng tiền dịch vụ
-    const serviceTotal = booking.services?.reduce((sum, service) => {
-        const usageData = service.ServiceUsage || {};
-        return sum + parseFloat(usageData.total_price || 0);
-    }, 0) || (booking.serviceUsages?.reduce((sum, su) => sum + parseFloat(su.total_price || 0), 0) || 0);
+    // Tính tổng tiền dịch vụ - Ưu tiên từ financials (backend) nếu có
+    let serviceTotal = 0;
+    if (booking.financials && booking.financials.serviceTotal !== undefined) {
+        serviceTotal = parseFloat(booking.financials.serviceTotal);
+    } else {
+        // Dự phòng: Tổng hợp từ bookingRooms
+        serviceTotal = booking.bookingRooms?.reduce((sum, br) => {
+            const usages = br.serviceUsages || [];
+            return sum + usages.reduce((suSum, u) => suSum + parseFloat(u.total_price || 0), 0);
+        }, 0) || 0;
+    }
 
     const totalRefunded = booking.refunds?.reduce((sum, r) => sum + parseFloat(r.amount_refunded || 0), 0) || 0;
     const grandTotal = roomTotal + serviceTotal;
