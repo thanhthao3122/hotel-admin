@@ -1,7 +1,17 @@
 // src/components/RoomForm.jsx
-import { Form, Input, Modal, Select, Upload, Button, Divider, Row, Col, InputNumber, message as antMessage } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
-import { useEffect, useState } from 'react';
+import {
+  Form,
+  Input,
+  Modal,
+  Select,
+  Upload,
+  Button,
+  Divider,
+  Switch,
+  message as antMessage,
+} from "antd";
+import { UploadOutlined } from "@ant-design/icons";
+import { useEffect, useState } from "react";
 
 const { Option } = Select;
 const IMAGE_BASE_URL = "http://localhost:5000";
@@ -47,14 +57,11 @@ const RoomForm = ({
 
       form.setFieldsValue(
         initialValues || {
-          room_number: '',
+          room_number: "",
           room_type_id: roomTypes?.[0]?.room_type_id || undefined,
-          status: 'available',
-          bed_style: '',
-          bed_single: bedSingle,
-          bed_double: bedDouble,
-          bed_king: bedKing,
-          custom_bed: customBed
+          status: "available",
+          bed_style: "",
+          is_active: "",
         }
       );
 
@@ -74,7 +81,7 @@ const RoomForm = ({
 
   const handleOk = () => {
     form.validateFields().then((values) => {
-      // Construct beds_description from counters if not custom
+      // Construct bed_style from counters if not custom
       let finalBeds = values.custom_bed || '';
       if (!finalBeds) {
         const parts = [];
@@ -86,13 +93,14 @@ const RoomForm = ({
 
       // Tạo FormData để upload file
       const formData = new FormData();
-      formData.append('room_number', values.room_number);
-      formData.append('room_type_id', values.room_type_id);
-      formData.append('status', values.status);
-      formData.append('bed_style', finalBeds);
+      formData.append("room_number", values.room_number);
+      formData.append("room_type_id", values.room_type_id);
+      formData.append("status", values.status);
+      formData.append("bed_style", values.bed_style);
+      formData.append("is_active", values.is_active ? 1 : 0);
 
       if (fileList.length > 0) {
-        formData.append('image', fileList[0].originFileObj);
+        formData.append("image", fileList[0].originFileObj);
       }
 
       onSubmit(formData);
@@ -123,14 +131,14 @@ const RoomForm = ({
   };
 
   const beforeUpload = (file) => {
-    const isImage = file.type.startsWith('image/');
+    const isImage = file.type.startsWith("image/");
     if (!isImage) {
-      antMessage.error('Chỉ được upload file ảnh!');
+      antMessage.error("Chỉ được upload file ảnh!");
       return Upload.LIST_IGNORE;
     }
     const isLt5M = file.size / 1024 / 1024 < 5;
     if (!isLt5M) {
-      antMessage.error('Ảnh phải nhỏ hơn 5MB!');
+      antMessage.error("Ảnh phải nhỏ hơn 5MB!");
       return Upload.LIST_IGNORE;
     }
     return false;
@@ -144,77 +152,45 @@ const RoomForm = ({
       onCancel={handleCancel}
       okText={isEditing ? "Lưu" : "Thêm"}
       cancelText="Hủy"
-      width={600}
+      width={560} //RỘNG HƠN
     >
       <Form form={form} layout="vertical">
-        <Divider orientation="left">Thông tin cơ bản</Divider>
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              label="Số phòng"
-              name="room_number"
-              rules={[{ required: true, message: "Vui lòng nhập số phòng" }]}
-            >
-              <Input placeholder="VD: 101, 202..." />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              label="Loại phòng"
-              name="room_type_id"
-              rules={[{ required: true, message: "Vui lòng chọn loại phòng" }]}
-            >
-              <Select placeholder="Chọn loại phòng">
-                {roomTypes?.map((rt) => (
-                  <Option key={rt.room_type_id} value={rt.room_type_id}>
-                    {rt.name}
-                  </Option>
-                ))}
-              </Select>
-            </Form.Item>
-          </Col>
-        </Row>
-
-        <Divider orientation="left">Cấu hình giường</Divider>
-        <Row gutter={16}>
-          <Col span={8}>
-            <Form.Item label="Giường đơn" name="bed_single">
-              <InputNumber min={0} max={10} style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="Giường đôi" name="bed_double">
-              <InputNumber min={0} max={10} style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="Giường King" name="bed_king">
-              <InputNumber min={0} max={10} style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-        </Row>
+        <Divider orientation="left">Thông tin phòng</Divider>
         <Form.Item
-          label="Mô tả khác (tùy chọn)"
-          name="custom_bed"
-          tooltip="Nếu nhập ô này, các lựa chọn bên trên sẽ bị bỏ qua"
+          label="Số phòng"
+          name="room_number"
+          rules={[{ required: true, message: "Vui lòng nhập số phòng" }]}
         >
-          <Input placeholder="Nhập mô tả khác nếu cần..." />
+          <Input placeholder="VD: 101, 202..." />
         </Form.Item>
-
-        <Divider orientation="left">Trạng thái & Hình ảnh</Divider>
         <Form.Item
-          label="Trạng thái"
-          name="status"
-          rules={[{ required: true, message: "Vui lòng chọn trạng thái" }]}
+          label="Loại phòng"
+          name="room_type_id"
+          rules={[{ required: true, message: "Vui lòng chọn loại phòng" }]}
         >
-          <Select>
-            <Option value="available">Trống</Option>
-            <Option value="booked">Đã đặt</Option>
-            <Option value="occupied">Đang ở</Option>
-            <Option value="cleaning">Đang dọn</Option>
-            <Option value="maintenance">Bảo trì</Option>
+          <Select placeholder="Chọn loại phòng">
+            {roomTypes?.map((rt) => (
+              <Option key={rt.room_type_id} value={rt.room_type_id}>
+                {rt.name}
+              </Option>
+            ))}
           </Select>
         </Form.Item>
+        {isEditing && (
+          <Form.Item
+            label="Trạng thái"
+            name="status"
+            rules={[{ required: true, message: "Vui lòng chọn trạng thái" }]}
+          >
+            <Select>
+              <Select.Option value="available">Trống</Select.Option>
+              <Select.Option value="booked">Đã đặt</Select.Option>
+              <Select.Option value="occupied">Đang ở</Select.Option>
+              <Select.Option value="cleaning">Đang dọn</Select.Option>
+              <Select.Option value="maintenance">Bảo trì</Select.Option>
+            </Select>
+          </Form.Item>
+        )}
 
         <Form.Item label="Hình ảnh phòng">
           <Upload
@@ -227,11 +203,39 @@ const RoomForm = ({
           >
             <Button icon={<UploadOutlined />}>Chọn ảnh</Button>
           </Upload>
+          <div style={{ marginTop: 8, fontSize: 12, color: "#888" }}>
+            Hỗ trợ: JPG, PNG, GIF, WebP, AVIF (Max 5MB)
+          </div>
+
+          {/* Image Preview */}
           {imagePreview && (
-            <div style={{ marginTop: 16, textAlign: 'center' }}>
-              <img src={imagePreview} alt="Preview" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8 }} />
+            <div style={{ marginTop: 16 }}>
+              <img
+                src={imagePreview}
+                alt="Preview"
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: 300,
+                  borderRadius: 8,
+                  border: "1px solid #d9d9d9",
+                }}
+              />
             </div>
           )}
+        </Form.Item>
+        <Form.Item
+          label="Kiểu giường"
+          name="bed_style"
+          rules={[{ required: true, message: "Vui lòng nhập kiểu giường" }]}
+        >
+          <Input placeholder="VD: 1 Giường đơn / 2 Giường đôi / 1 Giường King" />
+        </Form.Item>
+        <Form.Item
+          label="Trạng thái hiển thị"
+          name="is_active"
+          valuePropName="checked"
+        >
+          <Switch checkedChildren="Hiện" unCheckedChildren="Ẩn" />
         </Form.Item>
       </Form>
     </Modal>

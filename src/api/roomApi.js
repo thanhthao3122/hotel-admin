@@ -2,8 +2,13 @@
 import axiosClient from "./axiosClient";
 
 const roomApi = {
-  // ✅ getAll cho phép truyền thêm filters (vd: { status: 'booked' }) và ngày lọc
-  getAll: (page = 1, limit = 10, filters = {}, date = null) => {
+  // ✅ getAll cho phép truyền thêm filters (vd: { status: 'booked' })
+  getAllRoomUser: (page = 1, limit = 10, filters = {}, extraParams = {}) => {
+    return axiosClient.get("/rooms/is_active", {
+      params: { page, limit, ...filters, ...extraParams },
+    });
+  },
+  getAll: (page = 1, limit = 10, filters = {}, extraParams = {}) => {
     return axiosClient.get("/rooms", {
       params: { page, limit, ...filters, date },
     });
@@ -11,7 +16,7 @@ const roomApi = {
 
   getById: (id, extraParams = {}) => {
     return axiosClient.get(`/rooms/${id}`, {
-      params: { ...extraParams }
+      params: { ...extraParams },
     });
   },
 
