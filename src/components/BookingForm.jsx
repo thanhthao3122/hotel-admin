@@ -290,7 +290,7 @@ const BookingForm = ({
         checkin_date: check_in.format("YYYY-MM-DD"),
         checkout_date: check_out.format("YYYY-MM-DD"),
         rooms: roomsPayload,
-        source: source || 'admin',
+        source: source || 'admin',  
         payment_method,
         voucher_code: selectedVoucher ? selectedVoucher.code : null
       });
@@ -473,16 +473,7 @@ const BookingForm = ({
           </div>
         )}
 
-        <Form.Item
-          label="Phương thức thanh toán"
-          name="payment_method"
-          rules={[{ required: true, message: 'Chọn phương thức thanh toán' }]}
-        >
-          <Select>
-            <Option value="online">Thanh toán trực tuyến</Option>
-            <Option value="pay_later">Thanh toán tại quầy</Option>
-          </Select>
-        </Form.Item>
+        
       </Form>
     </Modal >
   );

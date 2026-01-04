@@ -47,7 +47,7 @@ const Rooms = () => {
   const [rooms, setRooms] = useState([]);
   const [roomTypes, setRoomTypes] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState('grid'); // 'list' | 'grid'
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
 
   const [searchText, setSearchText] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -95,7 +95,6 @@ const Rooms = () => {
     page = pagination.current,
     limit = pagination.pageSize,
     filters = {},
-    date = filterDate
   ) => {
     try {
       setLoading(true);
@@ -113,7 +112,6 @@ const Rooms = () => {
         page,
         limit,
         currentFilters,
-        date ? date.format('YYYY-MM-DD') : null
       );
 
       const list = res.data || [];

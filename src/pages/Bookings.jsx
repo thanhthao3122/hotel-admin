@@ -130,7 +130,7 @@ const Bookings = () => {
 
       const matchSearch = customer
         ? customer.full_name?.toLowerCase().includes(keyword) ||
-        customer.phone?.includes(keyword)
+          customer.phone?.includes(keyword)
         : false;
 
       const matchStatus = filterStatus ? b.status === filterStatus : true;
@@ -182,24 +182,23 @@ const Bookings = () => {
       message.success("Cập nhật trạng thái thành công");
       fetchData();
     } catch (error) {
-
       console.error(error);
-      message.error(error.response?.data?.message || "Cập nhật trạng thái thất bại");
+      message.error(
+        error.response?.data?.message || "Cập nhật trạng thái thất bại"
+      );
     }
   };
   const STATUS_LABEL = {
     pending: "Đang chờ",
     confirmed: "Đã xác nhận",
-    checked_in: "Đã nhận phòng",
-    checked_out: "Đã trả phòng",
+    completed: "Đã hoàn thành",
     cancelled: "Đã hủy",
   };
 
   const NEXT_STATUS = {
     pending: ["confirmed", "cancelled"],
-    confirmed: ["checked_in", "cancelled"],
-    checked_in: ["checked_out"],
-    checked_out: [],
+    confirmed: ["completed"],
+    completed: [],
     cancelled: [],
   };
   const columns = [
@@ -260,10 +259,10 @@ const Bookings = () => {
       title: "Trạng thái",
       dataIndex: "status",
       render: (st, record) => {
-        const cur = (st || "pending").toLowerCase();
+        const cur = st ? st.toLowerCase() : "unknown";
         const next = NEXT_STATUS[cur] || [];
 
-        const disabled = next.length === 0; // checked_out hoặc cancelled
+        const disabled = next.length === 0; 
 
         const options = [cur, ...next.filter((x) => x !== cur)];
 
@@ -304,13 +303,13 @@ const Bookings = () => {
             okText="Xóa"
             cancelText="Hủy"
             placement="topRight"
-            disabled={r.payments?.some(p => p.status === 'completed')}
+            disabled={Bookings.status !== "cancelled"}
           >
             <Button
               size="small"
               danger
               icon={<DeleteOutlined />}
-              disabled={r.payments?.some(p => p.status === 'completed')}
+              disabled={Bookings.status !== "cancelled"}
             >
               Xóa
             </Button>
@@ -353,8 +352,7 @@ const Bookings = () => {
         >
           <Option value="pending">Đang chờ</Option>
           <Option value="confirmed">Đã xác nhận</Option>
-          <Option value="checked_in">Đã nhận phòng</Option>
-          <Option value="checked_out">Đã trả phòng</Option>
+          <Option value="completed">Đã hoàn thành</Option>
           <Option value="cancelled">Đã hủy</Option>
         </Select>
       </Space>
