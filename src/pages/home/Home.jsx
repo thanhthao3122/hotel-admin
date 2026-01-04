@@ -23,7 +23,7 @@ const Home = () => {
                 const guests = searchParams.get('guests');
                 const checkin_date = searchParams.get('checkin_date');
                 const checkout_date = searchParams.get('checkout_date');
-
+                
                 let response;
 
                 // Nếu có bất kỳ bộ lọc nào, sử dụng getAvailable
@@ -39,7 +39,7 @@ const Home = () => {
                 else {
                     // Danh sách mặc định
                     const filters = {};
-                    response = await roomApi.getAll(1, 100, filters);
+                    response = await roomApi.getAllRoomUser(1, 100, filters);
                 }
 
                 // Backend bây giờ xử lý việc lọc, vì vậy chỉ cần sử dụng dữ liệu trực tiếp

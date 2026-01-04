@@ -1,6 +1,28 @@
 // src/pages/Invoices.jsx
-import { Card, Table, Tag, message, Button, Tooltip, Popconfirm, Input, Select, Row, Col, Statistic } from "antd";
-import { CheckOutlined, CloseOutlined, PrinterOutlined, SearchOutlined, FileExcelOutlined, DollarOutlined } from "@ant-design/icons";
+import {
+  Card,
+  Table,
+  Tag,
+  message,
+  Button,
+  Tooltip,
+  Popconfirm,
+  Input,
+  Select,
+  Row,
+  Col,
+  Statistic,
+} from "antd";
+import {
+  CheckOutlined,
+  CloseOutlined,
+  PrinterOutlined,
+  SearchOutlined,
+  FileExcelOutlined,
+  DollarOutlined,
+  UndoOutlined,
+
+} from "@ant-design/icons";
 import { useState, useEffect, useMemo } from "react";
 import RefundModal from "../components/RefundModal";
 import * as XLSX from "xlsx";
@@ -21,7 +43,8 @@ const Invoices = () => {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState(null);
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
-  const [selectedInvoiceForRefund, setSelectedInvoiceForRefund] = useState(null);
+  const [selectedInvoiceForRefund, setSelectedInvoiceForRefund] =
+    useState(null);
 
   const { Option } = Select;
 
@@ -41,7 +64,7 @@ const Invoices = () => {
         invoiceApi.getAll(page, limit),
         bookingApi.getAll(1, 100),
         userApi.getAll(1, 100),
-        roomApi.getAll(1, 100)
+        roomApi.getAll(1, 100),
       ]);
 
       setInvoices(invoiceRes.data || []);
@@ -101,8 +124,10 @@ const Invoices = () => {
     const customer = booking?.user || invoice.booking?.user;
 
     // Get room names from bookingRooms
-    const roomName = booking?.bookingRooms?.map(br => br.room?.room_number).join(', ') || 'N/A';
-    const phoneNumber = customer?.phone || 'N/A';
+    const roomName =
+      booking?.bookingRooms?.map((br) => br.room?.room_number).join(", ") ||
+      "N/A";
+    const phoneNumber = customer?.phone || "N/A";
 
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
@@ -453,7 +478,12 @@ const Invoices = () => {
       render: (_, r) => {
         const remaining = r.financials?.remainingAmount || 0;
         if (remaining < 0) {
-          return <span style={{ color: '#52c41a', fontSize: '12px' }}>Trả dư: {new Intl.NumberFormat("vi-VN").format(Math.abs(remaining))} VNĐ</span>;
+          return (
+            <span style={{ color: "#52c41a", fontSize: "12px" }}>
+              Trả dư:{" "}
+              {new Intl.NumberFormat("vi-VN").format(Math.abs(remaining))} VNĐ
+            </span>
+          );
         }
         return (
           <span
@@ -475,20 +505,29 @@ const Invoices = () => {
         const status = r.status;
         const financials = r.financials;
 
-        if (status === 'paid' || (financials?.remainingAmount <= 0 && financials?.total > 0)) {
+        if (
+          status === "paid" ||
+          (financials?.remainingAmount <= 0 && financials?.total > 0)
+        ) {
           return <Tag color="success">ĐÃ THANH TOÁN</Tag>;
         }
 
-        if (status === 'partially_paid' || (financials?.totalPaid > 0 && financials?.remainingAmount > 0)) {
+        if (
+          status === "partially_paid" ||
+          (financials?.totalPaid > 0 && financials?.remainingAmount > 0)
+        ) {
           return <Tag color="warning">THANH TOÁN MỘT PHẦN</Tag>;
         }
 
-        if (status === 'unpaid' || (financials?.totalPaid === 0 && financials?.total > 0)) {
+        if (
+          status === "unpaid" ||
+          (financials?.totalPaid === 0 && financials?.total > 0)
+        ) {
           return <Tag color="error">CHƯA THANH TOÁN</Tag>;
         }
 
-        return <Tag>{r.payment?.status?.toUpperCase() || 'N/A'}</Tag>;
-      }
+        return <Tag>{r.payment?.status?.toUpperCase() || "N/A"}</Tag>;
+      },
     },
     {
       title: "Hành động",
@@ -574,7 +613,7 @@ const Invoices = () => {
                 <Button
                   size="small"
                   icon={<UndoOutlined />}
-                  style={{ background: '#722ed1', color: 'white' }}
+                  style={{ background: "#722ed1", color: "white" }}
                   onClick={() => {
                     setSelectedInvoiceForRefund(r);
                     setIsRefundModalOpen(true);
@@ -622,20 +661,36 @@ const Invoices = () => {
             </Card>
           </Col>
           <Col span={8}>
-            <Card size="small" bordered={false} style={{ background: '#f6ffed' }}>
+            <Card
+              size="small"
+              bordered={false}
+              style={{ background: "#f6ffed" }}
+            >
               <Statistic
                 title="Tổng đã thu"
-                value={filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.financials?.totalPaid) || 0), 0)}
+                value={filteredInvoices.reduce(
+                  (sum, inv) =>
+                    sum + (parseFloat(inv.financials?.totalPaid) || 0),
+                  0
+                )}
                 suffix="VNĐ"
                 valueStyle={{ color: "#52c41a", fontSize: "18px" }}
               />
             </Card>
           </Col>
           <Col span={8}>
-            <Card size="small" bordered={false} style={{ background: '#fff1f0' }}>
+            <Card
+              size="small"
+              bordered={false}
+              style={{ background: "#fff1f0" }}
+            >
               <Statistic
                 title="Tổng nợ (Chưa thu)"
-                value={filteredInvoices.reduce((sum, inv) => sum + (parseFloat(inv.financials?.remainingAmount) || 0), 0)}
+                value={filteredInvoices.reduce(
+                  (sum, inv) =>
+                    sum + (parseFloat(inv.financials?.remainingAmount) || 0),
+                  0
+                )}
                 suffix="VNĐ"
                 valueStyle={{ color: "#cf1322", fontSize: "18px" }}
               />

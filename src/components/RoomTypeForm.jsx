@@ -19,7 +19,7 @@ const RoomTypeForm = ({
           capacity: 2,
           base_price: 500000,
           description: "",
-          is_active: 1,
+          is_active: "",
         }
       );
     }

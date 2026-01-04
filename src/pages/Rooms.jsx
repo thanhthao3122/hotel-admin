@@ -57,7 +57,6 @@ const Rooms = () => {
     return map;
   }, [roomTypes]);
 
-
   // ✅ load danh sách loại phòng
   const fetchRoomTypes = async () => {
     try {
@@ -131,7 +130,7 @@ const Rooms = () => {
 
     socket.on("room_status_updated", (data) => {
       // Tìm số phòng để thông báo cho dễ hiểu
-      const room = rooms.find(r => r.room_id === data.room_id);
+      const room = rooms.find((r) => r.room_id === data.room_id);
       const roomNum = room ? `phòng ${room.room_number}` : "một phòng";
       message.info(`Trạng thái ${roomNum} vừa thay đổi thành: ${data.status}`);
       fetchRooms();
@@ -153,7 +152,9 @@ const Rooms = () => {
   const filteredRooms = useMemo(() => {
     return rooms.filter((room) => {
       const keyword = searchText.toLowerCase();
-      const matchSearch = String(room.room_number || "").toLowerCase().includes(keyword);
+      const matchSearch = String(room.room_number || "")
+        .toLowerCase()
+        .includes(keyword);
 
       const matchType = filterRoomType
         ? room.room_type_id === Number(filterRoomType)
@@ -258,12 +259,12 @@ const Rooms = () => {
   };
 
   const columns = [
-
     {
       title: "Số phòng",
       dataIndex: "room_number",
       key: "room_number",
-      sorter: (a, b) => String(a.room_number).localeCompare(String(b.room_number)),
+      sorter: (a, b) =>
+        String(a.room_number).localeCompare(String(b.room_number)),
     },
 
     {
@@ -296,12 +297,16 @@ const Rooms = () => {
       },
     },
     {
+      title: "Kiểu giường",
+      dataIndex: "beds_description",
+      render: (v) => v || "Chưa cập nhật",
+    },
+    {
       title: "Loại phòng",
       dataIndex: "room_type_id",
       key: "room_type_id",
       render: (room_type_id) => roomTypeMap[room_type_id] || "N/A",
     },
-
 
     {
       title: "Trạng thái",
@@ -319,6 +324,19 @@ const Rooms = () => {
       onFilter: (value, record) => record.status === value,
     },
     {
+      title: "Trạng thái",
+      dataIndex: "is_active",
+      key: "is_active",
+      align: "center",
+      render: (value) =>
+        value ? <Tag color="green">Hiện</Tag> : <Tag color="red">Ẩn</Tag>,
+      filters: [
+        { text: "Hiện", value: true },
+        { text: "Ẩn", value: false },
+      ],
+      onFilter: (value, record) => record.is_active === value,
+    },
+    {
       title: "Hành động",
       key: "actions",
       render: (_, record) => (
@@ -330,6 +348,7 @@ const Rooms = () => {
           >
             Sửa
           </Button>
+
           <Popconfirm
             title="Xóa phòng"
             description={`Bạn có chắc muốn xóa phòng ${record.room_number}?`}
@@ -337,7 +356,19 @@ const Rooms = () => {
             cancelText="Hủy"
             okButtonProps={{ danger: true }}
             onConfirm={() => handleDelete(record.room_id)}
-          ></Popconfirm>
+          >
+            <Button
+              size="small"
+              icon={<DeleteOutlined />}
+              style={{
+                backgroundColor: "#ff4d4f", //đỏ dịu
+                borderColor: "#ff4d4f",
+                color: "#fff",
+              }}
+            >
+              Xóa
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },
