@@ -479,7 +479,6 @@ const BookingForm = ({
           rules={[{ required: true, message: 'Chọn phương thức thanh toán' }]}
         >
           <Select>
-            <Option value="online">Thanh toán trực tuyến</Option>
             <Option value="pay_later">Thanh toán tại quầy</Option>
           </Select>
         </Form.Item>

@@ -166,7 +166,7 @@ const Payments = () => {
 
   const columns = [
     {
-      title: "Mã hóa đơn",
+      title: "Mã thanh toán",
       dataIndex: "payment_id",
       width: 100,
       render: (id) => <b>#{id}</b>
@@ -246,11 +246,11 @@ const Payments = () => {
   return (
     <Card
       title="Quản lý Thanh Toán"
-      extra={
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreatePayment}>
-          Tạo thanh toán
-        </Button>
-      }
+    // extra={
+    //   <Button type="primary" icon={<PlusOutlined />} onClick={handleCreatePayment}>
+    //     Tạo thanh toán
+    //   </Button>
+    // }
     >
       <div style={{ marginBottom: 16 }}>
         <Input
