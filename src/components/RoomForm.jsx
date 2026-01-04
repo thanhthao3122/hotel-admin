@@ -97,7 +97,7 @@ const RoomForm = ({
       formData.append("room_type_id", values.room_type_id);
       formData.append("status", values.status);
       formData.append("bed_style", values.bed_style);
-      formData.append("is_active", values.is_active ? 1 : 0);
+      formData.append("is_active", values.is_active);
 
       if (fileList.length > 0) {
         formData.append("image", fileList[0].originFileObj);
