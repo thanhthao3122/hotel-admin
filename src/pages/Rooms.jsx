@@ -105,6 +105,7 @@ const Rooms = () => {
         status: filterStatus,
         room_type_id: filterRoomType,
         search: searchText,
+        date: filterDate ? filterDate.format('YYYY-MM-DD') : undefined,
         ...filters
       };
 
@@ -581,8 +582,9 @@ const Rooms = () => {
               fetchRooms(1, pagination.pageSize, {
                 status: filterStatus,
                 room_type_id: filterRoomType,
-                search: searchText
-              }, date);
+                search: searchText,
+                date: date ? date.format('YYYY-MM-DD') : undefined
+              });
             }}
             format="DD/MM/YYYY"
             allowClear={false}

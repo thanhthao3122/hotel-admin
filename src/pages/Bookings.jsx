@@ -130,7 +130,7 @@ const Bookings = () => {
 
       const matchSearch = customer
         ? customer.full_name?.toLowerCase().includes(keyword) ||
-          customer.phone?.includes(keyword)
+        customer.phone?.includes(keyword)
         : false;
 
       const matchStatus = filterStatus ? b.status === filterStatus : true;
@@ -262,7 +262,7 @@ const Bookings = () => {
         const cur = st ? st.toLowerCase() : "unknown";
         const next = NEXT_STATUS[cur] || [];
 
-        const disabled = next.length === 0; 
+        const disabled = next.length === 0;
 
         const options = [cur, ...next.filter((x) => x !== cur)];
 
@@ -303,13 +303,13 @@ const Bookings = () => {
             okText="Xóa"
             cancelText="Hủy"
             placement="topRight"
-            disabled={Bookings.status !== "cancelled"}
+            disabled={r.status !== "cancelled"}
           >
             <Button
               size="small"
               danger
               icon={<DeleteOutlined />}
-              disabled={Bookings.status !== "cancelled"}
+              disabled={r.status !== "cancelled"}
             >
               Xóa
             </Button>
