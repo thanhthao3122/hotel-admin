@@ -216,10 +216,56 @@ const Bookings = () => {
       },
     },
     {
-      title: "Số Phòng",
+      title: "Chi tiết phòng",
+      width: 300,
       render: (_, record) => {
         if (!record.rooms || record.rooms.length === 0) return "N/A";
-        return record.rooms.map((room) => room.room_number).join(", ");
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {record.rooms.map((room) => {
+              const br = room.BookingRoom || {};
+              const status = br.status || 'pending';
+
+              let statusColor = 'default';
+              let statusText = 'Đang chờ';
+              if (status === 'checked_in') { statusColor = 'green'; statusText = 'Đang ở'; }
+              if (status === 'checked_out') { statusColor = 'gray'; statusText = 'Đã trả'; }
+              if (status === 'cancelled') { statusColor = 'red'; statusText = 'Đã hủy'; }
+
+              return (
+                <div key={room.room_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f0', paddingBottom: 4 }}>
+                  <span>
+                    <strong>{room.room_number}</strong>
+                    <Tag color={statusColor} style={{ marginLeft: 8, fontSize: '10px' }}>{statusText}</Tag>
+                  </span>
+
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {status === 'pending' && (status !== 'cancelled') && (
+                      <Button
+                        size="small"
+                        type="primary"
+                        ghost
+                        onClick={() => handleCheckInRoom(record.booking_id, room.room_id)}
+                      >
+                        Check-in
+                      </Button>
+                    )}
+                    {status === 'checked_in' && (
+                      <Button
+                        size="small"
+                        danger
+                        ghost
+                        onClick={() => handleCheckOutRoom(record.booking_id, room.room_id)}
+                      >
+                        Check-out
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
       },
     },
     {

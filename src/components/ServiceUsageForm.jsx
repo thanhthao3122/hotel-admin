@@ -86,6 +86,7 @@ const ServiceUsageForm = ({
   };
 
   // Hiển thị nhãn booking: #id - tên KH - phòng
+  console.log('Customer map:', bookings);
   const renderBookingLabel = booking => {
     const customer = customerMap[booking.user_id];
 
