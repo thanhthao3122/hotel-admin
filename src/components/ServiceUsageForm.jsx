@@ -86,6 +86,7 @@ const ServiceUsageForm = ({
   };
 
   // Hiển thị nhãn booking: #id - tên KH - phòng
+  console.log(bookings);
   const renderBookingLabel = booking => {
     const customer = customerMap[booking.user_id];
 
@@ -96,8 +97,7 @@ const ServiceUsageForm = ({
     const statusText = {
       pending: 'Chờ xác nhận',
       confirmed: 'Đã xác nhận',
-      checked_in: 'Đang ở',
-      checked_out: 'Đã trả phòng',
+      completed: 'Đã hoàn thành',
       cancelled: 'Đã hủy'
     }[booking.status] || booking.status;
 
