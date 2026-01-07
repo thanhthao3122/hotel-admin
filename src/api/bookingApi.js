@@ -41,6 +41,14 @@ const bookingApi = {
     // Get bookings by room
     getByRoom: (roomId) => {
         return axiosClient.get(`/bookings/room/${roomId}`);
+    },
+
+    checkInRoom: (bookingId, roomId) => {
+        return axiosClient.post(`/bookings/${bookingId}/rooms/${roomId}/checkin`);
+    },
+
+    checkOutRoom: (bookingId, roomId) => {
+        return axiosClient.post(`/bookings/${bookingId}/rooms/${roomId}/checkout`);
     }
 };
 

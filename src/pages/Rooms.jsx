@@ -256,10 +256,10 @@ const Rooms = () => {
       setEditingRoom(null);
     } catch (error) {
       console.error(error);
+      // Capture more details from the error response
       const msg =
         error.response?.data?.message ||
-        error.response?.data?.error ||
-        "Có lỗi khi lưu phòng";
+        "Có lỗi khi lưu phòng (Chi tiết: " + (error.response?.data?.error || error.message) + ")";
       message.error(msg);
     }
   };
