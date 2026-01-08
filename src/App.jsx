@@ -57,7 +57,6 @@ function App() {
       <Route element={<ProtectedRoute allow={isAdmin} />}>
         <Route element={<AdminLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/rooms" element={<Rooms />} />
           <Route path="/room-types" element={<RoomTypes />} />
           <Route path="/services" element={<Services />} />
           <Route path="/customers" element={<Customers />} />
@@ -70,6 +69,8 @@ function App() {
       <Route element={<ProtectedRoute allow={isAdmin || isStaff} />}>
         <Route element={<AdminLayout />}>
           <Route path="/profile" element={<Profile />} />
+          <Route path="/rooms" element={<Rooms />} />
+
           <Route path="/reception" element={<Reception />} />
           <Route path="/bookings" element={<Bookings />} />
           <Route path="/services-usage" element={<ServiceUsage />} />

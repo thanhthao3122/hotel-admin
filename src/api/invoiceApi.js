@@ -36,6 +36,10 @@ const invoiceApi = {
     // Update invoice status
     updateStatus: (id, status) => {
         return axiosClient.put(`/invoices/${id}/status`, { status });
+    },
+    // Refund invoice,
+    refund: (id) => {
+        return axiosClient.put(`/invoices/${id}/refund`);
     }
 };
 

@@ -95,9 +95,16 @@ const RoomForm = ({
       const formData = new FormData();
       formData.append("room_number", values.room_number);
       formData.append("room_type_id", values.room_type_id);
-      formData.append("status", values.status);
+
+      // Fix: If status is undefined (adding new room), default to 'available'
+      const statusToSend = values.status || 'available';
+      formData.append("status", statusToSend);
+
       formData.append("bed_style", values.bed_style);
-      formData.append("is_active", values.is_active);
+
+      // Fix: Ensure is_active sent as boolean string or default to true
+      const isActiveToSend = values.is_active !== undefined ? values.is_active : true;
+      formData.append("is_active", isActiveToSend);
 
       if (fileList.length > 0) {
         formData.append("image", fileList[0].originFileObj);

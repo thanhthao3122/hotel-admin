@@ -96,8 +96,7 @@ const ServiceUsageForm = ({
     const statusText = {
       pending: 'Chờ xác nhận',
       confirmed: 'Đã xác nhận',
-      checked_in: 'Đang ở',
-      checked_out: 'Đã trả phòng',
+      completed: 'Đã hoàn thành',
       cancelled: 'Đã hủy'
     }[booking.status] || booking.status;
 

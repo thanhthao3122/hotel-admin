@@ -42,9 +42,13 @@ const bookingApi = {
     getByRoom: (roomId) => {
         return axiosClient.get(`/bookings/room/${roomId}`);
     },
-    // Update booking room status
-    updateRoomStatus: (id, status) => {
-        return axiosClient.patch(`/bookings/${id}/room-status`, { status });
+
+    checkInRoom: (bookingId, roomId) => {
+        return axiosClient.post(`/bookings/${bookingId}/rooms/${roomId}/checkin`);
+    },
+
+    checkOutRoom: (bookingId, roomId) => {
+        return axiosClient.post(`/bookings/${bookingId}/rooms/${roomId}/checkout`);
     }
 };
 
