@@ -41,6 +41,10 @@ const bookingApi = {
     // Get bookings by room
     getByRoom: (roomId) => {
         return axiosClient.get(`/bookings/room/${roomId}`);
+    },
+    // Update booking room status
+    updateRoomStatus: (id, status) => {
+        return axiosClient.patch(`/bookings/${id}/room-status`, { status });
     }
 };
 

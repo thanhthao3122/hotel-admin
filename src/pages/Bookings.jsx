@@ -23,8 +23,8 @@ import userApi from "../api/userApi.js";
 import roomApi from "../api/roomApi.js";
 import roomTypeApi from "../api/roomTypeApi.js";
 import socket from "../utils/socket.js";
-
 import BookingForm from "../components/BookingForm.jsx";
+import BookingDetail from "../components/BookingDetail.jsx";
 
 const { Option } = Select;
 
@@ -46,7 +46,8 @@ const Bookings = () => {
     pageSize: 10,
     total: 0,
   });
-
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailBooking, setDetailBooking] = useState(null);
   // Tải tất cả dữ liệu cần thiết
   const fetchData = async (
     page = pagination.current,
@@ -130,7 +131,7 @@ const Bookings = () => {
 
       const matchSearch = customer
         ? customer.full_name?.toLowerCase().includes(keyword) ||
-        customer.phone?.includes(keyword)
+          customer.phone?.includes(keyword)
         : false;
 
       const matchStatus = filterStatus ? b.status === filterStatus : true;
@@ -296,6 +297,15 @@ const Bookings = () => {
           >
             Sửa
           </Button>
+          <Button
+            size="small"
+            onClick={() => {
+              setDetailBooking(r);
+              setDetailOpen(true);
+            }}
+          >
+            Chi tiết
+          </Button>
 
           <Popconfirm
             title="Xóa đặt phòng?"
@@ -375,7 +385,11 @@ const Bookings = () => {
           fetchData(current, pageSize);
         }}
       />
-
+      <BookingDetail
+        open={detailOpen}
+        onCancel={() => setDetailOpen(false)}
+        booking={detailBooking}
+      />
       <BookingForm
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
