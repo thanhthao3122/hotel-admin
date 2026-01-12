@@ -1,5 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+// ✅ Bookings.jsx — FIX desktop "tự update/giật" + gọn đẹp
+// - Có cột PHÒNG + thời gian DỰ KIẾN
+// - Check-in/Check-out nằm trong cột THỰC TẾ (inline link)
+// - Không có nút HUỶ
+// - Socket refresh được debounce để không giật liên tục
 
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   Button,
   Card,
@@ -10,6 +15,7 @@ import {
   Input,
   Select,
   Popconfirm,
+  Typography,
 } from "antd";
 import {
   PlusOutlined,
@@ -23,10 +29,74 @@ import userApi from "../api/userApi.js";
 import roomApi from "../api/roomApi.js";
 import roomTypeApi from "../api/roomTypeApi.js";
 import socket from "../utils/socket.js";
-
 import BookingForm from "../components/BookingForm.jsx";
 
 const { Option } = Select;
+const { Text, Link } = Typography;
+
+const STATUS_LABEL = {
+  pending: "Đang chờ",
+  confirmed: "Xác nhận",
+  completed: "Hoàn thành",
+  cancelled: "Đã hủy",
+};
+
+const NEXT_STATUS = {
+  pending: ["confirmed", "cancelled"],
+  confirmed: ["completed"],
+  completed: [],
+  cancelled: [],
+};
+
+const BR_STATUS_UI = {
+  pending: { text: "Chờ", color: "default" },
+  checked_in: { text: "Đang ở", color: "green" },
+  checked_out: { text: "Đã trả", color: "gray" },
+  cancelled: { text: "Đã hủy", color: "red" },
+};
+
+const fmtDateTime = (v) => {
+  if (!v) return "-";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleString("vi-VN", {
+    hour12: false,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const fmtDateOnly = (v) => (v ? v : "—");
+
+// ✅ render list theo từng phòng, giữ layout ổn định (minHeight)
+const renderLines = (bookingRooms, renderLine, { center = false } = {}) => {
+  const list = bookingRooms || [];
+  if (list.length === 0) return "—";
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        alignItems: center ? "center" : "stretch",
+        justifyContent: "center",
+      }}
+    >
+      {list.map((br) => (
+        <div
+          key={br.id}
+          style={{ minHeight: 36, display: "flex", alignItems: "center" }}
+        >
+          {renderLine(br)}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const Bookings = () => {
   const [bookings, setBookings] = useState([]);
@@ -39,7 +109,6 @@ const Bookings = () => {
   const [filterStatus, setFilterStatus] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   const [pagination, setPagination] = useState({
     current: 1,
@@ -47,94 +116,99 @@ const Bookings = () => {
     total: 0,
   });
 
-  // Tải tất cả dữ liệu cần thiết
-  const fetchData = async (
-    page = pagination.current,
-    limit = pagination.pageSize
-  ) => {
-    try {
-      setLoading(true);
-      const [bookingRes, customerRes, roomRes, roomTypeRes] = await Promise.all(
-        [
-          bookingApi.getAll(page, limit),
-          userApi.getAll(1, 100), // Fetch first 100 customers for dropdown
-          roomApi.getAll(1, 100), // Fetch first 100 rooms for dropdown
-          roomTypeApi.getAll(1, 100), // Fetch first 100 room types
-        ]
-      );
+  // ✅ tránh race condition + double fetch
+  const lastFetchKeyRef = useRef(0);
+  const fetchData = useCallback(
+    async (page = pagination.current, limit = pagination.pageSize) => {
+      const fetchKey = ++lastFetchKeyRef.current;
 
-      setBookings(bookingRes.data || []);
-      if (bookingRes.pagination) {
-        setPagination({
-          current: bookingRes.pagination.page,
-          pageSize: bookingRes.pagination.limit,
-          total: bookingRes.pagination.total,
-        });
+      try {
+        setLoading(true);
+
+        const [bookingRes, customerRes, roomRes, roomTypeRes] =
+          await Promise.all([
+            bookingApi.getAll(page, limit),
+            userApi.getAll(1, 200),
+            roomApi.getAll(1, 300),
+            roomTypeApi.getAll(1, 200),
+          ]);
+
+        // nếu có fetch mới hơn thì bỏ kết quả cũ (đỡ giật)
+        if (fetchKey !== lastFetchKeyRef.current) return;
+
+        setBookings(bookingRes.data || []);
+        if (bookingRes.pagination) {
+          setPagination((prev) => ({
+            ...prev,
+            current: bookingRes.pagination.page,
+            pageSize: bookingRes.pagination.limit,
+            total: bookingRes.pagination.total,
+          }));
+        }
+
+        setCustomers(customerRes.data || []);
+        setRooms(roomRes.data || []);
+        setRoomTypes(roomTypeRes.data || []);
+      } catch (err) {
+        console.error(err);
+        message.error("Không tải được dữ liệu đặt phòng");
+      } finally {
+        if (fetchKey === lastFetchKeyRef.current) setLoading(false);
       }
-
-      setCustomers(customerRes.data || []);
-      setRooms(roomRes.data || []);
-      setRoomTypes(roomTypeRes.data || []);
-    } catch (error) {
-      console.error(error);
-      message.error("Không tải được dữ liệu đặt phòng");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ... imports
+    },
+    [pagination.current, pagination.pageSize]
+  );
 
   useEffect(() => {
     fetchData();
-  }, [pagination.current, pagination.pageSize, refreshKey]);
+  }, [fetchData]);
 
+  // ✅ SOCKET: debounce refresh để không "tự update" liên tục
+  const refreshTimerRef = useRef(null);
   useEffect(() => {
-    const handleBookingChange = (data) => {
-      message.info("Dữ liệu đặt phòng vừa được cập nhật");
-      setRefreshKey((prev) => prev + 1);
+    const scheduleRefresh = () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = setTimeout(() => {
+        fetchData(pagination.current, pagination.pageSize);
+      }, 800);
     };
 
-    socket.on("booking_created", handleBookingChange);
-    socket.on("booking_updated", handleBookingChange);
-    socket.on("booking_deleted", handleBookingChange);
-    socket.on("payment_received", handleBookingChange);
+    socket.on("booking_created", scheduleRefresh);
+    socket.on("booking_updated", scheduleRefresh);
+    socket.on("booking_deleted", scheduleRefresh);
+    socket.on("payment_received", scheduleRefresh);
+    socket.on("room_updated", scheduleRefresh);
+    socket.on("room_status_updated", scheduleRefresh);
+    socket.on("booking_room_status_updated", scheduleRefresh);
 
     return () => {
-      socket.off("booking_created", handleBookingChange);
-      socket.off("booking_updated", handleBookingChange);
-      socket.off("booking_deleted", handleBookingChange);
-      socket.off("payment_received", handleBookingChange);
+      socket.off("booking_created", scheduleRefresh);
+      socket.off("booking_updated", scheduleRefresh);
+      socket.off("booking_deleted", scheduleRefresh);
+      socket.off("payment_received", scheduleRefresh);
+      socket.off("room_updated", scheduleRefresh);
+      socket.off("room_status_updated", scheduleRefresh);
+      socket.off("booking_room_status_updated", scheduleRefresh);
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     };
-  }, []);
-
-  // Map ID -> đối tượng
+  }, [fetchData, pagination.current, pagination.pageSize]);
 
   const customerMap = useMemo(
     () => Object.fromEntries(customers.map((c) => [c.user_id, c])),
     [customers]
   );
-  const roomMap = useMemo(
-    () => Object.fromEntries(rooms.map((r) => [r.room_id, r])),
-    [rooms]
-  );
-  const roomTypeMap = useMemo(
-    () => Object.fromEntries(roomTypes.map((rt) => [rt.room_type_id, rt])),
-    [roomTypes]
-  );
 
   const filteredBookings = useMemo(() => {
-    return bookings.filter((b) => {
-      const keyword = searchText.toLowerCase();
-      const customer = customerMap[b.user_id]; // Lưu ý: booking dùng user_id chứ không phải customer_id
+    const keyword = searchText.trim().toLowerCase();
 
-      const matchSearch = customer
-        ? customer.full_name?.toLowerCase().includes(keyword) ||
-        customer.phone?.includes(keyword)
-        : false;
+    return bookings.filter((b) => {
+      const c = customerMap[b.user_id];
+      const matchSearch =
+        !keyword ||
+        (c?.full_name?.toLowerCase().includes(keyword) ?? false) ||
+        (c?.phone?.includes(keyword) ?? false);
 
       const matchStatus = filterStatus ? b.status === filterStatus : true;
-
       return matchSearch && matchStatus;
     });
   }, [bookings, searchText, filterStatus, customerMap]);
@@ -147,21 +221,19 @@ const Bookings = () => {
   const handleSubmit = async (data) => {
     try {
       if (editingBooking) {
-        // Cập nhật
         await bookingApi.update(editingBooking.booking_id, data);
         message.success("Cập nhật đặt phòng thành công");
       } else {
-        // Tạo mới
         await bookingApi.create(data);
         message.success("Tạo đặt phòng thành công");
       }
       setIsModalOpen(false);
-      fetchData();
+      fetchData(pagination.current, pagination.pageSize);
     } catch (error) {
       console.error(error);
-      const errorMessage =
-        error.response?.data?.message || "Có lỗi khi lưu đặt phòng";
-      message.error(errorMessage);
+      message.error(
+        error.response?.data?.message || "Có lỗi khi lưu đặt phòng"
+      );
     }
   };
 
@@ -169,10 +241,12 @@ const Bookings = () => {
     try {
       await bookingApi.delete(id);
       message.success("Đã xóa đặt phòng");
-      fetchData();
+      fetchData(pagination.current, pagination.pageSize);
     } catch (error) {
       console.error(error);
-      message.error("Không xóa được đặt phòng");
+      message.error(
+        error.response?.data?.message || "Không xóa được đặt phòng"
+      );
     }
   };
 
@@ -180,7 +254,7 @@ const Bookings = () => {
     try {
       await bookingApi.updateStatus(record.booking_id, newStatus);
       message.success("Cập nhật trạng thái thành công");
-      fetchData();
+      fetchData(pagination.current, pagination.pageSize);
     } catch (error) {
       console.error(error);
       message.error(
@@ -188,99 +262,194 @@ const Bookings = () => {
       );
     }
   };
-  const STATUS_LABEL = {
-    pending: "Đang chờ",
-    confirmed: "Đã xác nhận",
-    completed: "Đã hoàn thành",
-    cancelled: "Đã hủy",
+
+  const updateBookingRoomStatus = async (bookingRoomId, newStatus) => {
+    if (!bookingRoomId) return message.error("Thiếu bookingRoomId");
+    try {
+      await bookingApi.updateBookingRoomStatus(bookingRoomId, {
+        status: newStatus,
+      });
+      message.success(
+        newStatus === "checked_in"
+          ? "Check-in thành công"
+          : "Check-out thành công"
+      );
+      fetchData(pagination.current, pagination.pageSize);
+    } catch (error) {
+      console.error(error);
+      message.error(
+        error.response?.data?.message || "Cập nhật trạng thái phòng thất bại"
+      );
+    }
   };
 
-  const NEXT_STATUS = {
-    pending: ["confirmed", "cancelled"],
-    confirmed: ["completed"],
-    completed: [],
-    cancelled: [],
-  };
   const columns = [
     {
       title: "Mã",
       dataIndex: "booking_id",
-      width: 100,
-      render: (id) => <Tag color="blue">#{id}</Tag>,
+      width: 55,
+      fixed: "left",
+      align: "center",
+      render: (id) => <Tag color="blue">{id}</Tag>,
     },
     {
       title: "Khách hàng",
+      width: 130,
+      ellipsis: true,
       render: (_, record) => {
         const c = customerMap[record.user_id];
-        return c ? `${c.full_name} (${c.phone})` : "N/A";
-      },
-    },
-    {
-      title: "Chi tiết phòng",
-      width: 300,
-      render: (_, record) => {
-        if (!record.rooms || record.rooms.length === 0) return "N/A";
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {record.rooms.map((room) => {
-              const br = room.BookingRoom || {};
-              const status = br.status || 'pending';
-
-              let statusColor = 'default';
-              let statusText = 'Đang chờ';
-              if (status === 'checked_in') { statusColor = 'green'; statusText = 'Đang ở'; }
-              if (status === 'checked_out') { statusColor = 'gray'; statusText = 'Đã trả'; }
-              if (status === 'cancelled') { statusColor = 'red'; statusText = 'Đã hủy'; }
-
-              return (
-                <div key={room.room_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f0', paddingBottom: 4 }}>
-                  <span>
-                    <strong>{room.room_number}</strong>
-                    <Tag color={statusColor} style={{ marginLeft: 8, fontSize: '10px' }}>{statusText}</Tag>
-                  </span>
-
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {status === 'pending' && (status !== 'cancelled') && (
-                      <Button
-                        size="small"
-                        type="primary"
-                        ghost
-                        onClick={() => handleCheckInRoom(record.booking_id, room.room_id)}
-                      >
-                        Check-in
-                      </Button>
-                    )}
-                    {status === 'checked_in' && (
-                      <Button
-                        size="small"
-                        danger
-                        ghost
-                        onClick={() => handleCheckOutRoom(record.booking_id, room.room_id)}
-                      >
-                        Check-out
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        return c ? (
+          <div style={{ lineHeight: 1.2 }}>
+            <div
+              style={{
+                fontWeight: 600,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {c.full_name}
+            </div>
+            <div style={{ fontSize: 12, color: "#666" }}>{c.phone}</div>
           </div>
+        ) : (
+          "N/A"
         );
       },
     },
+
+    // ✅ PHÒNG + DỰ KIẾN
+    {
+      title: "Phòng",
+      width: 200,
+      render: (_, record) =>
+        renderLines(record.bookingRooms, (br) => {
+          const roomNo = br.room?.room_number || "—";
+          const st = (br.status || "pending").toLowerCase();
+          const ui = BR_STATUS_UI[st] || BR_STATUS_UI.pending;
+
+          return (
+            <div
+              style={{
+                width: "100%",
+                padding: "8px 10px",
+                border: "1px solid #f0f0f0",
+                borderRadius: 10,
+                background: "#fff",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Text strong>{`Phòng ${roomNo}`}</Text>
+                <Tag color={ui.color} style={{ margin: 0 }}>
+                  {ui.text}
+                </Tag>
+              </div>
+
+              <div style={{ marginTop: 4, fontSize: 12, color: "#666" }}>
+                {fmtDateOnly(br.checkin_date)} → {fmtDateOnly(br.checkout_date)}
+              </div>
+            </div>
+          );
+        }),
+    },
+
+    // ✅ Check-in THỰC TẾ (nút nằm ở đây)
     {
       title: "Check-in",
-      dataIndex: "checkin_date",
-      render: (date) => date || "N/A",
+      width: 120,
+      align: "center",
+
+      render: (_, record) =>
+        renderLines(
+          record.bookingRooms,
+          (br) => {
+            const locked =
+              record.status === "cancelled" || record.status === "completed";
+            const brStatus = (br.status || "pending").toLowerCase();
+
+            if (br.actual_checkin)
+              return (
+                <div
+                  style={{
+                    
+                    width: "100%",
+                    padding: "8px 10px",
+                    border: "1px solid #f0f0f0",
+                    borderRadius: 10,
+                    background: "#fff",
+                    
+                  }}
+                >
+                  {" "}
+                  <Text>{fmtDateTime(br.actual_checkin)}</Text>
+                </div>
+              );
+
+            const canCheckIn = brStatus === "pending" && !locked;
+
+            return canCheckIn ? (
+              <Button
+                onClick={() => updateBookingRoomStatus(br.id, "checked_in")}
+              >
+                Check-in
+              </Button>
+            ) : (
+              <Text type="secondary">-</Text>
+            );
+          },
+          { center: true }
+        ),
     },
+
+    // ✅ Check-out THỰC TẾ (nút nằm ở đây)
     {
       title: "Check-out",
-      dataIndex: "checkout_date",
-      render: (date) => date || "N/A",
+      width: 120,
+      align: "center",
+      render: (_, record) =>
+        renderLines(
+          record.bookingRooms,
+          (br) => {
+            const locked =
+              record.status === "cancelled" || record.status === "completed";
+            const brStatus = (br.status || "pending").toLowerCase();
+
+            if (br.actual_checkout)
+              return (
+                <div
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    border: "1px solid #f0f0f0",
+                    borderRadius: 10,
+                    background: "#fff",
+                  }}
+                >
+                  <Text>{fmtDateTime(br.actual_checkout)}</Text>
+                </div>
+              );
+
+            const canCheckOut = brStatus === "checked_in" && !locked;
+
+            return canCheckOut ? (
+              <Button
+                onClick={() => updateBookingRoomStatus(br.id, "checked_out")}
+              >
+                Check-out
+              </Button>
+            ) : (
+              <Text type="secondary">-</Text>
+            );
+          },
+          { center: true }
+        ),
     },
+
     {
       title: "Nguồn",
       dataIndex: "source",
+      width: 90,
+      align: "center",
       render: (src) => (
         <Tag color={src === "admin" ? "purple" : "blue"}>
           {src?.toUpperCase()}
@@ -288,40 +457,43 @@ const Bookings = () => {
       ),
     },
     {
-      title: "Hình thức",
+      title: "TT",
       dataIndex: "payment_method",
+      width: 90,
+      align: "center",
       render: (method) => (
         <Tag color={method === "pay_later" ? "cyan" : "green"}>
-          {method === "pay_later" ? "TRẢ SAU" : "ONLINE"}
+          {method === "pay_later" ? "SAU" : "ONL"}
         </Tag>
       ),
     },
     {
-      title: "Tổng tiền",
+      title: "Tổng",
       dataIndex: "total_price",
-      render: (v) => (v ? Number(v).toLocaleString("vi-VN") + " VNĐ" : "0 VNĐ"),
+      width: 110,
+      align: "right",
+      render: (v) => (v ? Number(v).toLocaleString("vi-VN") + " đ" : "0 đ"),
     },
     {
       title: "Trạng thái",
       dataIndex: "status",
+      width: 140,
       render: (st, record) => {
         const cur = st ? st.toLowerCase() : "unknown";
         const next = NEXT_STATUS[cur] || [];
-
         const disabled = next.length === 0;
-
         const options = [cur, ...next.filter((x) => x !== cur)];
 
         return (
           <Select
             value={cur}
-            style={{ width: 160 }}
+            style={{ width: 120 }}
             disabled={disabled}
             onChange={(val) => updateStatus(record, val)}
           >
             {options.map((s) => (
               <Select.Option key={s} value={s}>
-                {STATUS_LABEL[s]}
+                {STATUS_LABEL[s] || s}
               </Select.Option>
             ))}
           </Select>
@@ -330,6 +502,7 @@ const Bookings = () => {
     },
     {
       title: "Hành động",
+      width: 150,
       render: (_, r) => (
         <Space>
           <Button
@@ -339,6 +512,7 @@ const Bookings = () => {
               setEditingBooking(r);
               setIsModalOpen(true);
             }}
+            disabled={r.status === "completed"}
           >
             Sửa
           </Button>
@@ -378,7 +552,6 @@ const Bookings = () => {
         </Button>
       }
     >
-      {/* Tìm kiếm & lọc */}
       <Space style={{ marginBottom: 16 }} wrap>
         <Input
           placeholder="Tìm theo tên KH hoặc SĐT..."
@@ -392,13 +565,13 @@ const Bookings = () => {
         <Select
           placeholder="Trạng thái"
           allowClear
-          style={{ width: 180 }}
+          style={{ width: 160 }}
           value={filterStatus || undefined}
           onChange={(v) => setFilterStatus(v)}
         >
           <Option value="pending">Đang chờ</Option>
-          <Option value="confirmed">Đã xác nhận</Option>
-          <Option value="completed">Đã hoàn thành</Option>
+          <Option value="confirmed">Xác nhận</Option>
+          <Option value="completed">Hoàn thành</Option>
           <Option value="cancelled">Đã hủy</Option>
         </Select>
       </Space>
@@ -408,6 +581,8 @@ const Bookings = () => {
         columns={columns}
         dataSource={filteredBookings}
         loading={loading}
+        scroll={{ x: 1200 }}
+        tableLayout="fixed"
         pagination={{
           current: pagination.current,
           pageSize: pagination.pageSize,
@@ -415,10 +590,10 @@ const Bookings = () => {
           showSizeChanger: true,
           pageSizeOptions: ["5", "10", "20"],
         }}
+        // ✅ chỉ update state, KHÔNG gọi fetchData ở đây để tránh double-fetch
         onChange={(pager) => {
           const { current, pageSize } = pager;
           setPagination((prev) => ({ ...prev, current, pageSize }));
-          fetchData(current, pageSize);
         }}
       />
 

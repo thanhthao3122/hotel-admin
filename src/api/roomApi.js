@@ -42,6 +42,11 @@ const roomApi = {
       params,
     });
   },
+  getAvailabilityTimeline: (start, end) => {
+    return axiosClient.get("/rooms/availability/timeline", {
+      params: { start, end },
+    });
+  },
 };
 
 export default roomApi;

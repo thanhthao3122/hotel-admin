@@ -94,7 +94,7 @@ const AdminLayout = () => {
       icon: <HomeOutlined />,
       label: "Quản lý phòng",
       group: "NGHIỆP VỤ",
-      roles: ["admin"],
+      roles: ["admin","staff"],
     },
 
     {

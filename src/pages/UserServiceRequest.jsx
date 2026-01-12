@@ -1,5 +1,5 @@
 // src/pages/UserServiceRequest.jsx
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     Card,
     Row,
@@ -14,29 +14,28 @@ import {
     Space,
     Empty,
     Spin,
-    Select,
-    Steps,
-    Divider,
-    Typography,
-    Badge
+    Select
 } from "antd";
 
 const { Title, Text, Paragraph } = Typography;
 const { Step } = Steps;
 import {
-    ShoppingCartOutlined,
-    HistoryOutlined,
-    HomeOutlined,
-    CalendarOutlined,
-    DollarOutlined
+  ShoppingCartOutlined,
+  HistoryOutlined,
+  HomeOutlined,
+  CalendarOutlined,
+  DollarOutlined,
 } from "@ant-design/icons";
 
 import Navbar from "../components/home/Navbar";
 import SubNavbar from "../components/home/SubNavbar";
+
 import serviceUsageApi from "../api/serviceUsageApi";
 import serviceApi from "../api/serviceApi";
 import paymentApi from "../api/paymentApi";
 import socket from "../utils/socket";
+
+const { Option } = Select;
 
 const UserServiceRequest = () => {
     const [services, setServices] = useState([]);
@@ -47,136 +46,141 @@ const UserServiceRequest = () => {
     const [loading, setLoading] = useState(false);
     const [requesting, setRequesting] = useState(false);
     const [quantities, setQuantities] = useState({});
-    const [currentStep, setCurrentStep] = useState(0); // Quản lý bước hiện tại cho báo cáo đồ án
 
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-            const [servicesRes, bookingRes, historyRes] = await Promise.all([
-                serviceApi.getAll(1, 100),
-                serviceUsageApi.getMyBooking(),
-                serviceUsageApi.getMyHistory()
-            ]);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [servicesRes, bookingRes, historyRes] = await Promise.all([
+        serviceApi.getAll(1, 200),
+        serviceUsageApi.getMyBooking(), // ⚠️ backend phải trả bookingRooms có status checked_in
+        serviceUsageApi.getMyHistory(),
+      ]);
 
-            console.log('=== DEBUG SERVICE REQUEST ===');
-            console.log('Services:', servicesRes.data);
-            console.log('Active Bookings:', bookingRes.data);
+      const servicesData = servicesRes?.data || [];
+      const bookingsData = bookingRes?.data || [];
+      const historyData = historyRes?.data || [];
 
-            setServices(servicesRes.data || []);
-            const bookings = bookingRes.data || [];
-            setActiveBookings(bookings);
+      setServices(Array.isArray(servicesData) ? servicesData : []);
+      setActiveBookings(Array.isArray(bookingsData) ? bookingsData : []);
+      setServiceHistory(Array.isArray(historyData) ? historyData : []);
 
-            // Auto-select first booking if available and no selection yet
-            if (bookings.length > 0 && !selectedBookingId) {
-                setSelectedBookingId(bookings[0].booking_id);
-            }
+      // auto chọn booking đầu tiên
+      if (
+        !selectedBookingId &&
+        Array.isArray(bookingsData) &&
+        bookingsData.length > 0
+      ) {
+        setSelectedBookingId(bookingsData[0].booking_id);
+      }
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      message.error(err?.response?.data?.message || "Không tải được dữ liệu");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            setServiceHistory(historyRes.data || []);
-        } catch (error) {
-            console.error('Error fetching data:', error);
-            // Don't show error for services - we want to show them anyway
-            if (!error.response || error.response.config.url.includes('/services')) {
-                // Silently fail for services
-            } else {
-                message.error("Không tải được dữ liệu");
-            }
-        } finally {
-            setLoading(false);
-        }
+  // =========================
+  // ✅ Socket realtime refresh
+  // =========================
+  useEffect(() => {
+    fetchData();
+
+    const onInvoiceUpdated = (data) => {
+      if (
+        !selectedBookingId ||
+        normalizeId(data.booking_id) === normalizeId(selectedBookingId)
+      ) {
+        fetchData();
+      }
+    };
+    const onServiceAdded = (data) => {
+      if (
+        !selectedBookingId ||
+        normalizeId(data.booking_id) === normalizeId(selectedBookingId)
+      ) {
+        fetchData();
+      }
+    };
+    const onPaymentReceived = (data) => {
+      if (
+        !selectedBookingId ||
+        normalizeId(data.booking_id) === normalizeId(selectedBookingId)
+      ) {
+        fetchData();
+      }
     };
 
-    useEffect(() => {
-        fetchData();
+    socket.on("invoice_updated", onInvoiceUpdated);
+    socket.on("service_added", onServiceAdded);
+    socket.on("payment_received", onPaymentReceived);
 
-        // Real-time: Refresh if service added or invoice updated
-        socket.on('invoice_updated', (data) => {
-            if (data.booking_id == selectedBookingId || !selectedBookingId) {
-                fetchData();
-            }
-        });
+    return () => {
+      socket.off("invoice_updated", onInvoiceUpdated);
+      socket.off("service_added", onServiceAdded);
+      socket.off("payment_received", onPaymentReceived);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBookingId]);
 
-        socket.on('service_added', (data) => {
-            if (data.booking_id == selectedBookingId || !selectedBookingId) {
-                fetchData();
-            }
-        });
-
-        socket.on('payment_received', (data) => {
-            if (data.booking_id == selectedBookingId || !selectedBookingId) {
-                fetchData();
-            }
-        });
-
-        return () => {
-            socket.off('invoice_updated');
-            socket.off('service_added');
-            socket.off('payment_received');
-        };
-    }, [selectedBookingId]);
-
-    // TỰ ĐỘNG CHỌN PHÒNG: Nếu khách chỉ có 1 phòng duy nhất, hệ thống sẽ tự chọn luôn
+    // Auto-select room when booking changes
     useEffect(() => {
         if (selectedBookingId && activeBookings.length > 0) {
             const booking = activeBookings.find(b => b.booking_id === selectedBookingId);
             if (booking && booking.bookingRooms?.length === 1) {
+                // Use BookingRoom ID (the primary key 'id' of booking_rooms table)
                 setSelectedRoomId(booking.bookingRooms[0].id);
-                // Nếu tự động chọn xong thì có thể nhảy sang bước 2 luôn cho mượt
-                if (currentStep === 0) setCurrentStep(1);
+            } else {
+                setSelectedRoomId(null);
             }
         }
     }, [selectedBookingId, activeBookings]);
 
-    // Giải thích cho Đồ án: Chức năng chuyển bước
-    const nextStep = () => setCurrentStep(currentStep + 1);
-    const prevStep = () => setCurrentStep(currentStep - 1);
-
-    /**
-     * Hàm xử lý khi khách nhấn nút "Gọi" dịch vụ
-     */
     const handleRequestService = async (serviceId) => {
         const quantity = quantities[serviceId] || 1;
-console.log("quantity", quantity);
 
+    if (!selectedBookingId) {
+      message.warning(
+        "Bạn chưa có đơn đang lưu trú. Vui lòng check-in để gọi dịch vụ."
+      );
+      return;
+    }
 
-        if (quantity < 1) {
-            message.warning("Số lượng phải lớn hơn 0");
-            return;
-        }
+    if (!selectedRoomId) {
+      message.warning(
+        "Vui lòng chọn phòng đang lưu trú trước khi gọi dịch vụ!"
+      );
+      return;
+    }
 
-        // Kiểm tra xem đã chọn phòng chưa (Rất quan trọng vì ServiceUsage lưu theo phòng)
+        // Check if user has selected a booking
         if (!selectedBookingId) {
             message.warning({
-                content: "Vui lòng đặt phòng và nhận phòng (Check-in) để có thể gọi dịch vụ",
+                content: "Vui lòng đặt phòng và check in để gọi dịch vụ",
                 duration: 5
             });
             return;
         }
 
-        if (!selectedRoomId) {
-            message.warning("Vui lòng chọn số phòng mà bạn muốn chúng tôi phục vụ dịch vụ này!");
-            return;
-        }
-
         try {
             setRequesting(true);
-            // Gửi yêu cầu lên server qua API
+            // Send booking_room_id to backend
             await serviceUsageApi.requestService({
                 booking_id: selectedBookingId,
                 service_id: serviceId,
                 quantity,
-                booking_room_id: selectedRoomId // Truyền ID của BookingRoom
+                booking_room_id: selectedRoomId
             });
+            message.success("Gọi dịch vụ thành công!");
 
-            message.success("Yêu cầu của bạn đã được gửi tới quầy lễ tân!");
-
-            // Reset số lượng về 1 sau khi gọi xong
+            // Reset quantity
             setQuantities({ ...quantities, [serviceId]: 1 });
 
-            // Tải lại dữ liệu (Lịch sử + Hóa đơn) để cập nhật số liệu mới nhất
+            // Refresh EVERYTHING
             await fetchData();
         } catch (error) {
-            console.error('Lỗi handleRequestService:', error);
-            const errorMsg = error.response?.data?.message || "Không thể gọi dịch vụ lúc này, vui lòng thử lại sau";
+            console.error(error);
+            const errorMsg = error.response?.data?.message || "Không thể gọi dịch vụ";
             message.error(errorMsg);
         } finally {
             setRequesting(false);
@@ -200,50 +204,38 @@ console.log("quantity", quantity);
             return;
         }
 
-        if (remainingAmount <= 0) {
-            message.success("Đơn hàng này đã được thanh toán đủ!");
-            return;
-        }
+    if (remainingAmount <= 0) {
+      message.success("Đơn hàng này đã được thanh toán đủ!");
+      return;
+    }
 
-        try {
-            setPaymentLoading(true);
-            const res = await paymentApi.createPaymentUrl({
-                booking_id: selectedBookingId,
-                bankCode: '' // Optional
-            });
+    try {
+      setPaymentLoading(true);
+      const res = await paymentApi.createPaymentUrl({
+        booking_id: selectedBookingId,
+        bankCode: "",
+      });
 
-            console.log('Payment API Response:', res);
+      let redirectUrl = null;
+      if (res?.data && typeof res.data === "string") redirectUrl = res.data;
+      else if (res?.data?.paymentUrl) redirectUrl = res.data.paymentUrl;
+      else if (res?.paymentUrl) redirectUrl = res.paymentUrl;
 
-            // Check structure
-            let redirectUrl = null;
-            if (res.data && typeof res.data === 'string') {
-                redirectUrl = res.data;
-            } else if (res.data && res.data.paymentUrl) {
-                redirectUrl = res.data.paymentUrl;
-            } else if (res.paymentUrl) { // Handle case where res is the data object
-                redirectUrl = res.paymentUrl;
-            }
-
-            if (redirectUrl && typeof redirectUrl === 'string') {
-                console.log('Redirecting to:', redirectUrl);
-                // Redirect to VNPay
-                window.location.href = redirectUrl;
-            } else {
-                console.error('Invalid payment URL (not a string):', redirectUrl);
-                message.error("Lỗi: Link thanh toán không hợp lệ (Dữ liệu trả về sai định dạng)");
-            }
-        } catch (error) {
-            console.error(error);
-            // Handle specific case where booking is fully paid
-            if (error.response && error.response.status === 400 && error.response.data?.message?.includes("fully paid")) {
-                message.success("Đơn hàng này đã được thanh toán đủ!");
-            } else {
-                message.error("Lỗi khi tạo thanh toán: " + (error.response?.data?.message || "Lỗi không xác định"));
-            }
-        } finally {
-            setPaymentLoading(false);
-        }
-    };
+      if (redirectUrl && typeof redirectUrl === "string") {
+        window.location.href = redirectUrl;
+      } else {
+        message.error("Link thanh toán không hợp lệ (sai định dạng)");
+      }
+    } catch (err) {
+      console.error(err);
+      message.error(
+        "Lỗi khi tạo thanh toán: " +
+          (err?.response?.data?.message || "Lỗi không xác định")
+      );
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
 
     const historyColumns = [
         {
@@ -251,7 +243,6 @@ console.log("quantity", quantity);
             dataIndex: ["service", "name"],
             render: (name) => name || "N/A"
         },
-    
         {
             title: "Phòng",
             key: "room",
@@ -300,280 +291,247 @@ console.log("quantity", quantity);
         }
     ];
 
-    if (loading) {
-        return (
-            <div style={{ textAlign: "center", padding: "100px 0" }}>
-                <Spin size="large" />
-            </div>
-        );
-    }
+  if (loading) {
+    return (
+      <div style={{ textAlign: "center", padding: "100px 0" }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  const hasActive = Array.isArray(activeBookings) && activeBookings.length > 0;
+  const hasCheckedInRooms = checkedInRooms.length > 0;
 
     return (
-        <div className="landing-page" style={{ backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
-            <div className="header-container">
+        <div className="landing-page">
+            <div className="header-container" style={{ position: 'relative' }}>
                 <Navbar />
                 <SubNavbar />
             </div>
+            <div className="main-content" style={{ marginTop: 0, padding: "24px" }}>
+                <h1 style={{ marginBottom: 24 }}>
+                    <ShoppingCartOutlined /> Gọi dịch vụ
+                </h1>
 
-            <div className="main-content" style={{ maxWidth: 1200, margin: '0 auto', padding: "40px 24px" }}>
-                <Card bordered={false} style={{ borderRadius: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-                    <div style={{ textAlign: "center", marginBottom: 40 }}>
-                        <Title level={2}>
-                            <ShoppingCartOutlined style={{ color: '#1890ff', marginRight: 12 }} />
-                            Hệ Thống Gọi Dịch Vụ Tại Phòng
-                        </Title>
-                        <Paragraph type="secondary">
-                            Tiện ích dành cho khách hàng đang lưu trú tại khách sạn
-                        </Paragraph>
-                    </div>
+                {/* Active Booking Info - Show if user has checked-in bookings */}
+                {activeBookings.length === 0 && (
+                    <Card style={{ marginBottom: 24, textAlign: 'center', borderColor: '#faad14', backgroundColor: '#fffbe6' }}>
+                        <Space direction="vertical" align="center">
+                            <h3 style={{ color: '#856404' }}>
+                                <CalendarOutlined /> Bạn chưa có phòng đang lưu trú
+                            </h3>
+                            <p>Vui lòng thực hiện <b>Check-in</b> tại quầy lễ tân để có thể sử dụng tính năng gọi dịch vụ tại phòng.</p>
+                            <Button type="primary" onClick={() => window.location.href = '/booking-history'}>
+                                Xem lịch sử đặt phòng
+                            </Button>
+                        </Space>
+                    </Card>
+                )}
 
-                    {/* 
-                      * GIẢI THÍCH ĐỒ ÁN: Sử dụng Component Steps để minh họa quy trình nghiệp vụ rõ ràng.
-                      * Bước 1: Xác thực Check-in.
-                      * Bước 2: Lựa chọn dịch vụ theo danh mục.
-                      * Bước 3: Xem lại lịch sử và thực hiện thanh toán VNPay.
-                      */}
-                    <Steps
-                        current={currentStep}
-                        onChange={setCurrentStep}
-                        style={{ marginBottom: 48, padding: '0 20px' }}
-                        items={[
-                            { title: 'Chọn Phòng', icon: <HomeOutlined /> },
-                            { title: 'Gọi Dịch Vụ', icon: <ShoppingCartOutlined /> },
-                            { title: 'Hóa Đơn & Thanh Toán', icon: <HistoryOutlined /> }
-                        ]}
+                {activeBookings.length > 0 && (
+                    <Card
+                        title={
+                            <Space>
+                                <HomeOutlined />
+                                <span>Chọn phòng để gọi dịch vụ</span>
+                            </Space>
+                        }
+                        style={{ marginBottom: 24 }}
+                    >
+                        {/* Booking Selector (if multiple active bookings) */}
+                        {activeBookings.length > 1 && (
+                            <div style={{ marginBottom: 20 }}>
+                                <label style={{ display: 'block', marginBottom: 8, fontWeight: 'bold', color: '#555' }}>
+                                    Bạn có nhiều đơn đặt phòng đang hoạt động, vui lòng chọn:
+                                </label>
+                                <Select
+                                    style={{ width: '100%', maxWidth: 600 }}
+                                    value={selectedBookingId}
+                                    onChange={setSelectedBookingId}
+                                    placeholder="Chọn đơn đặt phòng..."
+                                >
+                                    {activeBookings.map((booking) => (
+                                        <Select.Option key={booking.booking_id} value={booking.booking_id}>
+                                            Mã đặt phòng: #{booking.booking_id} ({booking.checkin_date} → {booking.checkout_date})
+                                        </Select.Option>
+                                    ))}
+                                </Select>
+                            </div>
+                        )}
+
+                        {/* Show selected booking details and Room Selection */}
+                        {selectedBookingId && (() => {
+                            const selectedBooking = activeBookings.find(b => b.booking_id === selectedBookingId);
+                            if (!selectedBooking) return null;
+
+                            return (
+                                <div>
+                                    <Descriptions column={{ xs: 1, sm: 2, md: 3 }} bordered size="small" style={{ marginBottom: 24 }}>
+                                        <Descriptions.Item label="Mã đặt phòng">
+                                            <Tag color="blue">#{selectedBooking.booking_id}</Tag>
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Check-in">
+                                            <span style={{ color: '#666' }}>{selectedBooking.checkin_date}</span>
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Check-out">
+                                            <span style={{ color: '#666' }}>{selectedBooking.checkout_date}</span>
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Trạng thái">
+                                            <Tag color="green">Đang lưu trú</Tag>
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Phòng" span={2}>
+                                            <Space wrap>
+                                                {selectedBooking.bookingRooms?.map((br) => (
+                                                    <Button
+                                                        key={br.id}
+                                                        type={selectedRoomId === br.id ? "primary" : "default"}
+                                                        onClick={() => setSelectedRoomId(br.id)}
+                                                        style={{ borderRadius: 4 }}
+                                                    >
+                                                        Phòng {br.room?.room_number}
+                                                    </Button>
+                                                ))}
+                                            </Space>
+                                            {!selectedRoomId && selectedBooking.bookingRooms?.length > 1 && (
+                                                <div style={{ marginTop: 8, color: '#ff4d4f', fontSize: 12 }}>
+                                                    * Vui lòng chọn một phòng trước khi gọi dịch vụ
+                                                </div>
+                                            )}
+                                        </Descriptions.Item>
+                                    </Descriptions>
+                                </div>
+                            );
+                        })()}
+                    </Card>
+                )}
+
+                {/* Services List - Always show */}
+                <div style={{ marginBottom: 24 }}>
+                    <h2 style={{ fontSize: 20, marginBottom: 16 }}>Danh sách dịch vụ</h2>
+                    {services.length === 0 ? (
+                        <Card>
+                            <Empty description="Không có dịch vụ nào" />
+                        </Card>
+                    ) : (
+                        <Row gutter={[16, 16]}>
+                            {Array.isArray(services) && services.map((service) => (
+                                <Col xs={24} sm={12} md={8} lg={6} key={service.service_id}>
+                                    <Card
+                                        hoverable
+                                        style={{ height: "100%", borderRadius: 8, overflow: 'hidden' }}
+                                        bodyStyle={{ padding: 20 }}
+                                    >
+                                        <h3 style={{ marginBottom: 4, fontSize: 18, color: '#262626' }}>
+                                            {service.name}
+                                        </h3>
+                                        <div style={{ color: "#8c8c8c", fontSize: 14, marginBottom: 16 }}>
+                                            {parseFloat(service.price).toLocaleString("vi-VN")} VNĐ
+                                            {service.unit && ` / ${service.unit}`}
+                                        </div>
+
+                                        <Space.Compact style={{ width: "100%", marginBottom: 12 }}>
+                                            <InputNumber
+                                                min={1}
+                                                value={quantities[service.service_id] || 1}
+                                                onChange={(val) =>
+                                                    setQuantities({ ...quantities, [service.service_id]: val })
+                                                }
+                                                style={{ width: "60%" }}
+                                            />
+                                            <Button
+                                                type="primary"
+                                                onClick={() => {
+                                                    if (!selectedRoomId) {
+                                                        message.warning("Vui lòng chọn phòng cụ thể ở phía trên!");
+                                                        return;
+                                                    }
+                                                    handleRequestService(service.service_id);
+                                                }}
+                                                loading={requesting}
+                                                style={{ width: "40%", fontWeight: 'bold' }}
+                                            >
+                                                Gọi
+                                            </Button>
+                                        </Space.Compact>
+
+                                        <div style={{ fontSize: 13, color: "#595959", textAlign: "right", borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+                                            Tổng: <span style={{ fontWeight: 'bold', color: '#1890ff' }}>
+                                                {((quantities[service.service_id] || 1) * parseFloat(service.price)).toLocaleString("vi-VN")} VNĐ
+                                            </span>
+                                        </div>
+                                    </Card>
+                                </Col>
+                            ))}
+                        </Row>
+                    )}
+                </div>
+
+                {/* Service History */}
+                <Card
+                    title={
+                        <Space>
+                            <HistoryOutlined />
+                            <span>Lịch sử dịch vụ đã gọi</span>
+                        </Space>
+                    }
+                    bodyStyle={{ padding: 0 }}
+                >
+                    <Table
+                        rowKey="usage_id"
+                        columns={historyColumns}
+                        dataSource={serviceHistory}
+                        pagination={{ pageSize: 10, position: ['bottomCenter'] }}
+                        locale={{ emptyText: "Chưa có dịch vụ nào" }}
+                        style={{ padding: '0 16px' }}
                     />
 
-                    <Divider />
-
-                    {/* BƯỚC 1: CHỌN PHÒNG VÀ XÁC THỰC LƯU TRÚ */}
-                    {currentStep === 0 && (
-                        <div className="step-content animate__animated animate__fadeIn">
-                            {activeBookings.length === 0 ? (
-                                <Empty
-                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                    description={
-                                        <Space direction="vertical" align="center">
-                                            <Text strong style={{ fontSize: 18 }}>Bạn chưa có phòng đang lưu trú</Text>
-                                            <Text type="secondary">Vui lòng thực hiện Check-in tại quầy để mở khóa tính năng này.</Text>
-                                            <Button type="primary" size="large" onClick={() => window.location.href = '/booking-history'}>
-                                                Đến trang Lịch sử đặt phòng
-                                            </Button>
-                                        </Space>
-                                    }
-                                />
-                            ) : (
-                                <Row gutter={[24, 24]} justify="center">
-                                    <Col span={24} style={{ textAlign: 'center' }}>
-                                        <Title level={4}>Xác nhận phòng bạn đang ở</Title>
-                                    </Col>
-                                    {activeBookings.map(booking => (
-                                        <Col key={booking.booking_id} xs={24} md={18} lg={12}>
-                                            <Card
-                                                hoverable
-                                                className={`booking-selection-card ${selectedBookingId === booking.booking_id ? 'active' : ''}`}
-                                                style={{ border: selectedBookingId === booking.booking_id ? '2px solid #1890ff' : '1px solid #f0f0f0' }}
-                                                onClick={() => setSelectedBookingId(booking.booking_id)}
-                                            >
-                                                <Row align="middle" gutter={16}>
-                                                    <Col span={4}>
-                                                        <div style={{ background: '#e6f7ff', padding: 12, borderRadius: 8, textAlign: 'center' }}>
-                                                            <HomeOutlined style={{ fontSize: 24, color: '#1890ff' }} />
-                                                        </div>
-                                                    </Col>
-                                                    <Col span={20}>
-                                                        <Title level={5} style={{ margin: 0 }}>Đơn đặt #{booking.booking_id}</Title>
-                                                        <Text type="secondary">{booking.checkin_date} → {booking.checkout_date}</Text>
-                                                    </Col>
-                                                </Row>
-                                                <Divider style={{ margin: '12px 0' }} />
-                                                <Space wrap>
-                                                    {booking.bookingRooms?.map(br => (
-                                                        <Badge key={br.id} dot={selectedRoomId === br.id} offset={[-2, 2]} color="#1890ff">
-                                                            <Button
-                                                                type={selectedRoomId === br.id ? "primary" : "default"}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setSelectedRoomId(br.id);
-                                                                    setSelectedBookingId(booking.booking_id);
-                                                                }}
-                                                            >
-                                                                Phòng {br.room?.room_number}
-                                                            </Button>
-                                                        </Badge>
-                                                    ))}
-                                                </Space>
-                                            </Card>
-                                        </Col>
-                                    ))}
-                                    <Col span={24} style={{ textAlign: 'center', marginTop: 24 }}>
+                    {/* Footer Financials */}
+                    {selectedBookingId && financials && (
+                        <div style={{ padding: '24px', borderTop: '1px solid #f0f0f0', backgroundColor: '#fafafa' }}>
+                            <Row gutter={48} justify="end" align="middle">
+                                <Col>
+                                    <Statistic
+                                        title={<span style={{ color: '#8c8c8c' }}>Tổng chi phí (Phòng + Dịch vụ)</span>}
+                                        value={financials.total || 0}
+                                        suffix="VNĐ"
+                                        valueStyle={{ fontSize: 20 }}
+                                    />
+                                </Col>
+                                <Col>
+                                    <Statistic
+                                        title={<span style={{ color: '#8c8c8c' }}>Đã thanh toán</span>}
+                                        value={financials.totalPaid || 0}
+                                        suffix="VNĐ"
+                                        valueStyle={{ fontSize: 20, color: '#52c41a' }}
+                                    />
+                                </Col>
+                                <Col>
+                                    <Statistic
+                                        title={<span style={{ color: '#8c8c8c', fontWeight: 'bold' }}>Cần thanh toán thêm</span>}
+                                        value={financials.remainingAmount || 0}
+                                        suffix="VNĐ"
+                                        valueStyle={{ fontSize: 24, color: "#ff4d4f", fontWeight: 'bold' }}
+                                    />
+                                </Col>
+                                {financials.remainingAmount > 0 && (
+                                    <Col>
                                         <Button
                                             type="primary"
                                             size="large"
-                                            disabled={!selectedRoomId}
-                                            onClick={nextStep}
+                                            icon={<DollarOutlined />}
+                                            onClick={handlePayment}
+                                            loading={paymentLoading}
+                                            style={{ height: 50, padding: '0 32px', fontSize: 18, borderRadius: 8, fontWeight: 'bold' }}
                                         >
-                                            Tiếp tục Chọn dịch vụ
+                                            Thanh toán ngay
                                         </Button>
                                     </Col>
-                                </Row>
-                            )}
-                        </div>
-                    )}
-
-                    {/* BƯỚC 2: CHỌN DỊCH VỤ DỰA TRÊN PHÒNG ĐÃ CHỌN */}
-                    {currentStep === 1 && (
-                        <div className="step-content animate__animated animate__fadeIn">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                                <Button icon={<HomeOutlined />} onClick={prevStep}>Quay lại chọn phòng</Button>
-                                <Tag color="blue" style={{ padding: '4px 12px' }}>
-                                    <HomeOutlined /> Đang chọn cho: Phòng {
-                                        activeBookings.flatMap(b => b.bookingRooms).find(br => br?.id === selectedRoomId)?.room?.room_number
-                                    }
-                                </Tag>
-                            </div>
-
-                            <Row gutter={[20, 20]}>
-                                {services.map((service) => (
-                                    <Col xs={24} sm={12} md={8} lg={6} key={service.service_id}>
-                                        <Card
-                                            hoverable
-                                            className="service-card"
-                                            bodyStyle={{ padding: 20 }}
-                                            style={{ borderRadius: 12 }}
-                                        >
-                                            <Title level={5} style={{ marginBottom: 4 }}>{service.name}</Title>
-                                            <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-                                                {parseFloat(service.price).toLocaleString("vi-VN")} VNĐ {service.unit && `/ ${service.unit}`}
-                                            </Text>
-
-                                            <div style={{ display: 'flex', gap: 8 }}>
-                                                <InputNumber
-                                                    min={1}
-                                                    value={quantities[service.service_id] || 1}
-                                                    onChange={val => setQuantities({ ...quantities, [service.service_id]: val })}
-                                                    style={{ flex: 1 }}
-                                                />
-                                                <Button
-                                                    type="primary"
-                                                    icon={<ShoppingCartOutlined />}
-                                                    loading={requesting}
-                                                    onClick={() => handleRequestService(service.service_id)}
-                                                >
-                                                    Gọi
-                                                </Button>
-                                            </div>
-                                        </Card>
-                                    </Col>
-                                ))}
+                                )}
                             </Row>
-
-                            <div style={{ textAlign: 'center', marginTop: 40 }}>
-                                <Button type="default" size="large" onClick={nextStep}>
-                                    Xem lịch sử & Thanh toán <HistoryOutlined />
-                                </Button>
-                            </div>
                         </div>
                     )}
-
-                    {/* BƯỚC 3: XEM LẠI LỊCH SỬ VÀ CHI PHÍ TỔNG */}
-                    {currentStep === 2 && (
-                        <div className="step-content animate__animated animate__fadeIn">
-                            <div style={{ marginBottom: 24 }}>
-                                <Button onClick={prevStep}>Quay lại gọi thêm</Button>
-                            </div>
-
-                            <Title level={4} style={{ marginBottom: 16 }}>Lịch sử sử dụng dịch vụ trong kỳ lưu trú</Title>
-                            <Table
-                                columns={historyColumns}
-                                dataSource={serviceHistory}
-                                rowKey="usage_id"
-                                pagination={{ pageSize: 5 }}
-                                style={{ marginBottom: 32 }}
-                                bordered
-                            />
-
-                            {/* TỔNG KẾT TÀI CHÍNH - GIẢI THÍCH ĐỒ ÁN: Tích hợp VNPay */}
-                            {financials && (
-                                <Card style={{ background: '#fafafa', borderRadius: 12 }}>
-                                    <Row align="middle">
-                                        <Col xs={24} md={14}>
-                                            <Space direction="vertical">
-                                                <Text type="secondary">Tóm tắt chi phí đơn #${selectedBookingId}:</Text>
-                                                <Space split={<Divider type="vertical" />}>
-                                                    <Statistic title="Tiền phòng" value={financials.roomTotal} suffix="VNĐ" />
-                                                    <Statistic title="Dịch vụ" value={financials.serviceTotal} suffix="VNĐ" />
-                                                </Space>
-                                            </Space>
-                                        </Col>
-                                        <Col xs={24} md={10} style={{ textAlign: 'right' }}>
-                                            <Statistic
-                                                title={<Text strong style={{ fontSize: 16 }}>Cần thanh toán thêm</Text>}
-                                                value={financials.remainingAmount}
-                                                suffix="VNĐ"
-                                                valueStyle={{ color: '#ff4d4f', fontWeight: 'bold' }}
-                                            />
-                                            {financials.remainingAmount > 0 ? (
-                                                <Button
-                                                    type="primary"
-                                                    size="large"
-                                                    icon={<DollarOutlined />}
-                                                    loading={paymentLoading}
-                                                    onClick={handlePayment}
-                                                    style={{ height: 50, padding: '0 40px', marginTop: 16, borderRadius: 8 }}
-                                                >
-                                                    Thanh toán VNPay Ngay
-                                                </Button>
-                                            ) : (
-                                                <Tag color="green" style={{ marginTop: 16, padding: '8px 16px', fontSize: 14 }}>
-                                                    ĐÃ THANH TOÁN ĐỦ
-                                                </Tag>
-                                            )}
-                                        </Col>
-                                    </Row>
-                                </Card>
-                            )}
-                        </div>
-                    )}
-                </Card>
-
-                {/* KHỐI GIẢI THÍCH KỸ THUẬT DÀNH CHO BÁO CÁO ĐỒ ÁN */}
-                <Card style={{ marginTop: 40, border: '1px solid #d9d9d9', backgroundColor: '#fafafa' }} title="💡 Giải thích logic cho báo cáo đồ án">
-                    <Paragraph>
-                        <ul style={{ paddingLeft: 20 }}>
-                            <li><b>Lấy dữ liệu (Step 1):</b> Hệ thống sử dụng <code>serviceUsageApi.getMyBooking()</code> để lấy thông tin các phòng mà User đang Check-in. Chỉ những phòng có trạng thái <code>checked_in</code> mới được hiển thị.</li>
-                            <li><b>Gọi API (Step 2):</b> Khi nhấn gọi, hàm <code>requestServiceByUser</code> ở backend sẽ nhận dữ liệu bao gồm <code>booking_room_id</code>. Điều này giúp hệ thống biết chính xác dịch vụ thuộc về phòng nào trong đơn đặt đa phòng.</li>
-                            <li><b>Tính tiền:</b> Mọi chi phí dịch vụ được cộng dồn vào hóa đơn tổng thông qua hàm <code>calculateBookingTotal</code> ở backend, đảm bảo tính nhất quán của dữ liệu tài chính.</li>
-                            <li><b>Socket.io:</b> Cập nhật real-time ngay lập tức giữa giao diện khách và lễ tân khi có một yêu cầu mới được gửi đi.</li>
-                        </ul>
-                    </Paragraph>
                 </Card>
             </div>
-
-            <style jsx>{`
-                .booking-selection-card {
-                    transition: all 0.3s;
-                    border-radius: 12px;
-                }
-                .booking-selection-card:hover {
-                    transform: translateY(-5px);
-                    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
-                }
-                .active {
-                    background-color: #e6f7ff;
-                }
-                .service-card {
-                    transition: all 0.3s;
-                }
-                .service-card:hover {
-                    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-                    border-color: #40a9ff;
-                }
-                .step-content {
-                    min-height: 400px;
-                    padding-top: 20px;
-                }
-            `}</style>
         </div>
     );
 };
