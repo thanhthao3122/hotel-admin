@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
+import dayjs from "dayjs";
+import "dayjs/locale/vi";
 import {
-
   Typography,
   message,
   Spin,
@@ -9,7 +10,7 @@ import {
   Input,
   Form,
   Popconfirm,
-  Card
+  Card,
 } from "antd";
 import {
   CreditCardOutlined,
@@ -20,7 +21,6 @@ import {
   PhoneOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-
 } from "@ant-design/icons";
 
 import Navbar from "../../components/home/Navbar";
@@ -33,7 +33,6 @@ import socket from "../../utils/socket";
 
 dayjs.locale("vi");
 const { Title, Text } = Typography;
-
 
 // Hàm hỗ trợ tính toán tổng số
 const calculateBookingDetails = (booking) => {
@@ -119,12 +118,11 @@ const calculateBookingDetails = (booking) => {
 
 const getStatusConfig = (status) => {
   const statusMap = {
-        'pending': { color: 'orange', text: 'Chờ xác nhận', icon: '⏳' },
-        'confirmed': { color: 'cyan', text: 'Chờ nhận phòng', icon: '🏨' },
-        'completed': { color: 'purple', text: 'Đã trả phòng', icon: '👋' },
-        'paid': { color: 'blue', text: 'Đã thanh toán', icon: '💳' },
-        'cancelled': { color: 'red', text: 'Đã hủy', icon: '❌' }
-
+    pending: { color: "orange", text: "Chờ xác nhận", icon: "⏳" },
+    confirmed: { color: "cyan", text: "Chờ nhận phòng", icon: "🏨" },
+    completed: { color: "purple", text: "Đã trả phòng", icon: "👋" },
+    paid: { color: "blue", text: "Đã thanh toán", icon: "💳" },
+    cancelled: { color: "red", text: "Đã hủy", icon: "❌" },
   };
   return statusMap[status] || { color: "default", text: status, icon: "❓" };
 };
@@ -147,7 +145,6 @@ const formatDate = (dateString) => {
   return `${dayName}, ${day}/${month}/${year}`;
 };
 
-
 const BookingCard = ({
   booking,
   isSelected,
@@ -155,14 +152,12 @@ const BookingCard = ({
   onCancel,
   cancelling,
 }) => {
-
   const { nights, grandTotal } = calculateBookingDetails(booking);
   const isPaid = booking.payments?.some((p) => p.status === "completed");
   const statusConfig = getStatusConfig(booking.status, isPaid);
   // Chỉ cho phép hủy khi đang chờ xác nhận hoặc đã xác nhận (chưa nhận phòng) VÀ chưa thanh toán
   const canCancel =
     ["pending", "confirmed"].includes(booking.status) && !isPaid;
-
 
   return (
     <Card
@@ -260,7 +255,6 @@ const BookingCard = ({
 // ---------------------------------------------------------
 const PaymentForm = ({ booking, user, onPayment, paying }) => {
   const [localPaymentMethod, setLocalPaymentMethod] = useState("online");
-
 
   useEffect(() => {
     // Luôn mặc định là thanh toán trực tuyến trong trang lịch sử cho các lần thanh toán đang hoạt động
@@ -364,13 +358,11 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
               </Tag>
             </div>
             <div className="detail-row">
-
               <Text strong>Phòng:</Text>
               <div>
                 {booking.bookingRooms?.map((br) => (
                   <div key={br.room_id}>
                     {br.room?.roomType?.name} - Phòng {br.room?.room_number}
-
                   </div>
                 ))}
               </div>
@@ -383,7 +375,6 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
           <Title level={5} className="section-title">
             <CalendarOutlined /> Thời gian lưu trú
           </Title>
-
 
           <Form.Item label="Ngày trả phòng">
             <Input
@@ -588,7 +579,6 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                 </div>
               </>
             )}
-
           </div>
         </div>
 
@@ -753,7 +743,6 @@ const BookingHistory = () => {
       if (selectedBooking?.booking_id === bookingId) {
         setSelectedBooking(validBookings.length > 0 ? validBookings[0] : null);
       }
-
     } catch (error) {
       console.error("Error cancelling booking:", error);
       message.error(error.response?.data?.message || "Không thể hủy booking");
