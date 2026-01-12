@@ -23,6 +23,7 @@ import {
   DeleteOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
+import dayjs from "dayjs";
 
 import bookingApi from "../api/bookingApi.js";
 import userApi from "../api/userApi.js";
@@ -371,13 +372,11 @@ const Bookings = () => {
               return (
                 <div
                   style={{
-                    
                     width: "100%",
                     padding: "8px 10px",
                     border: "1px solid #f0f0f0",
                     borderRadius: 10,
                     background: "#fff",
-                    
                   }}
                 >
                   {" "}
@@ -386,9 +385,12 @@ const Bookings = () => {
               );
 
             const canCheckIn = brStatus === "pending" && !locked;
-
+            const today = dayjs().startOf("day");
+            const checkin = dayjs(br.checkin_date).startOf("day");
+             const disabled = today.isBefore(checkin); 
             return canCheckIn ? (
               <Button
+                 disabled={disabled}
                 onClick={() => updateBookingRoomStatus(br.id, "checked_in")}
               >
                 Check-in

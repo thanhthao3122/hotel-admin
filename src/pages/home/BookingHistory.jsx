@@ -96,10 +96,13 @@ const calculateBookingDetails = (booking) => {
     ) || 0;
   const grandTotal = roomTotal + serviceTotal;
 
+  const paymentsList = booking.payments || booking.invoice?.payments || [];
   const totalPaid =
-    booking.payments
-      ?.filter((p) => p.status === "completed")
-      .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) || 0;
+    booking.financials?.totalPaid !== undefined
+      ? booking.financials.totalPaid
+      : paymentsList
+          ?.filter((p) => p.status === "completed")
+          .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) || 0;
 
   const actualCollected = totalPaid - totalRefunded;
 
@@ -119,10 +122,15 @@ const calculateBookingDetails = (booking) => {
 const getStatusConfig = (status) => {
   const statusMap = {
     pending: { color: "orange", text: "Chờ xác nhận", icon: "⏳" },
-    confirmed: { color: "cyan", text: "Chờ nhận phòng", icon: "🏨" },
+    confirmed: { color: "cyan", text: "Đã xác nhận", icon: "🏨" },
     completed: { color: "purple", text: "Đã trả phòng", icon: "👋" },
     paid: { color: "blue", text: "Đã thanh toán", icon: "💳" },
-    cancelled: { color: "red", text: "Đã hủy", icon: "❌" },
+    cancelling: {
+      color: "orange",
+      text: "Đang yêu cầu hủy / Chờ hoàn tiền",
+      icon: "⏳",
+    },
+    cancelled: { color: "red", text: "Đã hủy ", icon: "❌" },
   };
   return statusMap[status] || { color: "default", text: status, icon: "❓" };
 };
@@ -153,7 +161,10 @@ const BookingCard = ({
   cancelling,
 }) => {
   const { nights, grandTotal } = calculateBookingDetails(booking);
-  const isPaid = booking.payments?.some((p) => p.status === "completed");
+  const isPaid =
+    (booking.payments || booking.invoice?.payments)?.some(
+      (p) => p.status === "completed"
+    ) || booking.financials?.totalPaid > 0;
   const statusConfig = getStatusConfig(booking.status, isPaid);
   // Chỉ cho phép hủy khi đang chờ xác nhận hoặc đã xác nhận (chưa nhận phòng) VÀ chưa thanh toán
   const canCancel =
@@ -284,7 +295,10 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
     totalPaid,
     totalRefunded,
   } = calculateBookingDetails(booking);
-  const isPaid = booking.payments?.some((p) => p.status === "completed");
+  const isPaid =
+    (booking.payments || booking.invoice?.payments)?.some(
+      (p) => p.status === "completed"
+    ) || booking.financials?.totalPaid > 0;
   const statusConfig = getStatusConfig(booking.status, isPaid);
   // Cho phép thanh toán nếu đơn đặt phòng đang chờ hoặc đã xác nhận VÀ chưa thanh toán
   const canPay =
@@ -730,15 +744,19 @@ const BookingHistory = () => {
     try {
       setCancelling(bookingId);
 
-      await bookingApi.updateStatus(bookingId, "cancelled");
-      message.success("Đã hủy booking thành công");
+      // Kiểm tra xem đơn này đã thanh toán chưa (dựa trên dữ liệu booking hiện tại)
+      const currentBooking = bookings.find((b) => b.booking_id === bookingId);
+      const isPaid = currentBooking?.payments?.some(
+        (p) => p.status === "completed"
+      );
+      // Nếu đã trả tiền -> Đưa về 'cancelling'. Nếu chưa trả -> 'cancelled' luôn.
+      const newStatus = isPaid ? "cancelling" : "cancelled";
+      await bookingApi.updateStatus(bookingId, newStatus);
+      message.success(
+        isPaid ? "Đã gửi yêu cầu hủy và hoàn tiền" : "Đã hủy đơn thành công"
+      );
 
-      // Làm mới danh sách đặt phòng
-      const response = await bookingApi.getByUser(user.user_id);
-      const validBookings =
-        response.data.filter((b) => b.status !== "cancelled") || [];
-      setBookings(validBookings);
-
+      fetchBookings();
       // Nếu đơn đặt phòng đã hủy đang được chọn, hãy xóa lựa chọn
       if (selectedBooking?.booking_id === bookingId) {
         setSelectedBooking(validBookings.length > 0 ? validBookings[0] : null);
