@@ -116,7 +116,7 @@ const calculateBookingDetails = (booking) => {
 const getStatusConfig = (status) => {
   const statusMap = {
         'pending': { color: 'orange', text: 'Chờ xác nhận', icon: '⏳' },
-        'confirmed': { color: 'cyan', text: 'Chờ nhận phòng', icon: '🏨' },
+        'confirmed': { color: 'cyan', text: 'Đã xác nhận', icon: '🏨' },
         'completed': { color: 'purple', text: 'Đã trả phòng', icon: '👋' },
         'paid': { color: 'blue', text: 'Đã thanh toán', icon: '💳' },
         'cancelled': { color: 'red', text: 'Đã hủy', icon: '❌' }

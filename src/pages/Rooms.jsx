@@ -1,6 +1,9 @@
 // src/pages/Rooms.jsx
 import { useEffect, useMemo, useState, useCallback } from "react";
 import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+dayjs.extend(customParseFormat);
+
 import {
   Button,
   Card,
@@ -11,12 +14,10 @@ import {
   Tag,
   Popconfirm,
   message,
-  Row,
-  Col,
-  Segmented,
   Tooltip,
   DatePicker,
   Typography,
+  Divider,
 } from "antd";
 import {
   PlusOutlined,
@@ -24,8 +25,6 @@ import {
   DeleteOutlined,
   SearchOutlined,
   ReloadOutlined,
-  AppstoreOutlined,
-  BarsOutlined,
   CalendarOutlined,
 } from "@ant-design/icons";
 
@@ -39,12 +38,28 @@ import RoomForm from "../components/RoomForm.jsx";
 
 const { Option } = Select;
 const { Text } = Typography;
-const { RangePicker } = DatePicker;
 
 const IMAGE_BASE_URL = "http://localhost:5000";
 
+/**
+ * ✅ Bóc list an toàn cho mọi kiểu axiosClient:
+ * - res.data = {success,message,data:[...]}
+ * - res = {success,message,data:[...]} (unwrap)
+ * - res.data = [...]
+ */
+const unwrapList = (res) => {
+  if (Array.isArray(res?.data)) return res.data;
+  if (Array.isArray(res?.data?.data)) return res.data.data;
+
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.data)) return res.data;
+  if (Array.isArray(res?.data?.data)) return res.data.data;
+
+  return [];
+};
+
 const stateToTag = (state) => {
-  const s = (state || "").toLowerCase();
+  const s = String(state || "").toLowerCase();
   if (s === "available") return { color: "green", text: "Trống" };
   if (s === "booked") return { color: "blue", text: "Đã đặt" };
   if (s === "occupied") return { color: "red", text: "Đang ở" };
@@ -53,41 +68,46 @@ const stateToTag = (state) => {
   return { color: "default", text: state || "-" };
 };
 
-const fmtDayHeader = (d) => dayjs(d).format("DD/MM");
-const fmtDate = (d) => (d ? dayjs(d).format("DD/MM") : "-");
+const brStatusToTag = (brStatus) => {
+  const s = String(brStatus || "").toLowerCase();
+  if (s === "checked_in") return { color: "red", text: "Đang ở" };
+  if (s === "checked_out") return { color: "cyan", text: "Đã trả" };
+  if (s === "cancelled") return { color: "default", text: "Hủy" };
+  return { color: "blue", text: "Đã đặt" }; // pending / default
+};
 
-const Rooms = () => {
+const fmt = (d) => (d ? dayjs(d).format("DD/MM/YYYY") : "-");
+const fmtYMD = (d) => (d ? dayjs(d).format("YYYY-MM-DD") : null);
+
+export default function Rooms() {
   const [rooms, setRooms] = useState([]);
   const [roomTypes, setRoomTypes] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [customers, setCustomers] = useState([]);
 
-  // viewMode: list | grid | timeline
-  const [viewMode, setViewMode] = useState("list");
+  const [loading, setLoading] = useState(false);
 
   const [searchText, setSearchText] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterRoomType, setFilterRoomType] = useState("");
 
-  // timeline
-  const [timelineMode, setTimelineMode] = useState("day"); // day | week | range
-  const [timelineDay, setTimelineDay] = useState(dayjs());
-  const [timelineRange, setTimelineRange] = useState([
-    dayjs().startOf("week"),
-    dayjs().startOf("week").add(7, "day"),
-  ]);
-  const [timelineDays, setTimelineDays] = useState([]);
-  const [timelineRooms, setTimelineRooms] = useState([]);
+  // ✅ 2 DatePicker (không dùng RangePicker)
+  const [fromDate, setFromDate] = useState(dayjs().startOf("day"));
+  const [toDate, setToDate] = useState(dayjs().add(1, "day").startOf("day"));
+
+  // map room_id -> info booking trong khoảng
+  const [bookingMap, setBookingMap] = useState({});
+
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   // modals
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
-  const [customers, setCustomers] = useState([]);
-  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   const [pagination, setPagination] = useState({
     current: 1,
-    pageSize: 100,
+    pageSize: 20,
     total: 0,
   });
 
@@ -97,130 +117,174 @@ const Rooms = () => {
     return map;
   }, [roomTypes]);
 
-  const fetchRoomTypes = async () => {
+  const disabledDate = (current) => {
+    if (!current) return false;
+    // chặn chọn năm quá xa (tránh nhảy loạn)
+    return (
+      current.isBefore(dayjs("2000-01-01")) ||
+      current.isAfter(dayjs("2100-12-31"))
+    );
+  };
+
+  const fetchRoomTypes = useCallback(async () => {
     try {
       const res = await roomTypeApi.getActive();
-      setRoomTypes(res.data || []);
-    } catch (error) {
-      console.error(error);
-      message.error("Không tải được danh sách loại phòng");
+      setRoomTypes(unwrapList(res));
+    } catch (e) {
+      console.error(e);
+      message.error("Không tải được loại phòng");
     }
-  };
+  }, []);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
-      const res = await userApi.getAll(1, 100);
-      setCustomers(res.data || []);
-    } catch (error) {
-      console.error(error);
+      const res = await userApi.getAll(1, 200);
+      setCustomers(unwrapList(res));
+    } catch (e) {
+      console.error(e);
     }
-  };
+  }, []);
 
-  const fetchRooms = async (
-    page = pagination.current,
-    limit = pagination.pageSize,
-    filters = {}
-  ) => {
-    try {
-      setLoading(true);
+  const fetchRooms = useCallback(
+    async (page = pagination.current, limit = pagination.pageSize) => {
+      try {
+        setLoading(true);
 
-      const currentFilters = {
-        status: filterStatus || undefined,
-        room_type_id: filterRoomType || undefined,
-        search: searchText || undefined,
-        ...filters,
-      };
+        const filters = {
+          status: filterStatus || undefined,
+          room_type_id: filterRoomType || undefined,
+          search: searchText || undefined,
+        };
 
-      const res = await roomApi.getAll(page, limit, currentFilters);
-      const list = res.data || [];
-      const pag = res.pagination;
+        const res = await roomApi.getAll(page, limit, filters);
 
-      setRooms(list);
+        // ✅ quan trọng: API của bạn trả data trong res.data.data
+        const list = unwrapList(res);
+        setRooms(list);
 
-      if (pag) {
-        setPagination({
-          current: pag.page,
-          pageSize: pag.limit,
-          total: pag.total,
-        });
-      } else {
-        setPagination((prev) => ({
-          ...prev,
-          current: page,
-          pageSize: limit,
-          total: list.length,
-        }));
+        // pagination (nếu backend có)
+        const pag = res?.pagination || res?.data?.pagination;
+        if (pag) {
+          setPagination({
+            current: pag.page,
+            pageSize: pag.limit,
+            total: pag.total,
+          });
+        } else {
+          setPagination((prev) => ({
+            ...prev,
+            current: page,
+            pageSize: limit,
+            total: list.length,
+          }));
+        }
+      } catch (e) {
+        console.error(e);
+        message.error(
+          e?.response?.data?.message || "Không tải được danh sách phòng"
+        );
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error(error);
-      message.error("Không tải được danh sách phòng");
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [
+      filterStatus,
+      filterRoomType,
+      searchText,
+      pagination.current,
+      pagination.pageSize,
+    ]
+  );
 
-  const buildTimelineParams = useCallback(() => {
-    if (timelineMode === "day") {
-      const start = timelineDay.startOf("day");
-      const end = start.add(1, "day"); // end exclusive
-      return [start, end];
-    }
-    if (timelineMode === "week") {
-      const start = timelineDay.startOf("week");
-      const end = start.add(7, "day");
-      return [start, end];
-    }
-    // range
-    const [s, e] = timelineRange;
-    const start = (s || dayjs()).startOf("day");
-    const end = (e || start.add(7, "day")).startOf("day");
-    return [start, end];
-  }, [timelineMode, timelineDay, timelineRange]);
-
-  const fetchTimeline = useCallback(async () => {
+  const fetchBookingRange = useCallback(async () => {
     try {
-      setLoading(true);
-      const [start, end] = buildTimelineParams();
+      const start = fromDate?.startOf("day");
+      const end = toDate?.startOf("day");
+      if (!start || !end) return;
+
+      if (end.isBefore(start)) {
+        message.warning("Ngày đến phải >= ngày từ");
+        return;
+      }
 
       const res = await roomApi.getAvailabilityTimeline(
-        start.format("YYYY-MM-DD"),
-        end.format("YYYY-MM-DD")
+        fmtYMD(start),
+        fmtYMD(end)
       );
+      const roomsData = unwrapList(res);
 
-      const payload = res.data?.data; // successResponse({ data })
-      const days = payload?.days || [];
-      const roomsData = payload?.rooms || [];
+      const map = {};
+      roomsData.forEach((r) => {
+        const blocks = Array.isArray(r.blocked_by) ? r.blocked_by : [];
+        if (!blocks.length) {
+          map[r.room_id] = { type: "free" };
+          return;
+        }
 
-      setTimelineDays(days);
-      setTimelineRooms(roomsData);
-    } catch (err) {
-      console.error(err);
-      message.error(
-        err.response?.data?.message || "Không tải được timeline phòng"
-      );
-    } finally {
-      setLoading(false);
+        // ưu tiên checked_in nếu có
+        const picked =
+          blocks.find(
+            (b) => String(b.br_status).toLowerCase() === "checked_in"
+          ) || blocks[0];
+
+        const st = brStatusToTag(picked.br_status);
+
+        map[r.room_id] = {
+          type: "busy",
+          color: st.color,
+          label: st.text,
+          text: `${picked.checkin_date} → ${picked.checkout_date}`,
+          tooltip: (
+            <div style={{ fontSize: 12, lineHeight: 1.4 }}>
+              <div>
+                <b>Booking #{picked.booking_id}</b>
+              </div>
+              <div>
+                Booking status:{" "}
+                <b>{String(picked.booking_status || "").toUpperCase()}</b>
+              </div>
+              <div>
+                BR status: <b>{String(picked.br_status || "").toUpperCase()}</b>
+              </div>
+              <div>
+                {picked.checkin_date} → {picked.checkout_date}
+              </div>
+            </div>
+          ),
+        };
+      });
+
+      setBookingMap(map);
+    } catch (e) {
+      console.error(e);
+      setBookingMap({});
+      message.error(e?.response?.data?.message || "Không tải được lịch đặt");
     }
-  }, [buildTimelineParams]);
+  }, [fromDate, toDate]);
 
   useEffect(() => {
     fetchRoomTypes();
     fetchCustomers();
-    fetchRooms(1, pagination.pageSize, {});
+    fetchRooms(1, pagination.pageSize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // realtime
+  useEffect(() => {
+    fetchBookingRange();
+  }, [fetchBookingRange]);
+
+  // realtime refresh
   useEffect(() => {
     const refresh = () => {
-      if (viewMode === "timeline") fetchTimeline();
-      else fetchRooms();
+      fetchRooms();
+      fetchBookingRange();
     };
 
     socket.on("room_created", refresh);
     socket.on("room_updated", refresh);
     socket.on("room_status_updated", refresh);
     socket.on("room_deleted", refresh);
+
     socket.on("booking_created", refresh);
     socket.on("booking_updated", refresh);
     socket.on("booking_room_status_updated", refresh);
@@ -230,59 +294,52 @@ const Rooms = () => {
       socket.off("room_updated", refresh);
       socket.off("room_status_updated", refresh);
       socket.off("room_deleted", refresh);
+
       socket.off("booking_created", refresh);
       socket.off("booking_updated", refresh);
       socket.off("booking_room_status_updated", refresh);
     };
-  }, [viewMode, fetchTimeline]); // fetchRooms dùng state hiện tại nên không add vào deps để tránh loop
-
-  // Khi chuyển sang timeline -> tự load
-  useEffect(() => {
-    if (viewMode === "timeline") fetchTimeline();
-  }, [viewMode, fetchTimeline]);
+  }, [fetchRooms, fetchBookingRange]);
 
   const filteredRooms = useMemo(() => {
-    return rooms.filter((room) => {
-      const keyword = (searchText || "").toLowerCase();
-      const matchSearch = String(room.room_number || "")
+    const kw = (searchText || "").toLowerCase().trim();
+    return (rooms || []).filter((r) => {
+      const matchSearch = String(r.room_number || "")
         .toLowerCase()
-        .includes(keyword);
-
+        .includes(kw);
       const matchType = filterRoomType
-        ? room.room_type_id === Number(filterRoomType)
+        ? r.room_type_id === Number(filterRoomType)
         : true;
-      return matchSearch && matchType;
+      const matchStatus = filterStatus
+        ? String(r.status) === String(filterStatus)
+        : true;
+      return matchSearch && matchType && matchStatus;
     });
-  }, [rooms, searchText, filterRoomType]);
+  }, [rooms, searchText, filterRoomType, filterStatus]);
 
   const openCreateModal = () => {
     setEditingRoom(null);
-    setIsModalOpen(true);
+    setIsRoomModalOpen(true);
   };
 
   const openEditModal = (room) => {
     setEditingRoom(room);
-    setIsModalOpen(true);
+    setIsRoomModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (roomId) => {
     try {
-      await roomApi.delete(id);
+      await roomApi.delete(roomId);
       message.success("Đã xóa phòng");
-      if (viewMode === "timeline") fetchTimeline();
-      else
-        fetchRooms(
-          1,
-          pagination.pageSize,
-          filterStatus ? { status: filterStatus } : {}
-        );
-    } catch (error) {
-      console.error(error);
-      message.error(error.response?.data?.message || "Không xóa được phòng");
+      fetchRooms(1, pagination.pageSize);
+      fetchBookingRange();
+    } catch (e) {
+      console.error(e);
+      message.error(e?.response?.data?.message || "Không xóa được phòng");
     }
   };
 
-  const handleSubmitForm = async (formData) => {
+  const handleSubmitRoomForm = async (formData) => {
     try {
       if (editingRoom) {
         await roomApi.update(editingRoom.room_id, formData);
@@ -291,36 +348,19 @@ const Rooms = () => {
         await roomApi.create(formData);
         message.success("Thêm phòng thành công");
       }
-
-      setIsModalOpen(false);
+      setIsRoomModalOpen(false);
       setEditingRoom(null);
-
-      if (viewMode === "timeline") fetchTimeline();
-      else
-        fetchRooms(
-          1,
-          pagination.pageSize,
-          filterStatus ? { status: filterStatus } : {}
-        );
-    } catch (error) {
-      console.error(error);
-      message.error(error.response?.data?.message || "Có lỗi khi lưu phòng");
+      fetchRooms(1, pagination.pageSize);
+      fetchBookingRange();
+    } catch (e) {
+      console.error(e);
+      message.error(e?.response?.data?.message || "Có lỗi khi lưu phòng");
     }
-  };
-
-  const resetFilter = () => {
-    setSearchText("");
-    setFilterStatus("");
-    setFilterRoomType("");
-    if (viewMode === "timeline") fetchTimeline();
-    else fetchRooms(1, pagination.pageSize, {});
   };
 
   const handleBookingFromRooms = () => {
-    if (selectedRowKeys.length === 0) {
-      message.warning("Vui lòng chọn ít nhất một phòng");
-      return;
-    }
+    if (!selectedRowKeys.length)
+      return message.warning("Vui lòng chọn ít nhất 1 phòng");
     setIsBookingModalOpen(true);
   };
 
@@ -330,24 +370,12 @@ const Rooms = () => {
       message.success("Tạo đơn đặt phòng thành công");
       setIsBookingModalOpen(false);
       setSelectedRowKeys([]);
-      if (viewMode === "timeline") fetchTimeline();
-      else fetchRooms();
-    } catch (error) {
-      console.error(error);
-      message.error(error.response?.data?.message || "Có lỗi xảy ra");
+      fetchRooms();
+      fetchBookingRange();
+    } catch (e) {
+      console.error(e);
+      message.error(e?.response?.data?.message || "Có lỗi xảy ra");
     }
-  };
-
-  const rowSelection = {
-    selectedRowKeys,
-    onChange: (keys) => setSelectedRowKeys(keys),
-    getCheckboxProps: (record) => ({ name: record.room_number }),
-  };
-
-  // ========= LIST COLUMNS =========
-  const renderStatusTag = (status) => {
-    const { color, text } = stateToTag(status);
-    return <Tag color={color}>{text}</Tag>;
   };
 
   const columns = [
@@ -355,80 +383,104 @@ const Rooms = () => {
       title: "Số phòng",
       dataIndex: "room_number",
       key: "room_number",
+      width: 110,
       sorter: (a, b) =>
         String(a.room_number).localeCompare(String(b.room_number)),
+      render: (v) => (
+        <Text strong style={{ fontSize: 14 }}>
+          {v}
+        </Text>
+      ),
+    },
+    {
+      title: "Loại phòng",
+      dataIndex: "room_type_id",
+      key: "room_type_id",
+      width: 200,
+      render: (id, r) => r.roomType?.name || roomTypeMap[id] || "N/A",
     },
     {
       title: "Kiểu giường",
       dataIndex: "bed_style",
       key: "bed_style",
-      render: (v) => v || "Chưa cập nhật",
+      width: 160,
+      render: (v) => v || <Text type="secondary">—</Text>,
     },
     {
-      title: "Hình ảnh",
-      dataIndex: "image",
-      key: "image",
-      render: (image) => {
-        if (!image) return "Không có";
-        const imageUrl = image.startsWith("http")
-          ? image
-          : `${IMAGE_BASE_URL}${image.startsWith("/") ? "" : "/"}${image}`;
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      width: 140,
+      render: (status) => {
+        const { color, text } = stateToTag(status);
+        return <Tag color={color}>{text}</Tag>;
+      },
+    },
+    {
+      title: (
+        <Space size={6}>
+          <CalendarOutlined />
+          <span>Lịch đặt (trong khoảng)</span>
+        </Space>
+      ),
+      key: "book_range",
+      width: 280,
+      render: (_, r) => {
+        const info = bookingMap?.[r.room_id];
+        if (!info) return <Text type="secondary">—</Text>;
+
+        if (info.type === "free") {
+          return (
+            <Tag color="green" style={{ marginRight: 0 }}>
+              Trống
+            </Tag>
+          );
+        }
 
         return (
+          <Tooltip title={info.tooltip}>
+            <Tag color={info.color || "blue"} style={{ marginRight: 0 }}>
+              {info.label}: {info.text}
+            </Tag>
+          </Tooltip>
+        );
+      },
+    },
+    {
+      title: "Hình",
+      dataIndex: "image",
+      key: "image",
+      width: 120,
+      render: (image) => {
+        if (!image) return <Text type="secondary">—</Text>;
+        const url = image.startsWith("http")
+          ? image
+          : `${IMAGE_BASE_URL}${image.startsWith("/") ? "" : "/"}${image}`;
+        return (
           <img
-            src={imageUrl}
+            src={url}
             alt="room"
             style={{
-              width: 80,
-              height: 60,
+              width: 92,
+              height: 64,
               objectFit: "cover",
-              borderRadius: 4,
+              borderRadius: 8,
+              border: "1px solid #f0f0f0",
             }}
             onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = "https://via.placeholder.com/80x60?text=No+Image";
+              e.currentTarget.onerror = null;
+              e.currentTarget.src =
+                "https://via.placeholder.com/92x64?text=No+Image";
             }}
           />
         );
       },
     },
     {
-      title: "Loại phòng",
-      dataIndex: "room_type_id",
-      key: "room_type_id",
-      render: (id) => roomTypeMap[id] || "N/A",
-    },
-    {
-      title: "Trạng thái",
-      dataIndex: "status",
-      key: "status",
-      width: 130,
-      render: (status) => renderStatusTag(status),
-      filters: [
-        { text: "Trống", value: "available" },
-        { text: "Đang ở", value: "occupied" },
-        { text: "Đang dọn", value: "cleaning" },
-        { text: "Bảo trì", value: "maintenance" },
-      ],
-      onFilter: (value, record) => record.status === value,
-    },
-    {
-      title: "Hiển thị",
-      dataIndex: "is_active",
-      key: "is_active",
-      align: "center",
-      render: (value) =>
-        value ? <Tag color="green">Hiện</Tag> : <Tag color="red">Ẩn</Tag>,
-      filters: [
-        { text: "Hiện", value: true },
-        { text: "Ẩn", value: false },
-      ],
-      onFilter: (value, record) => record.is_active === value,
-    },
-    {
       title: "Hành động",
       key: "actions",
-      width: 120,
+      width: 170,
+      fixed: "right",
       render: (_, record) => (
         <Space>
           <Button
@@ -438,16 +490,15 @@ const Rooms = () => {
           >
             Sửa
           </Button>
-
           <Popconfirm
-            title="Xóa phòng"
-            description={`Bạn có chắc muốn xóa phòng ${record.room_number}?`}
+            title="Xóa phòng?"
+            description={`Bạn chắc chắn muốn xóa phòng ${record.room_number}?`}
             okText="Xóa"
             cancelText="Hủy"
             okButtonProps={{ danger: true }}
             onConfirm={() => handleDelete(record.room_id)}
           >
-            <Button size="small" icon={<DeleteOutlined />} danger>
+            <Button size="small" danger icon={<DeleteOutlined />}>
               Xóa
             </Button>
           </Popconfirm>
@@ -456,354 +507,188 @@ const Rooms = () => {
     },
   ];
 
-  const handleTableChange = (pager) => {
-    const { current, pageSize } = pager;
-    setPagination((prev) => ({ ...prev, current, pageSize }));
-    fetchRooms(current, pageSize, filterStatus ? { status: filterStatus } : {});
-  };
-
-  // ========= TIMELINE TABLE =========
-  const timelineColumns = useMemo(() => {
-    const base = [
-      {
-        title: "Phòng",
-        dataIndex: "room_number",
-        fixed: "left",
-        width: 90,
-        render: (_, r) => (
-          <div>
-            <div style={{ fontWeight: 700 }}>{r.room_number}</div>
-            <div style={{ fontSize: 12, color: "#666" }}>
-              {r.roomType?.name || roomTypeMap[r.room_type_id]}
-            </div>
-          </div>
-        ),
-      },
-    ];
-
-    const dayCols = (timelineDays || []).map((d) => ({
-      title: (
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontWeight: 600 }}>{fmtDayHeader(d)}</div>
-          <div style={{ fontSize: 11, color: "#888" }}>
-            {dayjs(d).format("ddd")}
-          </div>
-        </div>
-      ),
-      dataIndex: ["timeline", d],
-      width: 90,
-      align: "center",
-      render: (cell, record) => {
-        const info = record.timeline?.[d];
-        const state = info?.state || "available";
-        const { color, text } = stateToTag(state);
-
-        const blocks = info?.blocks || [];
-        const tooltipContent =
-          blocks.length === 0 ? (
-            <Text type="secondary">Không có booking</Text>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {blocks.map((b) => (
-                <div
-                  key={`${b.booking_room_id}-${b.booking_id}`}
-                  style={{ fontSize: 12 }}
-                >
-                  <div>
-                    <b>#{b.booking_id}</b> •{" "}
-                    {String(b.br_status || "").toUpperCase()}
-                  </div>
-                  <div style={{ color: "#666" }}>
-                    {fmtDate(b.checkin_date)} → {fmtDate(b.checkout_date)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          );
-
-        return (
-          <Tooltip placement="top" title={tooltipContent}>
-            <Tag color={color} style={{ marginRight: 0 }}>
-              {text}
-            </Tag>
-          </Tooltip>
-        );
-      },
-    }));
-
-    return [...base, ...dayCols];
-  }, [timelineDays, roomTypeMap]);
-
-  const timelineData = useMemo(() => {
-    // filter theo search/type luôn cho timeline
-    const keyword = (searchText || "").toLowerCase();
-    return (timelineRooms || []).filter((r) => {
-      const matchSearch = String(r.room_number || "")
-        .toLowerCase()
-        .includes(keyword);
-      const matchType = filterRoomType
-        ? r.room_type_id === Number(filterRoomType)
-        : true;
-      return matchSearch && matchType;
-    });
-  }, [timelineRooms, searchText, filterRoomType]);
-
-  // ========= RENDER =========
   return (
     <Card
-      title="Quản lý phòng"
-      extra={
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={openCreateModal}
-        >
-          Thêm phòng
-        </Button>
+      title={
+        <Space direction="vertical" size={0}>
+          <Text style={{ fontSize: 18, fontWeight: 800 }}>Quản lý phòng</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Danh sách phòng + lịch đặt theo khoảng ngày
+          </Text>
+        </Space>
       }
-    >
-      {/* Filters + view */}
-      <Space
-        style={{
-          marginBottom: 16,
-          justifyContent: "space-between",
-          width: "100%",
-        }}
-        wrap
-      >
-        <Space wrap>
-          <Input
-            placeholder="Tìm theo số phòng..."
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            allowClear
-            style={{ width: 200 }}
-          />
-
-          <Select
-            placeholder="Lọc theo loại phòng"
-            value={filterRoomType || undefined}
-            onChange={(value) => setFilterRoomType(value || "")}
-            allowClear
-            style={{ width: 200 }}
+      extra={
+        <Space>
+          {selectedRowKeys.length > 0 && (
+            <Button
+              type="primary"
+              style={{ background: "#52c41a" }}
+              onClick={handleBookingFromRooms}
+            >
+              Đặt phòng đã chọn ({selectedRowKeys.length})
+            </Button>
+          )}
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={openCreateModal}
           >
-            {roomTypes.map((rt) => (
-              <Option key={rt.room_type_id} value={rt.room_type_id}>
-                {rt.name}
-              </Option>
-            ))}
-          </Select>
+            Thêm phòng
+          </Button>
+        </Space>
+      }
+      bodyStyle={{ paddingTop: 12 }}
+    >
+      {/* FILTER BAR */}
+      <div
+        style={{
+          background: "#fafafa",
+          border: "1px solid #f0f0f0",
+          borderRadius: 12,
+          padding: 12,
+          marginBottom: 12,
+        }}
+      >
+        <Space wrap style={{ width: "100%", justifyContent: "space-between" }}>
+          <Space wrap>
+            <Input
+              placeholder="Tìm theo số phòng..."
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+              style={{ width: 220 }}
+            />
 
-          {/* chỉ dùng cho list/grid */}
-          {viewMode !== "timeline" && (
             <Select
-              placeholder="Lọc theo trạng thái"
+              placeholder="Loại phòng"
+              value={filterRoomType || undefined}
+              onChange={(v) => setFilterRoomType(v || "")}
+              allowClear
+              style={{ width: 200 }}
+            >
+              {roomTypes.map((rt) => (
+                <Option key={rt.room_type_id} value={rt.room_type_id}>
+                  {rt.name}
+                </Option>
+              ))}
+            </Select>
+
+            <Select
+              placeholder="Trạng thái phòng"
               value={filterStatus || undefined}
-              onChange={(value) => {
-                const v = value || "";
-                setFilterStatus(v);
-                fetchRooms(1, pagination.pageSize, v ? { status: v } : {});
-              }}
+              onChange={(v) => setFilterStatus(v || "")}
               allowClear
               style={{ width: 180 }}
             >
               <Option value="available">Trống</Option>
+              <Option value="booked">Đã đặt</Option>
               <Option value="occupied">Đang ở</Option>
               <Option value="cleaning">Đang dọn</Option>
               <Option value="maintenance">Bảo trì</Option>
             </Select>
-          )}
 
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleBookingFromRooms}
-            style={{
-              backgroundColor: "#52c41a",
-              display:
-                selectedRowKeys.length > 0 && viewMode !== "timeline"
-                  ? "inline-block"
-                  : "none",
-            }}
-          >
-            Đặt phòng đã chọn ({selectedRowKeys.length})
-          </Button>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => fetchRooms(1, pagination.pageSize)}
+            >
+              Tải lại
+            </Button>
+          </Space>
 
-          <Button icon={<ReloadOutlined />} onClick={resetFilter}>
-            Xóa lọc
-          </Button>
-        </Space>
+          <Space wrap align="center">
+            <Text type="secondary" style={{ whiteSpace: "nowrap" }}>
+              Xem lịch đặt:
+            </Text>
 
-        <Segmented
-          options={[
-            { label: "Danh sách", value: "list", icon: <BarsOutlined /> },
-            { label: "Lưới", value: "grid", icon: <AppstoreOutlined /> },
-            {
-              label: "Timeline",
-              value: "timeline",
-              icon: <CalendarOutlined />,
-            },
-          ]}
-          value={viewMode}
-          onChange={setViewMode}
-        />
-      </Space>
-
-      {/* Timeline controls */}
-      {viewMode === "timeline" && (
-        <Space style={{ marginBottom: 12 }} wrap>
-          <Segmented
-            options={[
-              { label: "Ngày", value: "day" },
-              { label: "Tuần", value: "week" },
-              { label: "Khoảng", value: "range" },
-            ]}
-            value={timelineMode}
-            onChange={setTimelineMode}
-          />
-
-          {(timelineMode === "day" || timelineMode === "week") && (
             <DatePicker
-              value={timelineDay}
-              onChange={(v) => v && setTimelineDay(v)}
+              value={fromDate}
+              onChange={(v) => {
+                if (!v) return;
+                const d = v.startOf("day");
+                setFromDate(d);
+                if (toDate && toDate.isBefore(d)) setToDate(d);
+              }}
               format="DD/MM/YYYY"
+              allowClear={false}
+              inputReadOnly
+              disabledDate={disabledDate}
+              getPopupContainer={(trigger) => trigger.parentElement}
+              style={{ width: 150 }}
             />
-          )}
 
-          {timelineMode === "range" && (
-            <RangePicker
-              value={timelineRange}
-              onChange={(v) => v && setTimelineRange(v)}
+            <Text type="secondary">→</Text>
+
+            <DatePicker
+              value={toDate}
+              onChange={(v) => {
+                if (!v) return;
+                const d = v.startOf("day");
+                setToDate(d);
+                if (fromDate && d.isBefore(fromDate)) setFromDate(d);
+              }}
               format="DD/MM/YYYY"
+              allowClear={false}
+              inputReadOnly
+              disabledDate={disabledDate}
+              getPopupContainer={(trigger) => trigger.parentElement}
+              style={{ width: 150 }}
             />
-          )}
 
-          <Button type="primary" onClick={fetchTimeline}>
-            Xem
-          </Button>
-
-          <Text type="secondary">
-            (Dữ liệu: {timelineDays?.[0] || "-"} →{" "}
-            {timelineDays?.length ? timelineDays[timelineDays.length - 1] : "-"}
-            )
-          </Text>
+            <Button type="primary" onClick={fetchBookingRange}>
+              Xem
+            </Button>
+          </Space>
         </Space>
-      )}
 
-      {/* View Content */}
-      {viewMode === "list" && (
-        <Table
-          rowKey="room_id"
-          rowSelection={rowSelection}
-          columns={columns}
-          dataSource={filteredRooms}
-          loading={loading}
-          pagination={{
-            current: pagination.current,
-            pageSize: pagination.pageSize,
-            total: pagination.total,
-            showSizeChanger: true,
-            pageSizeOptions: ["10", "20", "50", "100"],
-          }}
-          onChange={handleTableChange}
-        />
-      )}
+        <Divider style={{ margin: "12px 0" }} />
 
-      {viewMode === "grid" && (
-        <div style={{ minHeight: 320 }}>
-          {loading ? (
-            <div style={{ textAlign: "center", padding: 20 }}>Loading...</div>
-          ) : (
-            <Row gutter={[16, 16]}>
-              {filteredRooms.map((room) => {
-                const { color, text } = stateToTag(room.status);
-                let borderColor = "#d9d9d9";
-                if (color === "green") borderColor = "#b7eb8f";
-                if (color === "blue") borderColor = "#91caff";
-                if (color === "red") borderColor = "#ffccc7";
-                if (color === "purple") borderColor = "#d3adf7";
-                if (color === "cyan") borderColor = "#87e8de";
+        <Text type="secondary">
+          Đang xem lịch: <b>{fmt(fromDate)}</b> → <b>{fmt(toDate)}</b>
+        </Text>
+      </div>
 
-                return (
-                  <Col xs={12} sm={8} md={6} lg={4} xl={4} key={room.room_id}>
-                    <Card
-                      hoverable
-                      style={{ borderColor, borderTopWidth: 3, height: "100%" }}
-                      bodyStyle={{ padding: 12 }}
-                      actions={[
-                        <Tooltip title="Sửa" key="edit">
-                          <EditOutlined onClick={() => openEditModal(room)} />
-                        </Tooltip>,
-                        <Tooltip title="Xóa" key="delete">
-                          <Popconfirm
-                            title="Xóa?"
-                            onConfirm={() => handleDelete(room.room_id)}
-                          >
-                            <DeleteOutlined style={{ color: "red" }} />
-                          </Popconfirm>
-                        </Tooltip>,
-                      ]}
-                    >
-                      <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: 24, fontWeight: 800 }}>
-                          {room.room_number}
-                        </div>
-                        <div style={{ color: "#888", fontSize: 12 }}>
-                          {roomTypeMap[room.room_type_id] ||
-                            room.roomType?.name}
-                        </div>
-                        {room.bed_style && (
-                          <div
-                            style={{
-                              color: "#666",
-                              fontSize: 12,
-                              marginTop: 4,
-                            }}
-                          >
-                            🛏️ {room.bed_style}
-                          </div>
-                        )}
-                        <div style={{ marginTop: 8 }}>
-                          <Tag color={color} style={{ marginRight: 0 }}>
-                            {text}
-                          </Tag>
-                        </div>
-                      </div>
-                    </Card>
-                  </Col>
-                );
-              })}
-            </Row>
-          )}
-        </div>
-      )}
+      {/* TABLE */}
+      <Table
+        rowKey="room_id"
+        columns={columns}
+        dataSource={filteredRooms}
+        loading={loading}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          showSizeChanger: true,
+          pageSizeOptions: ["10", "20", "50", "100"],
+        }}
+        onChange={(pager) => {
+          setPagination((p) => ({
+            ...p,
+            current: pager.current,
+            pageSize: pager.pageSize,
+          }));
+          fetchRooms(pager.current, pager.pageSize);
+        }}
+        scroll={{ x: 1200 }}
+      />
 
-      {viewMode === "timeline" && (
-        <Table
-          rowKey={(r) => r.room_id}
-          columns={timelineColumns}
-          dataSource={timelineData}
-          loading={loading}
-          pagination={false}
-          scroll={{ x: 90 * (timelineDays.length + 1) }}
-        />
-      )}
-
-      {/* Modal Thêm/Sửa */}
+      {/* MODALS */}
       <RoomForm
-        open={isModalOpen}
+        open={isRoomModalOpen}
         onCancel={() => {
-          setIsModalOpen(false);
+          setIsRoomModalOpen(false);
           setEditingRoom(null);
         }}
-        onSubmit={handleSubmitForm}
+        onSubmit={handleSubmitRoomForm}
         initialValues={editingRoom}
         isEditing={!!editingRoom}
         roomTypes={roomTypes}
       />
 
-      {/* Form Đặt phòng */}
       <BookingForm
         open={isBookingModalOpen}
         onCancel={() => setIsBookingModalOpen(false)}
@@ -816,6 +701,4 @@ const Rooms = () => {
       />
     </Card>
   );
-};
-
-export default Rooms;
+}

@@ -191,7 +191,6 @@ const RoomForm = ({
           >
             <Select>
               <Select.Option value="available">Trống</Select.Option>
-              <Select.Option value="booked">Đã đặt</Select.Option>
               <Select.Option value="occupied">Đang ở</Select.Option>
               <Select.Option value="cleaning">Đang dọn</Select.Option>
               <Select.Option value="maintenance">Bảo trì</Select.Option>
