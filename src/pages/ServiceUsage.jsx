@@ -178,14 +178,7 @@ const ServiceUsage = () => {
   };
 
   const columns = [
-    {
-      title: "ID",
-      dataIndex: "usage_id",
-      width: 80,
-      align: "center",
-      render: (text, record, index) =>
-        (pagination.current - 1) * pagination.pageSize + index + 1,
-    },
+   
     {
       title: "Khách hàng",
       render: (_, record) => {
@@ -252,16 +245,7 @@ const ServiceUsage = () => {
       title: "Hành động",
       render: (_, record) => (
         <Space>
-          <Button
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setEditingUsage(record);
-              setIsModalOpen(true);
-            }}
-          >
-            Sửa
-          </Button>
+          
           <Popconfirm
             title="Xóa sử dụng dịch vụ?"
             okText="Xóa"

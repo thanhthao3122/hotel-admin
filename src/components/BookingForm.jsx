@@ -3,19 +3,17 @@ import {
   Select,
   DatePicker,
   Modal,
-  InputNumber,
   Tag,
   Row,
   Col,
   Typography,
   Space,
 } from "antd";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import dayjs from "dayjs";
 import voucherApi from "../api/voucherApi";
 
 const { Text } = Typography;
-
 const { Option } = Select;
 
 const BookingForm = ({
@@ -29,288 +27,268 @@ const BookingForm = ({
   isEditing,
 }) => {
   const [form] = Form.useForm();
-  const [pricePerNight, setPricePerNight] = useState(0);
+
   const [vouchers, setVouchers] = useState([]);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [finalTotal, setFinalTotal] = useState(0);
 
-  useEffect(() => {
-    if (open) {
-      if (initialValues) {
-        // Xử lý room_ids
-        const roomIds =
-          initialValues.room_ids ||
-          (initialValues.rooms
-            ? initialValues.rooms.map((r) => r.room_id)
-            : []);
+  // dùng để tránh vòng lặp onValuesChange khi ta setFieldValue trong code
+  const internalUpdateRef = useRef(false);
 
-        if (initialValues.room_id && !roomIds.includes(initialValues.room_id)) {
-          roomIds.push(initialValues.room_id);
-        }
-
-        // Fix: Lấy ngày từ thuộc tính pivot mapping (BookingRoom)
-        const overrides = {};
-        if (initialValues.rooms && Array.isArray(initialValues.rooms)) {
-          initialValues.rooms.forEach((r) => {
-            // Check flat properties OR pivot properties
-            // Sequelize pivot data is often in r.BookingRoom or r.joinTableAttributes depending on alias
-            // Based on backend 'through' definition, checking potential locations
-            const pivot = r.BookingRoom || r.booking_room || r;
-            const cin = pivot.checkin_date || r.checkin_date; // Fallback to r if flattened
-            const cout = pivot.checkout_date || r.checkout_date;
-
-            if (cin && cout && r.room_id) {
-              overrides[r.room_id] = {
-                check_in: dayjs(cin),
-                check_out: dayjs(cout),
-              };
-            }
-          });
-        }
-
-        form.setFieldsValue({
-          ...initialValues,
-          room_ids: roomIds,
-          room_overrides: overrides,
-          payment_method: initialValues.payment_method || "pay_later",
-          check_in: initialValues.checkin_date
-            ? dayjs(initialValues.checkin_date)
-            : dayjs(),
-          check_out: initialValues.checkout_date
-            ? dayjs(initialValues.checkout_date)
-            : dayjs().add(1, "day"),
-        });
-
-        // Xử lý Voucher cũ
-        if (initialValues.voucher) {
-          setSelectedVoucher(initialValues.voucher);
-        } else {
-          // Reset để useEffect dưới xử lý theo voucher_id
-          setSelectedVoucher(null);
-        }
-
-        setTimeout(() => {
-          calculateFinalPrice();
-        }, 100);
-      } else {
-        form.resetFields();
-        form.setFieldsValue({
-          payment_method: "pay_later",
-          check_in: dayjs(),
-          check_out: dayjs().add(1, "day"),
-        });
-        setPricePerNight(0);
-        setSelectedVoucher(null);
-        setFinalTotal(0);
-      }
-
-      fetchVouchers();
-    }
-  }, [open, initialValues, rooms, roomTypes, form]);
-
-  // Effect riêng để sync Voucher từ voucher_id khi danh sách voucher đã load
-  useEffect(() => {
-    if (
-      open &&
-      initialValues &&
-      initialValues.voucher_id &&
-      !selectedVoucher &&
-      vouchers.length > 0
-    ) {
-      const found = vouchers.find(
-        (v) => v.voucher_id === initialValues.voucher_id
-      );
-      if (found) {
-        setSelectedVoucher(found);
-        calculateFinalPrice();
-      }
-    }
-  }, [vouchers, initialValues, open, selectedVoucher]);
-
-  const fetchVouchers = async () => {
+  const fetchVouchers = useCallback(async () => {
     try {
-      // Chỉ lấy voucher đang hoạt động
       const res = await voucherApi.getAll({ active: true });
-      if (res && res.data) {
-        setVouchers(res.data);
-      }
+      if (res && res.data) setVouchers(res.data);
     } catch (error) {
       console.error("Failed to fetch vouchers", error);
     }
-  };
+  }, []);
 
-  // Tính toán lại giá cuối cùng mỗi khi các yếu tố thay đổi
-  useEffect(() => {
-    calculateFinalPrice();
-  }, [pricePerNight, selectedVoucher, form]); // form values change handling requires more care, usually involving form.getFieldsValue() or onValuesChange
+  // ✅ Tính tiền: nhận trực tiếp values (KHÔNG dùng getFieldsValue ngay lúc DatePicker change)
+  const calculateFinalPrice = useCallback(
+    (values) => {
+      const { room_ids, room_overrides, check_in, check_out } = values || {};
 
-  const calculateFinalPrice = () => {
-    const values = form.getFieldsValue();
-    const { room_ids, room_overrides, check_in, check_out } = values;
-
-    if (!room_ids || room_ids.length === 0) {
-      setFinalTotal(0);
-      return;
-    }
-
-    let totalBaseSum = 0;
-
-    room_ids.forEach((id) => {
-      const room = rooms.find((r) => r.room_id === id);
-      if (!room) return;
-      const roomType = roomTypes.find(
-        (rt) => rt.room_type_id === room.room_type_id
-      );
-      if (!roomType) return;
-
-      const override = room_overrides?.[id] || {};
-      const finalCin = override.check_in || check_in;
-      const finalCout = override.check_out || check_out;
-
-      if (finalCin && finalCout) {
-        const nights = dayjs(finalCout).diff(dayjs(finalCin), "day");
-        if (nights > 0) {
-          totalBaseSum += roomType.base_price * nights;
-        }
+      if (!room_ids || room_ids.length === 0) {
+        setFinalTotal(0);
+        return;
       }
-    });
 
-    if (totalBaseSum === 0) {
-      setFinalTotal(0);
-      return;
-    }
+      let totalBaseSum = 0;
 
-    let totalWithVoucher = totalBaseSum;
-    if (selectedVoucher) {
-      if (selectedVoucher.discount_type === "percentage") {
-        totalWithVoucher -=
-          totalBaseSum * (parseFloat(selectedVoucher.discount_value) / 100);
-      } else if (selectedVoucher.discount_type === "fixed") {
-        // Backend for MULTI ROOM treats fixed voucher as reduction of the TOTAL sum if applied at the end
-        // Wait, backend logic for multi room:
-        // totalPrice accumulates (base_price * nights)
-        // Then subtract voucher from that.
-        totalWithVoucher = Math.max(
-          0,
-          totalBaseSum - parseFloat(selectedVoucher.discount_value)
+      room_ids.forEach((id) => {
+        const room = rooms.find((r) => r.room_id === id);
+        if (!room) return;
+
+        const roomType = roomTypes.find(
+          (rt) => rt.room_type_id === room.room_type_id
         );
-      }
-    }
+        if (!roomType) return;
 
-    setFinalTotal(totalWithVoucher);
-  };
+        const override = room_overrides?.[id];
 
-  const handleValuesChange = (changedValues, allValues) => {
-    // Trigger Recalculate if dates change
-    if (
-      changedValues.check_in ||
-      changedValues.check_out ||
-      changedValues.room_overrides ||
-      changedValues.room_ids
-    ) {
-      calculateFinalPrice();
-    }
+        // ✅ RULE CHUẨN:
+        // - Nếu override đủ 2 ngày -> dùng override
+        // - Nếu override thiếu -> dùng master
+        const hasFullOverride = !!(override?.check_in && override?.check_out);
+        const finalCin = hasFullOverride ? override.check_in : check_in;
+        const finalCout = hasFullOverride ? override.check_out : check_out;
 
-    // Auto-update Master Dates (Min/Max) if Room Overrides change
-    if (changedValues.room_overrides) {
-      const { room_ids, room_overrides } = allValues;
-      if (room_ids && room_ids.length > 0) {
-        let minDate = allValues.check_in; // Start with current, but ideally should filter purely from rooms
-        let maxDate = allValues.check_out;
+        if (finalCin && finalCout) {
+          const nights = dayjs(finalCout)
+            .startOf("day")
+            .diff(dayjs(finalCin).startOf("day"), "day");
 
-        // Better: Re-evaluate from scratch to be rigorous
-        const validDates = [];
-
-        room_ids.forEach((rid) => {
-          // Current logic: If override exists, use it. If not, fallback to... wait.
-          // If we fallback to 'master', and 'master' is what we are updating, we have a loop dependency.
-          // Ideally: Master is the aggregator.
-          // If a room has specific override, use it.
-          // If a room has NO override, it effectively "follows" the master?
-          // OR: Does the UI initialize overrides for ALL rooms?
-          // 'initialValues' logic initializes overrides if they exist.
-          // New rooms selection: 'onChange' in Select initializes newOverrides.
-
-          const override = room_overrides?.[rid];
-          if (override?.check_in && override?.check_out) {
-            validDates.push({
-              start: override.check_in,
-              end: override.check_out,
-            });
-          }
-          // If no override, it's technically ambiguous in this context.
-          // But assuming normal flow:
-          // 1. User picks Master Date.
-          // 2. User picks Room -> Room inherits Master Date.
-          // 3. User edits Room Date -> Override created.
-          // 4. We calculate Min/Max of (Overrides + Non-Overridden Rooms).
-          // Non-overridden rooms should theoretically count as "Master Date".
-          // But if we are CHANGING Master Date, those non-overridden rooms move with it.
-          // Loops: Room changes -> Master Updates -> Non-overridden rooms "move".
-          // This is fine. The invariant is: Master contains All.
-
-          // However, let's strictly look at OVERRIDES to expand the Master.
-          // If an override is OUTSIDE current master, expand master.
-          // If all overrides are INSIDE, should we shrink? Maybe not, user might want extra buffer?
-          // The user request: "tự đông cập nhật min max... để chính xác về vòng đời"
-          // This implies strict coupling.
-        });
-
-        if (room_overrides) {
-          let calculatedMin = null;
-          let calculatedMax = null;
-
-          room_ids.forEach((rid) => {
-            const override = room_overrides[rid];
-            // If room has override, rely on it. If not, rely on current form value (which might be the "base").
-            // But for "Expansion", we only care if an override pushes boundaries.
-            const rIn = override?.check_in || allValues.check_in;
-            const rOut = override?.check_out || allValues.check_out;
-
-            if (rIn) {
-              if (!calculatedMin || rIn.isBefore(calculatedMin))
-                calculatedMin = rIn;
-            }
-            if (rOut) {
-              if (!calculatedMax || rOut.isAfter(calculatedMax))
-                calculatedMax = rOut;
-            }
-          });
-
-          if (calculatedMin && calculatedMax) {
-            if (
-              !calculatedMin.isSame(allValues.check_in) ||
-              !calculatedMax.isSame(allValues.check_out)
-            ) {
-              form.setFieldsValue({
-                check_in: calculatedMin,
-                check_out: calculatedMax,
-              });
-            }
+          if (nights > 0) {
+            totalBaseSum += Number(roomType.base_price || 0) * nights;
           }
         }
+      });
+
+      if (totalBaseSum <= 0) {
+        setFinalTotal(0);
+        return;
       }
-    }
-  };
 
-  const handleRoomSelect = (room_id) => {
-    const room = rooms.find((r) => r.room_id === room_id);
-    if (!room) return;
+      let totalWithVoucher = totalBaseSum;
 
-    const roomType = roomTypes.find(
-      (rt) => rt.room_type_id === room.room_type_id
-    );
-    if (roomType) {
-      // Only set single price if it's the first room or simple mode, else logic handled in calc
-      setPricePerNight(roomType.base_price);
+      if (selectedVoucher) {
+        const discountValue = parseFloat(selectedVoucher.discount_value || 0);
+
+        if (selectedVoucher.discount_type === "percentage") {
+          totalWithVoucher -= totalBaseSum * (discountValue / 100);
+        } else if (selectedVoucher.discount_type === "fixed") {
+          totalWithVoucher = Math.max(0, totalBaseSum - discountValue);
+        }
+      }
+
+      setFinalTotal(totalWithVoucher);
+    },
+    [rooms, roomTypes, selectedVoucher]
+  );
+
+  // ✅ Helper: sync overrides theo master cho các phòng CHƯA custom
+  const syncOverridesWithMaster = useCallback(
+    (allValues) => {
+      const ids = allValues.room_ids || [];
+      const overrides = allValues.room_overrides || {};
+      const cin = allValues.check_in;
+      const cout = allValues.check_out;
+
+      const next = { ...overrides };
+
+      ids.forEach((id) => {
+        const ov = next[id];
+        // phòng chưa có override hoặc custom=false -> ăn theo master
+        if (!ov || ov.custom === false) {
+          next[id] = {
+            ...(ov || {}),
+            check_in: cin,
+            check_out: cout,
+            custom: false,
+          };
+        }
+      });
+
+      // xoá override của phòng không còn chọn
+      Object.keys(next).forEach((k) => {
+        const rid = Number(k);
+        if (!ids.includes(rid)) delete next[k];
+      });
+
+      return next;
+    },
+    []
+  );
+
+  // ✅ Khi mở modal: set values + tạo override chuẩn cho từng phòng
+  useEffect(() => {
+    if (!open) return;
+
+    fetchVouchers();
+
+    if (initialValues) {
+      const roomIds =
+        initialValues.room_ids ||
+        (initialValues.rooms ? initialValues.rooms.map((r) => r.room_id) : []);
+
+      if (initialValues.room_id && !roomIds.includes(initialValues.room_id)) {
+        roomIds.push(initialValues.room_id);
+      }
+
+      const masterCin = initialValues.checkin_date
+        ? dayjs(initialValues.checkin_date)
+        : dayjs();
+      const masterCout = initialValues.checkout_date
+        ? dayjs(initialValues.checkout_date)
+        : dayjs().add(1, "day");
+
+      // overrides: mỗi phòng luôn có override đầy đủ; nếu lấy từ pivot thì custom=true
+      const overrides = {};
+
+      // 1) tạo default override cho tất cả phòng đang chọn (custom=false)
+      roomIds.forEach((rid) => {
+        overrides[rid] = {
+          check_in: masterCin,
+          check_out: masterCout,
+          custom: false,
+        };
+      });
+
+      // 2) nếu backend trả ngày theo phòng (pivot), override sẽ là custom=true
+      if (initialValues.rooms && Array.isArray(initialValues.rooms)) {
+        initialValues.rooms.forEach((r) => {
+          const pivot = r.BookingRoom || r.booking_room || r;
+          const cin = pivot.checkin_date || r.checkin_date;
+          const cout = pivot.checkout_date || r.checkout_date;
+
+          if (r.room_id && cin && cout) {
+            overrides[r.room_id] = {
+              check_in: dayjs(cin),
+              check_out: dayjs(cout),
+              custom: true,
+            };
+          }
+        });
+      }
+
+      const valuesToSet = {
+        ...initialValues,
+        room_ids: roomIds,
+        room_overrides: overrides,
+        payment_method: initialValues.payment_method || "pay_later",
+        check_in: masterCin,
+        check_out: masterCout,
+      };
+
+      internalUpdateRef.current = true;
+      form.setFieldsValue(valuesToSet);
+      internalUpdateRef.current = false;
+
+      if (initialValues.voucher) {
+        setSelectedVoucher(initialValues.voucher);
+      } else {
+        setSelectedVoucher(null);
+      }
+
+      calculateFinalPrice(valuesToSet);
+    } else {
+      form.resetFields();
+
+      const defaultValues = {
+        payment_method: "pay_later",
+        check_in: dayjs(),
+        check_out: dayjs().add(1, "day"),
+        room_ids: [],
+        room_overrides: {},
+      };
+
+      internalUpdateRef.current = true;
+      form.setFieldsValue(defaultValues);
+      internalUpdateRef.current = false;
+
+      setSelectedVoucher(null);
+      setFinalTotal(0);
     }
+  }, [open, initialValues, form, fetchVouchers, calculateFinalPrice]);
+
+  // ✅ Sync voucher từ voucher_id sau khi vouchers load (edit)
+  useEffect(() => {
+    if (!open || !initialValues?.voucher_id) return;
+    if (selectedVoucher) return;
+    if (vouchers.length === 0) return;
+
+    const found = vouchers.find((v) => v.voucher_id === initialValues.voucher_id);
+    if (found) setSelectedVoucher(found);
+  }, [open, initialValues, vouchers, selectedVoucher]);
+
+  // ✅ Khi đổi voucher -> tính lại
+  useEffect(() => {
+    if (!open) return;
+    const current = form.getFieldsValue(true);
+    calculateFinalPrice(current);
+  }, [selectedVoucher, open, form, calculateFinalPrice]);
+
+  // ✅ onValuesChange: nguồn chân lý để tính tiền (allValues mới nhất)
+  const handleValuesChange = (changed, all) => {
+    if (internalUpdateRef.current) return;
+
+    // 1) đổi master date -> sync override cho phòng chưa custom
+    if (changed.check_in || changed.check_out) {
+      const nextOverrides = syncOverridesWithMaster(all);
+
+      internalUpdateRef.current = true;
+      form.setFieldValue("room_overrides", nextOverrides);
+      internalUpdateRef.current = false;
+
+      calculateFinalPrice({ ...all, room_overrides: nextOverrides });
+      return;
+    }
+
+    // 2) đổi room_ids -> đảm bảo overrides có đủ + xoá phòng bỏ chọn
+    if (changed.room_ids) {
+      const nextOverrides = syncOverridesWithMaster(all);
+
+      internalUpdateRef.current = true;
+      form.setFieldValue("room_overrides", nextOverrides);
+      internalUpdateRef.current = false;
+
+      calculateFinalPrice({ ...all, room_overrides: nextOverrides });
+      return;
+    }
+
+    // 3) đổi override -> tính lại
+    if (changed.room_overrides) {
+      calculateFinalPrice(all);
+      return;
+    }
+
+    // các thay đổi khác: nếu cần thì tính (thường không cần)
   };
 
   const handleVoucherSelect = (code) => {
     const voucher = vouchers.find((v) => v.code === code);
     setSelectedVoucher(voucher || null);
-    // calculateFinalPrice will trigger via effect or we can call it here if we want instant update without effect dependency on selectedVoucher state (which is async)
-    // better use effect on selectedVoucher
   };
 
   const handleOk = () => {
@@ -325,11 +303,14 @@ const BookingForm = ({
         source,
       } = values;
 
-      const roomsPayload = room_ids.map((id) => {
+      const roomsPayload = (room_ids || []).map((id) => {
+        const override = room_overrides?.[id];
+        const hasFullOverride = !!(override?.check_in && override?.check_out);
+
+        const finalCin = hasFullOverride ? override.check_in : check_in;
+        const finalCout = hasFullOverride ? override.check_out : check_out;
+
         const room = rooms.find((r) => r.room_id === id);
-        const override = room_overrides?.[id] || {};
-        const finalCin = override.check_in || check_in;
-        const finalCout = override.check_out || check_out;
 
         return {
           room_id: id,
@@ -348,6 +329,7 @@ const BookingForm = ({
         payment_method,
         voucher_code: selectedVoucher ? selectedVoucher.code : null,
       });
+
       form.resetFields();
     });
   };
@@ -361,7 +343,7 @@ const BookingForm = ({
       width={700}
       okText={isEditing ? "Cập nhật" : "Xác nhận đặt"}
       cancelText="Đóng"
-      destroyOnHidden
+      destroyOnClose
     >
       <Form form={form} layout="vertical" onValuesChange={handleValuesChange}>
         <Form.Item
@@ -383,32 +365,12 @@ const BookingForm = ({
           name="room_ids"
           rules={[{ required: true, message: "Chọn ít nhất 1 phòng" }]}
         >
-          <Select
-            mode="multiple"
-            placeholder="Chọn các phòng"
-            onChange={(ids) => {
-              // Cập nhật danh sách phòng kèm ngày mặc định nếu chưa có
-              const currentOverrides =
-                form.getFieldValue("room_overrides") || {};
-              const newOverrides = { ...currentOverrides };
-              ids.forEach((id) => {
-                if (!newOverrides[id]) {
-                  newOverrides[id] = {
-                    check_in: form.getFieldValue("check_in"),
-                    check_out: form.getFieldValue("check_out"),
-                  };
-                }
-              });
-              form.setFieldValue("room_overrides", newOverrides);
-              calculateFinalPrice();
-            }}
-          >
+          <Select mode="multiple" placeholder="Chọn các phòng">
             {rooms
               .filter(
                 (r) =>
                   r.status === "available" ||
-                  (initialValues &&
-                    initialValues.rooms &&
+                  (initialValues?.rooms &&
                     initialValues.rooms.some((br) => br.room_id === r.room_id))
               )
               .map((r) => (
@@ -431,7 +393,6 @@ const BookingForm = ({
             disabledDate={(current) =>
               current && current < dayjs().startOf("day")
             }
-            onChange={() => calculateFinalPrice()}
           />
         </Form.Item>
 
@@ -453,14 +414,11 @@ const BookingForm = ({
                   : current < dayjs().endOf("day"))
               );
             }}
-            onChange={() => calculateFinalPrice()}
           />
         </Form.Item>
 
         {/* Tùy chỉnh ngày cho từng phòng */}
-        <Form.Item
-          shouldUpdate={(prev, curr) => prev.room_ids !== curr.room_ids}
-        >
+        <Form.Item shouldUpdate={(prev, curr) => prev.room_ids !== curr.room_ids}>
           {({ getFieldValue }) => {
             const selectedIds = getFieldValue("room_ids") || [];
             if (selectedIds.length <= 1) return null;
@@ -472,14 +430,16 @@ const BookingForm = ({
                   padding: 12,
                   background: "#fafafa",
                   borderRadius: 8,
-                  border: "1px border #f0f0f0",
+                  border: "1px solid #f0f0f0",
                 }}
               >
                 <Typography.Title level={5}>
                   Tùy chỉnh ngày theo phòng (Nếu có)
                 </Typography.Title>
+
                 {selectedIds.map((id) => {
                   const room = rooms.find((r) => r.room_id === id);
+
                   return (
                     <div
                       key={id}
@@ -489,36 +449,88 @@ const BookingForm = ({
                         borderBottom: "1px dashed #e8e8e8",
                       }}
                     >
-                      <Text strong>Phòng {room?.room_number}</Text>
+                      <Row justify="space-between" align="middle">
+                        <Text strong>Phòng {room?.room_number}</Text>
+                      </Row>
+
                       <Row gutter={8}>
                         <Col span={12}>
                           <Form.Item
                             name={["room_overrides", id, "check_in"]}
                             style={{ marginBottom: 0 }}
                             label="Nhận"
+                            rules={[
+                              {
+                                required: true,
+                                message: "Chọn ngày nhận",
+                              },
+                            ]}
                           >
                             <DatePicker
                               size="small"
                               style={{ width: "100%" }}
                               format="DD/MM/YYYY"
-                              onChange={() => calculateFinalPrice()}
+                              onChange={(d) => {
+                                const ov =
+                                  form.getFieldValue(["room_overrides", id]) ||
+                                  {};
+                                internalUpdateRef.current = true;
+                                form.setFieldValue(["room_overrides", id], {
+                                  ...ov,
+                                  check_in: d,
+                                  custom: true,
+                                });
+                                internalUpdateRef.current = false;
+
+                                // tính ngay bằng allValues mới
+                                const all = form.getFieldsValue(true);
+                                calculateFinalPrice(all);
+                              }}
                             />
                           </Form.Item>
                         </Col>
+
                         <Col span={12}>
                           <Form.Item
                             name={["room_overrides", id, "check_out"]}
                             style={{ marginBottom: 0 }}
                             label="Trả"
+                            rules={[
+                              {
+                                required: true,
+                                message: "Chọn ngày trả",
+                              },
+                            ]}
                           >
                             <DatePicker
                               size="small"
                               style={{ width: "100%" }}
                               format="DD/MM/YYYY"
-                              onChange={() => calculateFinalPrice()}
+                              onChange={(d) => {
+                                const ov =
+                                  form.getFieldValue(["room_overrides", id]) ||
+                                  {};
+                                internalUpdateRef.current = true;
+                                form.setFieldValue(["room_overrides", id], {
+                                  ...ov,
+                                  check_out: d,
+                                  custom: true,
+                                });
+                                internalUpdateRef.current = false;
+
+                                const all = form.getFieldsValue(true);
+                                calculateFinalPrice(all);
+                              }}
                             />
                           </Form.Item>
                         </Col>
+                      </Row>
+
+                      <Row style={{ marginTop: 8 }}>
+                        <Text type="secondary">
+                          * Phòng này đã “custom ngày”, sẽ không bị master date
+                          ghi đè.
+                        </Text>
                       </Row>
                     </div>
                   );
@@ -542,7 +554,7 @@ const BookingForm = ({
                   <Tag color="green">
                     {v.discount_type === "percentage"
                       ? `-${v.discount_value}%`
-                      : `-${parseInt(v.discount_value).toLocaleString(
+                      : `-${parseInt(v.discount_value, 10).toLocaleString(
                           "vi-VN"
                         )} VNĐ`}
                   </Tag>
@@ -565,18 +577,14 @@ const BookingForm = ({
             <Row justify="space-between" align="middle">
               <Text strong>Tổng cộng (Tạm tính):</Text>
               <Text type="success" strong style={{ fontSize: "18px" }}>
-                {parseInt(finalTotal).toLocaleString("vi-VN")} VNĐ
+                {parseInt(finalTotal, 10).toLocaleString("vi-VN")} VNĐ
               </Text>
             </Row>
           </div>
         )}
       </Form>
     </Modal>
-    
   );
 };
 
-
 export default BookingForm;
-
-
