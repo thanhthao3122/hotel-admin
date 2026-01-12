@@ -19,7 +19,7 @@
 }
 
 .header-container {
-    position: fixed;
+    position: sticky;
     top: 0;
     left: 0;
     right: 0;
@@ -29,8 +29,7 @@
 }
 
 .main-content {
-    margin-top: 80px;
-    /* Space for fixed header */
+    /* margin-top: 80px; */ /* Đã xóa vì dùng sticky ở header */
     padding: 24px 80px;
     flex: 1;
 }

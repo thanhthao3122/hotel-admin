@@ -39,7 +39,6 @@ const Payments = () => {
     total: 0,
   });
 
-
   const fetchData = async (
     page = pagination.current,
     limit = pagination.pageSize
@@ -49,7 +48,7 @@ const Payments = () => {
       const [paymentRes, bookingRes, customerRes] = await Promise.all([
         paymentApi.getAll(page, limit),
         bookingApi.getAll(1, 2000), // Tăng giới hạn lên 2000 để đảm bảo hiển thị đủ trong dropdown
-        userApi.getAll(1, 2000) // Tăng giới hạn khách hàng
+        userApi.getAll(1, 2000), // Tăng giới hạn khách hàng
       ]);
 
       setPayments(paymentRes.data || []);
@@ -65,25 +64,31 @@ const Payments = () => {
       setBookings(allBookings);
 
       // Logic lọc: Tìm các booking chưa được thanh toán.
-      setPendingBookings(allBookings.filter(b => {
-        // Lọc theo trạng thái trước
-        const isValidStatus = ['pending', 'confirmed', 'checked_in', 'checked_out'].includes(b.status);
-        if (!isValidStatus) return false;
+      setPendingBookings(
+        allBookings.filter((b) => {
+          // Lọc theo trạng thái trước
+          const isValidStatus = [
+            "pending",
+            "confirmed",
+            "checked_in",
+            "checked_out",
+          ].includes(b.status);
+          if (!isValidStatus) return false;
 
-        // Ưu tiên sử dụng financials.remainingAmount nếu có (từ backend đã tính toán)
-        if (b.financials && b.financials.remainingAmount !== undefined) {
-          return parseFloat(b.financials.remainingAmount) > 0;
-        }
+          // Ưu tiên sử dụng financials.remainingAmount nếu có (từ backend đã tính toán)
+          if (b.financials && b.financials.remainingAmount !== undefined) {
+            return parseFloat(b.financials.remainingAmount) > 0;
+          }
 
-        // Fallback: Lọc bỏ nếu ĐÃ THANH TOÁN (Logic cũ nếu financials không tồn tại)
-        if (b.payments && b.payments.some(p => p.status === 'completed')) {
-          return false;
-        }
-        return true;
-      }));
+          // Fallback: Lọc bỏ nếu ĐÃ THANH TOÁN (Logic cũ nếu financials không tồn tại)
+          if (b.payments && b.payments.some((p) => p.status === "completed")) {
+            return false;
+          }
+          return true;
+        })
+      );
 
       setCustomers(customerRes.data || []);
-
     } catch (error) {
       console.error(error);
       message.error("Không tải được dữ liệu thanh toán");
@@ -100,16 +105,21 @@ const Payments = () => {
       fetchData();
     };
 
-    socket.on('payment_received', handlePaymentUpdate);
+    socket.on("payment_received", handlePaymentUpdate);
 
     return () => {
-      socket.off('payment_received', handlePaymentUpdate);
+      socket.off("payment_received", handlePaymentUpdate);
     };
   }, []);
 
-  const customerMap = useMemo(() => Object.fromEntries(customers.map((c) => [c.user_id, c])), [customers]);
-  const bookingMap = useMemo(() => Object.fromEntries(bookings.map((b) => [b.booking_id, b])), [bookings]);
-
+  const customerMap = useMemo(
+    () => Object.fromEntries(customers.map((c) => [c.user_id, c])),
+    [customers]
+  );
+  const bookingMap = useMemo(
+    () => Object.fromEntries(bookings.map((b) => [b.booking_id, b])),
+    [bookings]
+  );
 
   const filteredPayments = useMemo(() => {
     return payments.filter((p) => {
@@ -134,14 +144,14 @@ const Payments = () => {
     try {
       // paymentApi.create expects { booking_id, amount, payment_method, ... }
       // But the backend create function recalculates amount automatically?
-      // Let's check paymentController.js logic. 
+      // Let's check paymentController.js logic.
       // It calls 'calculateBookingDetails' then creates payment.
       // So we just need booking_id.
 
       await paymentApi.create({
         booking_id: values.booking_id,
-        payment_method: 'cash', // Admin Manual Payment defaults to Cash
-        notes: values.notes // Ensure backend supports 'note' or 'notes'
+        payment_method: "cash", // Admin Manual Payment defaults to Cash
+        notes: values.notes, // Ensure backend supports 'note' or 'notes'
       });
 
       message.success("Tạo thanh toán thành công!");
@@ -149,7 +159,10 @@ const Payments = () => {
       fetchData();
     } catch (error) {
       console.error(error);
-      message.error("Lỗi khi tạo thanh toán: " + (error.response?.data?.message || error.message));
+      message.error(
+        "Lỗi khi tạo thanh toán: " +
+          (error.response?.data?.message || error.message)
+      );
     }
   };
 
@@ -169,13 +182,13 @@ const Payments = () => {
       title: "Mã thanh toán",
       dataIndex: "payment_id",
       width: 100,
-      render: (id) => <b>#{id}</b>
+      render: (id) => <b>#{id}</b>,
     },
     {
       title: "Booking",
       dataIndex: "booking_id",
       width: 100,
-      render: (id) => <Tag color="blue">#{id}</Tag>
+      render: (id) => <Tag color="blue">#{id}</Tag>,
     },
     {
       title: "Khách hàng",
@@ -197,9 +210,16 @@ const Payments = () => {
       dataIndex: "amount",
       render: (_, record) => {
         return (
-          <span style={{ fontWeight: 'bold', color: '#108ee9', fontSize: '15px' }} >
-            {record.amount ? new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(record.amount) : 0} VNĐ
-          </span >
+          <span
+            style={{ fontWeight: "bold", color: "#108ee9", fontSize: "15px" }}
+          >
+            {record.amount
+              ? new Intl.NumberFormat("vi-VN", {
+                  maximumFractionDigits: 0,
+                }).format(record.amount)
+              : 0}{" "}
+            VNĐ
+          </span>
         );
       },
     },
@@ -207,26 +227,36 @@ const Payments = () => {
       title: "Phương thức",
       dataIndex: "payment_method",
       render: (pm) => {
-        const map = { cash: 'Tiền mặt', vnpay: 'VNPay', momo: 'Momo', banking: 'Chuyển khoản' };
-        return <Tag>{map[pm?.toLowerCase()] || pm}</Tag>
-      }
+        const map = {
+          cash: "Tiền mặt",
+          vnpay: "VNPay",
+          momo: "Momo",
+          banking: "Chuyển khoản",
+        };
+        return <Tag>{map[pm?.toLowerCase()] || pm}</Tag>;
+      },
     },
     {
       title: "Trạng thái",
       dataIndex: "status",
       render: (status) => {
-        const isCompleted = status === 'completed';
-        const isFailed = status === 'failed';
+        const isCompleted = status === "completed";
+        const isFailed = status === "failed";
 
-        let color = isCompleted ? 'success' : isFailed ? 'error' : 'warning';
-        let text = isCompleted ? 'Thành công' : isFailed ? 'Thất bại' : 'Chờ xử lý';
+        let color = isCompleted ? "success" : isFailed ? "error" : "warning";
+        let text = isCompleted
+          ? "Thành công"
+          : isFailed
+          ? "Thất bại"
+          : "Chờ xử lý";
         return <Tag color={color}>{text.toUpperCase()}</Tag>;
-      }
+      },
     },
     {
       title: "Ngày thanh toán",
       dataIndex: "payment_date",
-      render: (v) => v ? new Date(v).toLocaleString("vi-VN") : "Chưa thanh toán",
+      render: (v) =>
+        v ? new Date(v).toLocaleString("vi-VN") : "Chưa thanh toán",
     },
     {
       title: "Hành động",
@@ -239,18 +269,18 @@ const Payments = () => {
         >
           <Button size="small" danger icon={<DeleteOutlined />} />
         </Popconfirm>
-      )
-    }
+      ),
+    },
   ];
 
   return (
     <Card
       title="Quản lý Thanh Toán"
-    // extra={
-    //   <Button type="primary" icon={<PlusOutlined />} onClick={handleCreatePayment}>
-    //     Tạo thanh toán
-    //   </Button>
-    // }
+      // extra={
+      //   <Button type="primary" icon={<PlusOutlined />} onClick={handleCreatePayment}>
+      //     Tạo thanh toán
+      //   </Button>
+      // }
     >
       <div style={{ marginBottom: 16 }}>
         <Input
@@ -267,21 +297,19 @@ const Payments = () => {
         rowKey="payment_id"
         columns={columns}
         dataSource={filteredPayments}
-
         loading={loading}
         pagination={{
           current: pagination.current,
           pageSize: pagination.pageSize,
           total: pagination.total,
           showSizeChanger: true,
-          pageSizeOptions: ['5', '10', '20'],
+          pageSizeOptions: ["5", "10", "20"],
         }}
         onChange={(pager) => {
           const { current, pageSize } = pager;
-          setPagination(prev => ({ ...prev, current, pageSize }));
+          setPagination((prev) => ({ ...prev, current, pageSize }));
           fetchData(current, pageSize);
         }}
-
       />
 
       <PaymentForm

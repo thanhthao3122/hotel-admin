@@ -1,17 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Navbar from '../../components/home/Navbar';
-import CategoryBar from '../../components/home/CategoryBar';
+
 import ListingCard from '../../components/home/ListingCard';
 import Footer from '../../components/home/Footer';
 import roomApi from '../../api/roomApi';
 import socket from '../../utils/socket';
 import BookingNotification from '../../components/home/BookingNotification';
+import VoucherBar from '../../components/home/VoucherBar';
+import voucherApi from '../../api/voucherApi';
+import dayjs from 'dayjs';
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
+
 import { message } from 'antd';
 import './home.css';
 
 const Home = () => {
     const [rooms, setRooms] = useState([]);
+    const [vouchers, setVouchers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchParams] = useSearchParams();
     const [refreshKey, setRefreshKey] = useState(0);
@@ -24,7 +34,7 @@ const Home = () => {
                 const guests = searchParams.get('guests');
                 const checkin_date = searchParams.get('checkin_date');
                 const checkout_date = searchParams.get('checkout_date');
-                
+
                 let response;
 
                 // Nếu có bất kỳ bộ lọc nào, sử dụng getAvailable
@@ -58,6 +68,31 @@ const Home = () => {
         fetchRooms();
     }, [searchParams, refreshKey]);
 
+    useEffect(() => {
+        const fetchVouchers = async () => {
+            try {
+                const res = await voucherApi.getAll();
+                const allVouchers = res.data;
+                const now = dayjs();
+
+                const activeVouchers = allVouchers.filter(v => {
+                    const start = dayjs(v.start_date);
+                    const end = dayjs(v.end_date);
+                    const hasUsesLeft = v.current_uses < v.max_uses;
+                    const isActive = now.isSameOrAfter(start) && now.isSameOrBefore(end);
+
+                    return isActive && hasUsesLeft;
+                });
+
+                setVouchers(activeVouchers);
+            } catch (error) {
+                console.error("Error fetching vouchers", error);
+            }
+        };
+
+        fetchVouchers();
+    }, []);
+
     // Trình lắng nghe socket cho các cập nhật thời gian thực
     useEffect(() => {
 
@@ -83,6 +118,7 @@ const Home = () => {
         <div className="landing-page">
             <div className="header-container">
                 <Navbar />
+                <VoucherBar vouchers={vouchers} />
             </div>
             <BookingNotification />
 

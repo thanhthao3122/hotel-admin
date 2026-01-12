@@ -1,0 +1,38 @@
+.voucher-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #fffbe6;
+  border-bottom: 1px solid #f0f0f0;
+  overflow-x: auto;
+}
+
+.voucher-icon {
+  font-size: 18px;
+  color: #faad14;
+}
+
+.voucher-title {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.voucher-list {
+  display: flex;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.voucher-tag {
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.copy-icon {
+  font-size: 12px;
+}
