@@ -40,6 +40,7 @@ const STATUS_LABEL = {
   confirmed: "Xác nhận",
   completed: "Hoàn thành",
   cancelled: "Đã hủy",
+  cancelling: "Khách hủy/Chờ hoàn tiền",
 };
 
 const NEXT_STATUS = {
@@ -235,6 +236,7 @@ const Bookings = () => {
       message.error(
         error.response?.data?.message || "Có lỗi khi lưu đặt phòng"
       );
+      throw error; // Re-throw to prevent reset in BookingForm
     }
   };
 
@@ -288,7 +290,7 @@ const Bookings = () => {
     {
       title: "Mã",
       dataIndex: "booking_id",
-      width: 55,
+      width: 50,
       fixed: "left",
       align: "center",
       render: (id) => <Tag color="blue">{id}</Tag>,
@@ -357,7 +359,7 @@ const Bookings = () => {
     // ✅ Check-in THỰC TẾ (nút nằm ở đây)
     {
       title: "Check-in",
-      width: 120,
+      width: 105,
       align: "center",
 
       render: (_, record) =>
@@ -387,10 +389,10 @@ const Bookings = () => {
             const canCheckIn = brStatus === "pending" && !locked;
             const today = dayjs().startOf("day");
             const checkin = dayjs(br.checkin_date).startOf("day");
-             const disabled = today.isBefore(checkin); 
+            const disabled = today.isBefore(checkin);
             return canCheckIn ? (
               <Button
-                 disabled={disabled}
+                disabled={disabled}
                 onClick={() => updateBookingRoomStatus(br.id, "checked_in")}
               >
                 Check-in
@@ -406,7 +408,7 @@ const Bookings = () => {
     // ✅ Check-out THỰC TẾ (nút nằm ở đây)
     {
       title: "Check-out",
-      width: 120,
+      width: 105,
       align: "center",
       render: (_, record) =>
         renderLines(
@@ -450,7 +452,7 @@ const Bookings = () => {
     {
       title: "Nguồn",
       dataIndex: "source",
-      width: 90,
+      width: 75,
       align: "center",
       render: (src) => (
         <Tag color={src === "admin" ? "purple" : "blue"}>
@@ -461,7 +463,7 @@ const Bookings = () => {
     {
       title: "TT",
       dataIndex: "payment_method",
-      width: 90,
+      width: 70,
       align: "center",
       render: (method) => (
         <Tag color={method === "pay_later" ? "cyan" : "green"}>
@@ -479,7 +481,7 @@ const Bookings = () => {
     {
       title: "Trạng thái",
       dataIndex: "status",
-      width: 140,
+      width: 220,
       render: (st, record) => {
         const cur = st ? st.toLowerCase() : "unknown";
         const next = NEXT_STATUS[cur] || [];
@@ -487,24 +489,36 @@ const Bookings = () => {
         const options = [cur, ...next.filter((x) => x !== cur)];
 
         return (
-          <Select
-            value={cur}
-            style={{ width: 120 }}
-            disabled={disabled}
-            onChange={(val) => updateStatus(record, val)}
-          >
-            {options.map((s) => (
-              <Select.Option key={s} value={s}>
-                {STATUS_LABEL[s] || s}
-              </Select.Option>
-            ))}
-          </Select>
+          <Space direction="vertical" size={0}>
+            <Select
+              value={cur}
+              style={{ width: 200 }}
+              disabled={disabled}
+              onChange={(val) => updateStatus(record, val)}
+            >
+              {options.map((s) => (
+                <Select.Option key={s} value={s}>
+                  {STATUS_LABEL[s] || s}
+                </Select.Option>
+              ))}
+            </Select>
+
+            {/* HIỂN THỊ TAG HOÀN TIỀN NẾU CÓ */}
+            {record.invoice?.status === "refund" && (
+              <Tag
+                color="error"
+                style={{ marginTop: "4px", textAlign: "center", width: "100%" }}
+              >
+                ĐÃ HOÀN TIỀN
+              </Tag>
+            )}
+          </Space>
         );
       },
     },
     {
       title: "Hành động",
-      width: 150,
+      width: 130,
       render: (_, r) => (
         <Space>
           <Button

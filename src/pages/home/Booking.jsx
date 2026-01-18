@@ -244,7 +244,7 @@ const Booking = () => {
   return (
     <div className="landing-page">
       <Navbar />
-      {/* <VoucherBar vouchers={vouchers} /> */}
+      <VoucherBar vouchers={vouchers} />
       <main
         className="main-content"
         style={{ maxWidth: "1000px", margin: "40px auto", padding: "0 20px" }}
@@ -294,41 +294,19 @@ const Booking = () => {
                         <Title level={4} style={{ margin: "0 0 8px 0" }}>
                           Phòng {item.room_number}
                         </Title>
-
-                        <div className="room-card-specs">
-                          <Space size="large">
-                            <span className="spec-label">
-                              <UserOutlined /> {item.roomType?.capacity || 2}{" "}
-                              khách
-                            </span>
-                            <span className="spec-label">
-                              <HomeOutlined />{" "}
-                              {item.bed_style || "1 Giường đôi"}
-                            </span>
-                          </Space>
-                        </div>
-
-                        <div className="room-card-price">
-                          <Text strong className="price-amount">
-                            {parseInt(
-                              item.roomType?.base_price || item.price_per_night
-                            ).toLocaleString("vi-VN")}{" "}
-                            VNĐ
-                          </Text>
-                          <Text type="secondary"> / đêm</Text>
-                        </div>
-
                         <div className="room-card-dates">
                           <Text
                             strong
                             style={{
-                              fontSize: "13px",
+                              fontSize: "12px",
                               display: "block",
-                              marginBottom: "8px",
-                              color: "#555",
+                              marginBottom: "4px",
+                              color: "#4a5568",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.5px",
                             }}
                           >
-                            THỜI GIAN LƯU TRÚ
+                            Thời gian lưu trú
                           </Text>
                           <DatePicker.RangePicker
                             className="premium-range-picker"
@@ -345,6 +323,35 @@ const Booking = () => {
                             }
                             allowClear={false}
                           />
+                        </div>
+                        <div className="room-card-price">
+                          <Text strong className="price-amount">
+                            {parseInt(
+                              item.roomType?.base_price || item.price_per_night
+                            ).toLocaleString("vi-VN")}{" "}
+                            VNĐ
+                          </Text>
+                          <Text type="secondary"> / đêm</Text>
+                        </div>
+                        <div className="room-card-specs">
+                          <Space wrap size={[8, 8]}>
+                            <div className="spec-label">
+                              <UserOutlined />
+                              <Text
+                                style={{ fontSize: "13px", color: "inherit" }}
+                              >
+                                {item.roomType?.capacity || 2} khách
+                              </Text>
+                            </div>
+                            <div className="spec-label">
+                              <HomeOutlined />
+                              <Text
+                                style={{ fontSize: "13px", color: "inherit" }}
+                              >
+                                {item.bed_style || "1 Giường đôi"}
+                              </Text>
+                            </div>
+                          </Space>
                         </div>
                       </div>
                     </div>

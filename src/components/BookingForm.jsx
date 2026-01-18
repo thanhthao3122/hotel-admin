@@ -1,6 +1,7 @@
 import {
   Form,
   Select,
+  Input,
   DatePicker,
   Modal,
   Tag,
@@ -31,6 +32,7 @@ const BookingForm = ({
   const [vouchers, setVouchers] = useState([]);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [finalTotal, setFinalTotal] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
 
   // dùng để tránh vòng lặp onValuesChange khi ta setFieldValue trong code
   const internalUpdateRef = useRef(false);
@@ -108,38 +110,60 @@ const BookingForm = ({
   );
 
   // ✅ Helper: sync overrides theo master cho các phòng CHƯA custom
-  const syncOverridesWithMaster = useCallback(
-    (allValues) => {
-      const ids = allValues.room_ids || [];
-      const overrides = allValues.room_overrides || {};
-      const cin = allValues.check_in;
-      const cout = allValues.check_out;
+  const syncOverridesWithMaster = useCallback((allValues) => {
+    const ids = allValues.room_ids || [];
+    const overrides = allValues.room_overrides || {};
+    const cin = allValues.check_in;
+    const cout = allValues.check_out;
 
-      const next = { ...overrides };
+    const next = { ...overrides };
 
-      ids.forEach((id) => {
-        const ov = next[id];
-        // phòng chưa có override hoặc custom=false -> ăn theo master
-        if (!ov || ov.custom === false) {
-          next[id] = {
-            ...(ov || {}),
-            check_in: cin,
-            check_out: cout,
-            custom: false,
-          };
+    ids.forEach((id) => {
+      const ov = next[id];
+      // phòng chưa có override hoặc custom=false -> ăn theo master
+      if (!ov || ov.custom === false) {
+        next[id] = {
+          ...(ov || {}),
+          check_in: cin,
+          check_out: cout,
+          custom: false,
+        };
+      }
+    });
+
+    // xoá override của phòng không còn chọn
+    Object.keys(next).forEach((k) => {
+      const rid = Number(k);
+      if (!ids.includes(rid)) delete next[k];
+    });
+
+    return next;
+  }, []);
+
+  // ✅ Helper: sync master date theo min/max của các phòng
+  const syncMasterWithOverrides = useCallback((allValues) => {
+    const overrides = allValues.room_overrides || {};
+    const ids = allValues.room_ids || [];
+
+    if (ids.length === 0) return { cin: null, cout: null };
+
+    let minCin = null;
+    let maxCout = null;
+
+    ids.forEach((id) => {
+      const ov = overrides[id];
+      if (ov && ov.check_in && ov.check_out) {
+        if (!minCin || dayjs(ov.check_in).isBefore(minCin)) {
+          minCin = dayjs(ov.check_in);
         }
-      });
+        if (!maxCout || dayjs(ov.check_out).isAfter(maxCout)) {
+          maxCout = dayjs(ov.check_out);
+        }
+      }
+    });
 
-      // xoá override của phòng không còn chọn
-      Object.keys(next).forEach((k) => {
-        const rid = Number(k);
-        if (!ids.includes(rid)) delete next[k];
-      });
-
-      return next;
-    },
-    []
-  );
+    return { cin: minCin, cout: maxCout };
+  }, []);
 
   // ✅ Khi mở modal: set values + tạo override chuẩn cho từng phòng
   useEffect(() => {
@@ -197,6 +221,7 @@ const BookingForm = ({
         room_ids: roomIds,
         room_overrides: overrides,
         payment_method: initialValues.payment_method || "pay_later",
+        source: initialValues.source || "admin",
         check_in: masterCin,
         check_out: masterCout,
       };
@@ -217,6 +242,7 @@ const BookingForm = ({
 
       const defaultValues = {
         payment_method: "pay_later",
+        source: "admin",
         check_in: dayjs(),
         check_out: dayjs().add(1, "day"),
         room_ids: [],
@@ -230,7 +256,8 @@ const BookingForm = ({
       setSelectedVoucher(null);
       setFinalTotal(0);
     }
-  }, [open, initialValues, form, fetchVouchers, calculateFinalPrice]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialValues, form, fetchVouchers]);
 
   // ✅ Sync voucher từ voucher_id sau khi vouchers load (edit)
   useEffect(() => {
@@ -238,7 +265,9 @@ const BookingForm = ({
     if (selectedVoucher) return;
     if (vouchers.length === 0) return;
 
-    const found = vouchers.find((v) => v.voucher_id === initialValues.voucher_id);
+    const found = vouchers.find(
+      (v) => v.voucher_id === initialValues.voucher_id
+    );
     if (found) setSelectedVoucher(found);
   }, [open, initialValues, vouchers, selectedVoucher]);
 
@@ -277,8 +306,17 @@ const BookingForm = ({
       return;
     }
 
-    // 3) đổi override -> tính lại
+    // 3) đổi override -> tự động sync master date rộng nhất
     if (changed.room_overrides) {
+      const { cin, cout } = syncMasterWithOverrides(all);
+
+      if (cin || cout) {
+        internalUpdateRef.current = true;
+        if (cin) form.setFieldValue("check_in", cin);
+        if (cout) form.setFieldValue("check_out", cout);
+        internalUpdateRef.current = false;
+      }
+
       calculateFinalPrice(all);
       return;
     }
@@ -291,8 +329,11 @@ const BookingForm = ({
     setSelectedVoucher(voucher || null);
   };
 
-  const handleOk = () => {
-    form.validateFields().then((values) => {
+  const handleOk = async () => {
+    try {
+      const values = await form.validateFields();
+      setSubmitting(true);
+
       const {
         room_ids,
         room_overrides,
@@ -311,27 +352,34 @@ const BookingForm = ({
         const finalCout = hasFullOverride ? override.check_out : check_out;
 
         const room = rooms.find((r) => r.room_id === id);
+        const rt =
+          room?.roomType ||
+          roomTypes.find((t) => t.room_type_id === room?.room_type_id);
 
         return {
           room_id: id,
           checkin_date: finalCin.format("YYYY-MM-DD"),
           checkout_date: finalCout.format("YYYY-MM-DD"),
-          price_per_night: room?.roomType?.base_price || 0,
+          price_per_night: rt?.base_price || 0,
         };
       });
 
-      onSubmit({
+      await onSubmit({
         user_id,
         checkin_date: check_in.format("YYYY-MM-DD"),
         checkout_date: check_out.format("YYYY-MM-DD"),
         rooms: roomsPayload,
         source: source || "admin",
-        payment_method,
+        payment_method: payment_method || "pay_later",
         voucher_code: selectedVoucher ? selectedVoucher.code : null,
       });
 
       form.resetFields();
-    });
+    } catch (error) {
+      console.error("Validation or submission error:", error);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -340,6 +388,7 @@ const BookingForm = ({
       open={open}
       onOk={handleOk}
       onCancel={onCancel}
+      confirmLoading={submitting}
       width={700}
       okText={isEditing ? "Cập nhật" : "Xác nhận đặt"}
       cancelText="Đóng"
@@ -358,6 +407,14 @@ const BookingForm = ({
               </Option>
             ))}
           </Select>
+        </Form.Item>
+
+        <Form.Item name="payment_method" hidden>
+          <Input />
+        </Form.Item>
+
+        <Form.Item name="source" hidden>
+          <Input />
         </Form.Item>
 
         <Form.Item
@@ -418,7 +475,9 @@ const BookingForm = ({
         </Form.Item>
 
         {/* Tùy chỉnh ngày cho từng phòng */}
-        <Form.Item shouldUpdate={(prev, curr) => prev.room_ids !== curr.room_ids}>
+        <Form.Item
+          shouldUpdate={(prev, curr) => prev.room_ids !== curr.room_ids}
+        >
           {({ getFieldValue }) => {
             const selectedIds = getFieldValue("room_ids") || [];
             if (selectedIds.length <= 1) return null;
@@ -471,20 +530,34 @@ const BookingForm = ({
                               style={{ width: "100%" }}
                               format="DD/MM/YYYY"
                               onChange={(d) => {
-                                const ov =
-                                  form.getFieldValue(["room_overrides", id]) ||
-                                  {};
+                                const currentOverrides =
+                                  form.getFieldValue("room_overrides") || {};
+                                const nextOverrides = {
+                                  ...currentOverrides,
+                                  [id]: {
+                                    ...(currentOverrides[id] || {}),
+                                    check_in: d,
+                                    custom: true,
+                                  },
+                                };
+
                                 internalUpdateRef.current = true;
-                                form.setFieldValue(["room_overrides", id], {
-                                  ...ov,
-                                  check_in: d,
-                                  custom: true,
-                                });
+                                form.setFieldValue(
+                                  "room_overrides",
+                                  nextOverrides
+                                );
+
+                                const allValues = {
+                                  ...form.getFieldsValue(true),
+                                  room_overrides: nextOverrides,
+                                };
+                                const { cin, cout } =
+                                  syncMasterWithOverrides(allValues);
+                                if (cin) form.setFieldValue("check_in", cin);
+                                if (cout) form.setFieldValue("check_out", cout);
                                 internalUpdateRef.current = false;
 
-                                // tính ngay bằng allValues mới
-                                const all = form.getFieldsValue(true);
-                                calculateFinalPrice(all);
+                                calculateFinalPrice(form.getFieldsValue(true));
                               }}
                             />
                           </Form.Item>
@@ -507,19 +580,34 @@ const BookingForm = ({
                               style={{ width: "100%" }}
                               format="DD/MM/YYYY"
                               onChange={(d) => {
-                                const ov =
-                                  form.getFieldValue(["room_overrides", id]) ||
-                                  {};
+                                const currentOverrides =
+                                  form.getFieldValue("room_overrides") || {};
+                                const nextOverrides = {
+                                  ...currentOverrides,
+                                  [id]: {
+                                    ...(currentOverrides[id] || {}),
+                                    check_out: d,
+                                    custom: true,
+                                  },
+                                };
+
                                 internalUpdateRef.current = true;
-                                form.setFieldValue(["room_overrides", id], {
-                                  ...ov,
-                                  check_out: d,
-                                  custom: true,
-                                });
+                                form.setFieldValue(
+                                  "room_overrides",
+                                  nextOverrides
+                                );
+
+                                const allValues = {
+                                  ...form.getFieldsValue(true),
+                                  room_overrides: nextOverrides,
+                                };
+                                const { cin, cout } =
+                                  syncMasterWithOverrides(allValues);
+                                if (cin) form.setFieldValue("check_in", cin);
+                                if (cout) form.setFieldValue("check_out", cout);
                                 internalUpdateRef.current = false;
 
-                                const all = form.getFieldsValue(true);
-                                calculateFinalPrice(all);
+                                calculateFinalPrice(form.getFieldsValue(true));
                               }}
                             />
                           </Form.Item>
@@ -528,8 +616,7 @@ const BookingForm = ({
 
                       <Row style={{ marginTop: 8 }}>
                         <Text type="secondary">
-                          * Phòng này đã “custom ngày”, sẽ không bị master date
-                          ghi đè.
+                         
                         </Text>
                       </Row>
                     </div>

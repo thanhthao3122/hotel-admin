@@ -640,7 +640,7 @@ const UserServiceRequest = () => {
                     }}
                   />
                 </Col>
-                {financials.remainingAmount > 0 && (
+                {/* {financials.remainingAmount > 0 && (
                   <Col>
                     <Button
                       type="primary"
@@ -659,7 +659,7 @@ const UserServiceRequest = () => {
                       Thanh toán ngay
                     </Button>
                   </Col>
-                )}
+                )} */}
               </Row>
             </div>
           )}

@@ -41,7 +41,7 @@ const Payments = () => {
 
   const fetchData = async (
     page = pagination.current,
-    limit = pagination.pageSize
+    limit = pagination.pageSize,
   ) => {
     try {
       setLoading(true);
@@ -85,7 +85,7 @@ const Payments = () => {
             return false;
           }
           return true;
-        })
+        }),
       );
 
       setCustomers(customerRes.data || []);
@@ -114,16 +114,17 @@ const Payments = () => {
 
   const customerMap = useMemo(
     () => Object.fromEntries(customers.map((c) => [c.user_id, c])),
-    [customers]
+    [customers],
   );
   const bookingMap = useMemo(
     () => Object.fromEntries(bookings.map((b) => [b.booking_id, b])),
-    [bookings]
+    [bookings],
   );
 
   const filteredPayments = useMemo(() => {
     return payments.filter((p) => {
-      const booking = bookingMap[p.booking_id];
+      const bId = p.booking_id || p.invoice?.booking_id;
+      const booking = bookingMap[bId];
       if (!booking) return false;
       const customer = customerMap[booking.user_id];
       if (!customer) return false;
@@ -131,7 +132,9 @@ const Payments = () => {
       const keyword = search.toLowerCase();
       return (
         customer.full_name?.toLowerCase().includes(keyword) ||
-        customer.phone?.includes(keyword)
+        customer.phone?.includes(keyword) ||
+        String(p.payment_id).includes(keyword) ||
+        String(bId).includes(keyword)
       );
     });
   }, [payments, search, bookingMap, customerMap]);
@@ -161,7 +164,7 @@ const Payments = () => {
       console.error(error);
       message.error(
         "Lỗi khi tạo thanh toán: " +
-          (error.response?.data?.message || error.message)
+          (error.response?.data?.message || error.message),
       );
     }
   };
@@ -186,14 +189,17 @@ const Payments = () => {
     },
     {
       title: "Booking",
-      dataIndex: "booking_id",
+      render: (_, r) => {
+        const bId = r.booking_id || r.invoice?.booking_id;
+        return <Tag color="blue">#{bId || "N/A"}</Tag>;
+      },
       width: 100,
-      render: (id) => <Tag color="blue">#{id}</Tag>,
     },
     {
       title: "Khách hàng",
       render: (_, r) => {
-        const b = bookingMap[r.booking_id];
+        const bId = r.booking_id || r.invoice?.booking_id;
+        const b = bookingMap[bId];
         if (!b) return "N/A";
         const c = customerMap[b.user_id];
         if (!c) return "N/A";
@@ -213,6 +219,7 @@ const Payments = () => {
           <span
             style={{ fontWeight: "bold", color: "#108ee9", fontSize: "15px" }}
           >
+            {record.status === "refunded" ? "-" : ""}
             {record.amount
               ? new Intl.NumberFormat("vi-VN", {
                   maximumFractionDigits: 0,
@@ -242,13 +249,23 @@ const Payments = () => {
       render: (status) => {
         const isCompleted = status === "completed";
         const isFailed = status === "failed";
+        const isRefunded = status === "refunded";
 
-        let color = isCompleted ? "success" : isFailed ? "error" : "warning";
+        let color = isCompleted
+          ? "success"
+          : isFailed
+            ? "error"
+            : isRefunded
+              ? "purple"
+              : "warning";
         let text = isCompleted
           ? "Thành công"
           : isFailed
-          ? "Thất bại"
-          : "Chờ xử lý";
+            ? "Thất bại"
+            : isRefunded
+              ? "Đã hoàn tiền"
+              : "Chờ xử lý";
+
         return <Tag color={color}>{text.toUpperCase()}</Tag>;
       },
     },

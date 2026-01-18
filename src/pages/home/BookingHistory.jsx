@@ -42,36 +42,17 @@ const calculateBookingDetails = (booking) => {
       roomTotal: 0,
       serviceTotal: 0,
       grandTotal: 0,
-      discountAmount: 0,
     };
 
   const checkin = new Date(booking.checkin_date);
   const checkout = new Date(booking.checkout_date);
   const nights = Math.max(
     1,
-    Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24))
+    Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24)),
   );
 
   // roomTotal is the final PRICE after discount
   const roomTotal = parseFloat(booking.total_price || 0);
-
-  // Calculate original total before discount to show the discount amount
-  const originalRoomTotal =
-    booking.bookingRooms?.reduce((sum, br) => {
-      const brCheckin = new Date(br.checkin_date || booking.checkin_date);
-      const brCheckout = new Date(br.checkout_date || booking.checkout_date);
-      const brNights = Math.max(
-        1,
-        Math.ceil((brCheckout - brCheckin) / (1000 * 60 * 60 * 24))
-      );
-      const basePrice = parseFloat(
-        br.room?.roomType?.base_price || br.price_per_night || 0
-      );
-      return sum + basePrice * brNights;
-    }, 0) || 0;
-
-  const discountAmount =
-    originalRoomTotal > roomTotal ? originalRoomTotal - roomTotal : 0;
 
   // Tính tổng tiền dịch vụ - Ưu tiên từ financials (backend) nếu có
   let serviceTotal = 0;
@@ -90,10 +71,9 @@ const calculateBookingDetails = (booking) => {
   }
 
   const totalRefunded =
-    booking.refunds?.reduce(
-      (sum, r) => sum + parseFloat(r.amount_refunded || 0),
-      0
-    ) || 0;
+    booking.financials?.totalRefunded !== undefined
+      ? booking.financials.totalRefunded
+      : parseFloat(booking.invoice?.refund_amount || 0);
   const grandTotal = roomTotal + serviceTotal;
 
   const paymentsList = booking.payments || booking.invoice?.payments || [];
@@ -109,8 +89,6 @@ const calculateBookingDetails = (booking) => {
   return {
     nights,
     roomTotal,
-    originalRoomTotal,
-    discountAmount,
     serviceTotal,
     grandTotal,
     totalPaid,
@@ -163,12 +141,12 @@ const BookingCard = ({
   const { nights, grandTotal } = calculateBookingDetails(booking);
   const isPaid =
     (booking.payments || booking.invoice?.payments)?.some(
-      (p) => p.status === "completed"
+      (p) => p.status === "completed",
     ) || booking.financials?.totalPaid > 0;
   const statusConfig = getStatusConfig(booking.status, isPaid);
-  // Chỉ cho phép hủy khi đang chờ xác nhận hoặc đã xác nhận (chưa nhận phòng) VÀ chưa thanh toán
-  const canCancel =
-    ["pending", "confirmed"].includes(booking.status) && !isPaid;
+
+  // Cho phép hiện nút hủy khi đang chờ xác nhận hoặc đã xác nhận (chưa nhận phòng)
+  const canCancel = ["pending", "confirmed"].includes(booking.status);
 
   return (
     <Card
@@ -230,6 +208,11 @@ const BookingCard = ({
               ? "Thanh toán sau"
               : "Thanh toán online"}
           </Tag>
+          {booking.invoice?.status === "refund" && (
+            <Tag color="error" style={{ marginLeft: "4px" }}>
+              Đã hoàn tiền
+            </Tag>
+          )}
         </div>
         {canCancel && (
           <Popconfirm
@@ -288,8 +271,6 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
   const {
     nights,
     roomTotal,
-    originalRoomTotal,
-    discountAmount,
     serviceTotal,
     grandTotal,
     totalPaid,
@@ -297,7 +278,7 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
   } = calculateBookingDetails(booking);
   const isPaid =
     (booking.payments || booking.invoice?.payments)?.some(
-      (p) => p.status === "completed"
+      (p) => p.status === "completed",
     ) || booking.financials?.totalPaid > 0;
   const statusConfig = getStatusConfig(booking.status, isPaid);
   // Cho phép thanh toán nếu đơn đặt phòng đang chờ hoặc đã xác nhận VÀ chưa thanh toán
@@ -316,32 +297,6 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
       </div>
 
       <Form layout="vertical" className="payment-form">
-        {/* Thông tin khách hàng */}
-        <div className="form-section">
-          <Title level={5} className="section-title">
-            <UserOutlined /> Thông tin khách hàng
-          </Title>
-
-          <Form.Item label="Tên khách hàng">
-            <Input
-              value={user.name || user.username || user.full_name}
-              readOnly
-              prefix={<UserOutlined />}
-            />
-          </Form.Item>
-
-          <Form.Item label="Email">
-            <Input value={user.email} readOnly prefix={<MailOutlined />} />
-          </Form.Item>
-
-          <Form.Item label="Số điện thoại">
-            <Input
-              value={user.phone || "Chưa cập nhật"}
-              readOnly
-              prefix={<PhoneOutlined />}
-            />
-          </Form.Item>
-        </div>
         {/* Thông tin đặt phòng */}
         <div className="form-section">
           <Title level={5} className="section-title">
@@ -350,16 +305,23 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
 
           <div className="booking-details">
             <div className="detail-row">
+              <Text strong>Khách hàng:</Text>
+              <Text>
+                {" "}
+                {user.name || user.full_name} {user.phone && `(${user.phone})`}
+              </Text>
+            </div>
+            <div className="detail-row">
               <Text strong>Mã booking:</Text>
-              <Text>#{booking.booking_id}</Text>
+              <Text> #{booking.booking_id}</Text>
             </div>
             <div className="detail-row">
               <Text strong>Trạng thái:</Text>
-              <Tag color={statusConfig.color}>
+              <Tag color={statusConfig.color} style={{ marginLeft: "8px" }}>
                 {statusConfig.icon} {statusConfig.text}
               </Tag>
             </div>
-            <div className="detail-row">
+            <div className="">
               <Text strong>Hình thức:</Text>
               <Tag
                 color={
@@ -370,20 +332,26 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                   ? "Thanh toán sau"
                   : "Thanh toán online"}
               </Tag>
+              {booking.invoice?.status === "refund" && (
+                <Tag color="error" style={{ marginLeft: "4px" }}>
+                  Đã hoàn tiền
+                </Tag>
+              )}
             </div>
-            <div className="detail-row">
-              <Text strong>Phòng:</Text>
-              <div>
+            <div className="" style={{ marginTop: "12px" }}>
+              <Text strong style={{ display: "block", marginBottom: "8px" }}>
+                Phòng:
+              </Text>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                 {booking.bookingRooms?.map((br) => (
-                  <div key={br.room_id}>
-                    {br.room?.roomType?.name} - Phòng {br.room?.room_number}
-                  </div>
+                  <Tag key={br.room_id} color="blue" style={{ margin: 0 }}>
+                    {br.room?.roomType?.name} - P.{br.room?.room_number}
+                  </Tag>
                 ))}
               </div>
             </div>
           </div>
         </div>
-
         {/* Ngày tháng */}
         <div className="form-section">
           <Title level={5} className="section-title">
@@ -404,7 +372,6 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
             <Text strong>{nights} đêm lưu trú</Text>
           </div>
         </div>
-
         {/* Chi tiết giá */}
         <div className="form-section price-section">
           <Title level={5} className="section-title">
@@ -415,14 +382,14 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
             {/* Room Breakdown */}
             {booking.bookingRooms?.map((br, index) => {
               const brCheckin = new Date(
-                br.checkin_date || booking.checkin_date
+                br.checkin_date || booking.checkin_date,
               );
               const brCheckout = new Date(
-                br.checkout_date || booking.checkout_date
+                br.checkout_date || booking.checkout_date,
               );
               const brNights = Math.max(
                 1,
-                Math.ceil((brCheckout - brCheckin) / (1000 * 60 * 60 * 24))
+                Math.ceil((brCheckout - brCheckin) / (1000 * 60 * 60 * 24)),
               );
               return (
                 <div
@@ -448,7 +415,9 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                   <Text>
                     {(
                       parseFloat(
-                        br.room?.roomType?.base_price || br.price_per_night || 0
+                        br.room?.roomType?.base_price ||
+                          br.price_per_night ||
+                          0,
                       ) * brNights
                     ).toLocaleString("vi-VN")}{" "}
                     VNĐ
@@ -458,7 +427,7 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
             })}
 
             {/* Voucher Discount */}
-            {discountAmount > 0 && (
+            {booking.voucher && (
               <div
                 className="price-row voucher-row"
                 style={{
@@ -475,30 +444,34 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                   <span>🎟️</span>
                   <div style={{ display: "flex", flexDirection: "column" }}>
                     <Text strong style={{ color: "#52c41a" }}>
-                      Mã giảm giá: {booking.voucher?.code || "VOUCHER"}
+                      Ưu đãi: {booking.voucher.code}
                     </Text>
-                    {booking.voucher?.discount_type === "percentage" && (
-                      <Text
-                        type="secondary"
-                        style={{ fontSize: "12px", color: "#52c41a" }}
-                      >
-                        Giảm {booking.voucher.discount_value}%
-                      </Text>
-                    )}
+                    <Text
+                      type="secondary"
+                      style={{ fontSize: "12px", color: "#52c41a" }}
+                    >
+                      {booking.voucher.discount_type === "percentage"
+                        ? `Giảm ${booking.voucher.discount_value}%`
+                        : `Giảm ${parseFloat(
+                            booking.voucher.discount_value,
+                          ).toLocaleString("vi-VN")} VNĐ`}
+                    </Text>
                   </div>
                 </div>
                 <Text strong style={{ color: "#52c41a" }}>
-                  -{discountAmount.toLocaleString("vi-VN")} VNĐ
+                  Đã áp dụng
                 </Text>
               </div>
             )}
 
+            {/* Doanh thu dịch vụ */}
             <div className="price-row" style={{ marginTop: "12px" }}>
               <Text>🍽️ Dịch vụ sử dụng:</Text>
               <Text strong>{serviceTotal.toLocaleString("vi-VN")} VNĐ</Text>
             </div>
-            {/* Liệt kê các dịch vụ cụ thể nếu cần */}
-            {booking.services && booking.services.length > 0 && (
+
+            {/* Chi tiết dịch vụ cụ thể (nếu có) */}
+            {(booking.services || booking.serviceUsages)?.length > 0 && (
               <div
                 className="services-list"
                 style={{
@@ -507,55 +480,32 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
                   color: "#666",
                 }}
               >
-                {booking.services.map((service, idx) => (
-                  <div
-                    key={idx}
-                    style={{ display: "flex", justifyContent: "space-between" }}
-                  >
-                    <span>
-                      - {service.name} (x{service.ServiceUsage?.quantity})
-                    </span>
-                    <span>
-                      {parseFloat(
-                        service.ServiceUsage?.total_price
-                      ).toLocaleString("vi-VN")}{" "}
-                      VNĐ
-                    </span>
-                  </div>
-                ))}
+                {(booking.services || booking.serviceUsages).map(
+                  (service, idx) => {
+                    const name = service.name || service.service?.name;
+                    const qty =
+                      service.ServiceUsage?.quantity || service.quantity;
+                    const price = parseFloat(
+                      service.ServiceUsage?.total_price || service.total_price,
+                    );
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span>
+                          - {name} (x{qty})
+                        </span>
+                        <span>{price.toLocaleString("vi-VN")} VNĐ</span>
+                      </div>
+                    );
+                  },
+                )}
               </div>
             )}
-            {/* Fallback for serviceUsages from controller include */}
-            {!booking.services &&
-              booking.serviceUsages &&
-              booking.serviceUsages.length > 0 && (
-                <div
-                  className="services-list"
-                  style={{
-                    paddingLeft: "20px",
-                    fontSize: "0.9em",
-                    color: "#666",
-                  }}
-                >
-                  {booking.serviceUsages.map((usage, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <span>
-                        - {usage.service?.name} (x{usage.quantity})
-                      </span>
-                      <span>
-                        {parseFloat(usage.total_price).toLocaleString("vi-VN")}{" "}
-                        VNĐ
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
 
             <div className="price-divider"></div>
             <div className="price-row total">
@@ -595,7 +545,6 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
             )}
           </div>
         </div>
-
         {/* Phương thức thanh toán - Ẩn vì bây giờ luôn là trực tuyến */}
         {canPay && (
           <div className="form-section" style={{ display: "none" }}>
@@ -604,7 +553,6 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
             </Title>
           </div>
         )}
-
         {/* Nút thanh toán */}
         {canPay ? (
           isProcessing ? (
@@ -655,7 +603,6 @@ const PaymentForm = ({ booking, user, onPayment, paying }) => {
             {isPaid ? "Thanh toán thành công" : "Không thể thanh toán"}
           </Button>
         )}
-
         {/* Đã xóa ghi chú thanh toán sau */}
       </Form>
     </Card>
@@ -694,7 +641,7 @@ const BookingHistory = () => {
     socket.on("booking_updated", (data) => {
       if (data.user_id === user?.user_id || !data.user_id) {
         fetchBookings();
-        message.info("Thông tin đặt phòng vừa được cập nhật");
+        // message.info("Thông tin đặt phòng vừa được cập nhật");
       }
     });
 
@@ -709,31 +656,54 @@ const BookingHistory = () => {
     };
   }, []);
 
+  // Sync selectedBooking data when list updates (to avoid stale data)
+  useEffect(() => {
+    if (selectedBooking && bookings.length > 0) {
+      const updated = bookings.find(
+        (b) => b.booking_id === selectedBooking.booking_id,
+      );
+      if (
+        updated &&
+        JSON.stringify(updated) !== JSON.stringify(selectedBooking)
+      ) {
+        setSelectedBooking(updated);
+      }
+    }
+  }, [bookings]);
+
   const handlePayment = async (bookingId, chosenMethod) => {
+    if (["cancelled", "completed", "paid"].includes(selectedBooking?.status)) {
+      return message.warning("Đơn đặt phòng này không thể thanh toán tiếp.");
+    }
+
     try {
       setPaying(true);
 
-      // Nếu khách chọn đổi phương thức thanh toán khác với lúc đầu
-      if (chosenMethod !== selectedBooking.payment_method) {
+      // Chỉ cập nhật phương thức thanh toán nếu thực sự thay đổi
+      if (chosenMethod !== selectedBooking?.payment_method) {
         await bookingApi.update(bookingId, { payment_method: chosenMethod });
-        // Socket hoặc fetch lại sẽ cập nhật list sau
       }
 
       if (chosenMethod === "online") {
         const response = await paymentApi.createPaymentUrl({
           booking_id: bookingId,
         });
-        window.location.href = response.data.paymentUrl;
+
+        if (response.data?.paymentUrl) {
+          window.location.href = response.data.paymentUrl;
+        } else {
+          throw new Error("Không lấy được link thanh toán");
+        }
       } else {
         message.success(
-          "Đã xác nhận thanh toán sau. Hẹn gặp bạn tại khách sạn!"
+          "Đã xác nhận thanh toán sau. Hẹn gặp bạn tại khách sạn!",
         );
         fetchBookings();
       }
     } catch (error) {
       console.error("Error handling payment choice:", error);
       message.error(
-        error.response?.data?.message || "Có lỗi xảy ra khi xử lý thanh toán"
+        error.response?.data?.message || "Có lỗi xảy ra khi xử lý thanh toán",
       );
     } finally {
       setPaying(false);
@@ -742,24 +712,38 @@ const BookingHistory = () => {
 
   const handleCancelBooking = async (bookingId) => {
     try {
+      // Tìm đơn đặt phòng để kiểm tra thời gian
+      const currentBooking = bookings.find((b) => b.booking_id === bookingId);
+      if (!currentBooking) return;
+
+      const checkinDateTime = dayjs(currentBooking.checkin_date);
+      const now = dayjs();
+
+      // Kiểm tra 24h
+      if (checkinDateTime.diff(now, "hour") < 24) {
+        return message.error(
+          "Không thể hủy đơn trong vòng 24h trước khi nhận phòng. Vui lòng liên hệ lễ tân.",
+        );
+      }
+
       setCancelling(bookingId);
 
-      // Kiểm tra xem đơn này đã thanh toán chưa (dựa trên dữ liệu booking hiện tại)
-      const currentBooking = bookings.find((b) => b.booking_id === bookingId);
-      const isPaid = currentBooking?.payments?.some(
-        (p) => p.status === "completed"
-      );
+      // Kiểm tra xem đơn này đã thanh toán chưa
+      const isPaid =
+        (currentBooking?.payments || currentBooking?.invoice?.payments)?.some(
+          (p) => p.status === "completed",
+        ) || currentBooking?.financials?.totalPaid > 0;
       // Nếu đã trả tiền -> Đưa về 'cancelling'. Nếu chưa trả -> 'cancelled' luôn.
       const newStatus = isPaid ? "cancelling" : "cancelled";
       await bookingApi.updateStatus(bookingId, newStatus);
       message.success(
-        isPaid ? "Đã gửi yêu cầu hủy và hoàn tiền" : "Đã hủy đơn thành công"
+        isPaid ? "Đã gửi yêu cầu hủy và hoàn tiền" : "Đã hủy đơn thành công",
       );
 
       fetchBookings();
-      // Nếu đơn đặt phòng đã hủy đang được chọn, hãy xóa lựa chọn
+      // Nếu đơn đặt phòng đã hủy đang được chọn, fetchBookings sẽ lo việc cập nhật state
       if (selectedBooking?.booking_id === bookingId) {
-        setSelectedBooking(validBookings.length > 0 ? validBookings[0] : null);
+        setSelectedBooking(null);
       }
     } catch (error) {
       console.error("Error cancelling booking:", error);
