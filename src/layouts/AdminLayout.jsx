@@ -73,14 +73,14 @@ const AdminLayout = () => {
       icon: <DashboardOutlined />,
       label: "Tổng quan",
       group: "HỆ THỐNG",
-      roles: ["admin"],
+      roles: ["admin", "staff"],
     },
     {
       key: "/vouchers",
       icon: <PercentageOutlined />,
       label: "Quản lý Voucher",
       group: "NGHIỆP VỤ",
-      roles: ["admin"],
+      roles: ["admin", "staff"],
     },
     {
       key: "/room-types",

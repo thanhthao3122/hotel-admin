@@ -41,7 +41,7 @@ const Payments = () => {
 
   const fetchData = async (
     page = pagination.current,
-    limit = pagination.pageSize,
+    limit = pagination.pageSize
   ) => {
     try {
       setLoading(true);
@@ -85,7 +85,7 @@ const Payments = () => {
             return false;
           }
           return true;
-        }),
+        })
       );
 
       setCustomers(customerRes.data || []);
@@ -114,11 +114,11 @@ const Payments = () => {
 
   const customerMap = useMemo(
     () => Object.fromEntries(customers.map((c) => [c.user_id, c])),
-    [customers],
+    [customers]
   );
   const bookingMap = useMemo(
     () => Object.fromEntries(bookings.map((b) => [b.booking_id, b])),
-    [bookings],
+    [bookings]
   );
 
   const filteredPayments = useMemo(() => {
@@ -164,7 +164,7 @@ const Payments = () => {
       console.error(error);
       message.error(
         "Lỗi khi tạo thanh toán: " +
-          (error.response?.data?.message || error.message),
+          (error.response?.data?.message || error.message)
       );
     }
   };
@@ -254,17 +254,17 @@ const Payments = () => {
         let color = isCompleted
           ? "success"
           : isFailed
-            ? "error"
-            : isRefunded
-              ? "purple"
-              : "warning";
+          ? "error"
+          : isRefunded
+          ? "purple"
+          : "warning";
         let text = isCompleted
           ? "Thành công"
           : isFailed
-            ? "Thất bại"
-            : isRefunded
-              ? "Đã hoàn tiền"
-              : "Chờ xử lý";
+          ? "Thất bại"
+          : isRefunded
+          ? "Đã hoàn tiền"
+          : "Chờ xử lý";
 
         return <Tag color={color}>{text.toUpperCase()}</Tag>;
       },
@@ -275,19 +275,7 @@ const Payments = () => {
       render: (v) =>
         v ? new Date(v).toLocaleString("vi-VN") : "Chưa thanh toán",
     },
-    {
-      title: "Hành động",
-      render: (_, r) => (
-        <Popconfirm
-          title="Xóa lịch sử thanh toán?"
-          onConfirm={() => handleDelete(r.payment_id)}
-          okText="Xóa"
-          cancelText="Hủy"
-        >
-          <Button size="small" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
-      ),
-    },
+    
   ];
 
   return (

@@ -498,7 +498,15 @@ export default function Rooms() {
             okButtonProps={{ danger: true }}
             onConfirm={() => handleDelete(record.room_id)}
           >
-            <Button size="small" danger icon={<DeleteOutlined />}>
+             <Button
+              size="small"
+              icon={<DeleteOutlined />}
+              style={{
+                backgroundColor: "#ff4d4f", // đỏ dịu
+                color: "#fff",
+                borderColor: "#ff4d4f",
+              }}
+            >
               Xóa
             </Button>
           </Popconfirm>

@@ -321,7 +321,7 @@ const Bookings = () => {
       },
     },
 
-    // ✅ PHÒNG + DỰ KIẾN
+    //  PHÒNG + DỰ KIẾN
     {
       title: "Phòng",
       width: 200,
@@ -543,9 +543,14 @@ const Bookings = () => {
           >
             <Button
               size="small"
-              danger
               icon={<DeleteOutlined />}
               disabled={r.status !== "cancelled"}
+              style={{
+                backgroundColor:
+                  r.status === "cancelled" ? "#ff4d4f" : undefined,
+                borderColor: r.status === "cancelled" ? "#ff4d4f" : undefined,
+                color: r.status === "cancelled" ? "#fff" : undefined,
+              }}
             >
               Xóa
             </Button>

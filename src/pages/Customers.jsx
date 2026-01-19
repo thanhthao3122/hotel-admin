@@ -92,7 +92,7 @@ const Customers = () => {
       fetchCustomers(pagination.current, pagination.pageSize);
     } catch (error) {
       console.error(error);
-      message.error("Không xóa được khách hàng");
+      message.error("Không thể xóa khách hàng vì đã tồn tại đơn đặt phòng");
     }
   };
 
